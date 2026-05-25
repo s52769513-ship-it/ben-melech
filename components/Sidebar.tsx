@@ -10,6 +10,7 @@ import {
   Star,
   MessageSquare,
   Wallet,
+  ClipboardList,
 } from "lucide-react";
 
 const navItems = [
@@ -18,6 +19,7 @@ const navItems = [
   { href: "/students", label: "בחורים", icon: GraduationCap },
   { href: "/exams", label: "מבחנים", icon: BookOpen },
   { href: "/scores", label: "ציונים", icon: Star },
+  { href: "/attendance", label: "נוכחות", icon: ClipboardList },
   { href: "/inquiries", label: "פניות", icon: MessageSquare },
   { href: "/finances", label: "כספים", icon: Wallet },
 ];
