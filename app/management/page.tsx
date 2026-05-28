@@ -40,7 +40,8 @@ export default async function ManagementPage({
       <div className="flex-1 overflow-hidden">
         <ManagementClient
           exams={sortedExams}
-          scores={scores ?? []}
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          scores={(scores ?? []) as any}
           selectedExamId={selectedExamId}
           activeTab={activeTab}
         />
