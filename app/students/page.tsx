@@ -1,6 +1,7 @@
 import { createClient } from "@/lib/supabase/server";
 import Link from "next/link";
-import { GraduationCap, ChevronLeft } from "lucide-react";
+import { GraduationCap } from "lucide-react";
+import StudentsTable from "@/components/tables/StudentsTable";
 
 export default async function StudentsPage({
   searchParams,
@@ -36,8 +37,9 @@ export default async function StudentsPage({
     if (!scoreMap[s.student_id]) {
       scoreMap[s.student_id] = { total: 0, count: 0, attended: 0, sessions: 0 };
     }
-    const avg = [s.chassidut_score, s.halacha_score, s.tefila_score]
-      .filter((v): v is number => v !== null);
+    const avg = [s.chassidut_score, s.halacha_score, s.tefila_score].filter(
+      (v): v is number => v !== null
+    );
     if (avg.length) {
       scoreMap[s.student_id].total += avg.reduce((a, b) => a + b, 0) / avg.length;
       scoreMap[s.student_id].count++;
@@ -105,93 +107,17 @@ export default async function StudentsPage({
           סנן
         </button>
         {(filters.coordinator || filters.city || filters.yeshiva) && (
-          <Link
-            href="/students"
-            className="text-sm text-gray-500 hover:text-gray-700 py-2"
-          >
+          <Link href="/students" className="text-sm text-gray-500 hover:text-gray-700 py-2">
             נקה סינון
           </Link>
         )}
       </form>
 
-      <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
-        <table className="w-full text-sm">
-          <thead className="bg-gray-50 border-b border-gray-200">
-            <tr>
-              <th className="text-right px-6 py-4 font-semibold text-gray-600">שם</th>
-              <th className="text-right px-6 py-4 font-semibold text-gray-600">רכז</th>
-              <th className="text-right px-6 py-4 font-semibold text-gray-600">עיר</th>
-              <th className="text-right px-6 py-4 font-semibold text-gray-600">ישיבה</th>
-              <th className="text-right px-6 py-4 font-semibold text-gray-600">מסלול</th>
-              <th className="text-right px-6 py-4 font-semibold text-gray-600">נוכחות</th>
-              <th className="text-right px-6 py-4 font-semibold text-gray-600">ציון ממוצע</th>
-              <th className="px-6 py-4"></th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-gray-100">
-            {students && students.length > 0 ? (
-              students.map((student) => {
-                const stats = scoreMap[student.id];
-                const avgScore = stats && stats.count > 0
-                  ? (stats.total / stats.count).toFixed(1)
-                  : "—";
-                const attendance =
-                  stats && stats.sessions > 0
-                    ? Math.round((stats.attended / stats.sessions) * 100) + "%"
-                    : "—";
-                const coordinator = student.coordinator as { name: string } | null;
-                return (
-                  <tr key={student.id} className="hover:bg-gray-50 transition-colors">
-                    <td className="px-6 py-4 font-medium text-gray-900">
-                      {student.first_name} {student.last_name}
-                    </td>
-                    <td className="px-6 py-4 text-gray-600">
-                      {coordinator ? (
-                        <Link
-                          href={`/coordinators/${student.coordinator_id}`}
-                          className="text-blue-600 hover:underline"
-                        >
-                          {coordinator.name}
-                        </Link>
-                      ) : (
-                        <span className="text-gray-300">—</span>
-                      )}
-                    </td>
-                    <td className="px-6 py-4 text-gray-600">{student.city ?? "—"}</td>
-                    <td className="px-6 py-4 text-gray-600">{student.yeshiva ?? "—"}</td>
-                    <td className="px-6 py-4 text-gray-600">{student.track ?? "—"}</td>
-                    <td className="px-6 py-4 text-gray-600">{attendance}</td>
-                    <td className="px-6 py-4">
-                      {avgScore !== "—" ? (
-                        <span className="bg-blue-50 text-blue-700 font-semibold text-xs px-2.5 py-1 rounded-full">
-                          {avgScore}
-                        </span>
-                      ) : (
-                        <span className="text-gray-300">—</span>
-                      )}
-                    </td>
-                    <td className="px-6 py-4">
-                      <Link
-                        href={`/students/${student.id}`}
-                        className="flex items-center gap-1 text-blue-600 hover:text-blue-800 font-medium text-xs"
-                      >
-                        פרופיל
-                        <ChevronLeft size={14} />
-                      </Link>
-                    </td>
-                  </tr>
-                );
-              })
-            ) : (
-              <tr>
-                <td colSpan={8} className="px-6 py-16 text-center text-gray-400">
-                  אין בחורים להצגה
-                </td>
-              </tr>
-            )}
-          </tbody>
-        </table>
-      </div>
+      <StudentsTable
+        students={students ?? []}
+        coordinators={coordinators ?? []}
+        scoreMap={scoreMap}
+      />
     </div>
   );
 }

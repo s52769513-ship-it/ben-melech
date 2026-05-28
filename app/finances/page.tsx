@@ -1,6 +1,7 @@
 import { createClient } from "@/lib/supabase/server";
 import Link from "next/link";
 import { Wallet, TrendingUp } from "lucide-react";
+import FinancesTable from "@/components/tables/FinancesTable";
 
 export default async function FinancesPage() {
   const supabase = await createClient();
@@ -9,6 +10,11 @@ export default async function FinancesPage() {
     .from("finances")
     .select("*, coordinator:coordinators(id, name)")
     .order("payment_date", { ascending: false });
+
+  const { data: coordinators } = await supabase
+    .from("coordinators")
+    .select("id, name")
+    .order("name");
 
   const coordinatorTotals: Record<
     string,
@@ -54,68 +60,7 @@ export default async function FinancesPage() {
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
         <div className="lg:col-span-2">
-          <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
-            <div className="px-6 py-4 bg-gray-50 border-b border-gray-200">
-              <h2 className="font-semibold text-gray-700">
-                כל התשלומים ({finances?.length ?? 0})
-              </h2>
-            </div>
-            <table className="w-full text-sm">
-              <thead className="border-b border-gray-200">
-                <tr>
-                  <th className="text-right px-6 py-4 font-semibold text-gray-600">שם</th>
-                  <th className="text-right px-6 py-4 font-semibold text-gray-600">רכז</th>
-                  <th className="text-right px-6 py-4 font-semibold text-gray-600">תאריך תשלום</th>
-                  <th className="text-right px-6 py-4 font-semibold text-gray-600">סכום</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-100">
-                {finances && finances.length > 0 ? (
-                  finances.map((finance) => {
-                    const coordinator = finance.coordinator as {
-                      id: string;
-                      name: string;
-                    } | null;
-                    return (
-                      <tr key={finance.id} className="hover:bg-gray-50 transition-colors">
-                        <td className="px-6 py-4 font-medium text-gray-900">
-                          {finance.name ?? "—"}
-                        </td>
-                        <td className="px-6 py-4 text-gray-600">
-                          {coordinator ? (
-                            <Link
-                              href={`/coordinators/${coordinator.id}`}
-                              className="text-blue-600 hover:underline"
-                            >
-                              {coordinator.name}
-                            </Link>
-                          ) : (
-                            <span className="text-gray-300">—</span>
-                          )}
-                        </td>
-                        <td className="px-6 py-4 text-gray-600">
-                          {finance.payment_date
-                            ? new Date(finance.payment_date).toLocaleDateString("he-IL")
-                            : "—"}
-                        </td>
-                        <td className="px-6 py-4">
-                          <span className="font-semibold text-[#1e3a5f]">
-                            ₪{finance.amount?.toLocaleString() ?? 0}
-                          </span>
-                        </td>
-                      </tr>
-                    );
-                  })
-                ) : (
-                  <tr>
-                    <td colSpan={4} className="px-6 py-16 text-center text-gray-400">
-                      אין תשלומים במערכת
-                    </td>
-                  </tr>
-                )}
-              </tbody>
-            </table>
-          </div>
+          <FinancesTable finances={finances ?? []} coordinators={coordinators ?? []} />
         </div>
 
         <div className="lg:col-span-1">
@@ -142,7 +87,9 @@ export default async function FinancesPage() {
                       </div>
                       <div className="flex items-center justify-between text-xs text-gray-400 mb-1.5">
                         <span>{c.count} תשלומים</span>
-                        <span>{grandTotal > 0 ? Math.round((c.total / grandTotal) * 100) : 0}%</span>
+                        <span>
+                          {grandTotal > 0 ? Math.round((c.total / grandTotal) * 100) : 0}%
+                        </span>
                       </div>
                       <div className="h-1.5 bg-gray-100 rounded-full overflow-hidden">
                         <div
