@@ -142,7 +142,7 @@ export default function AttendanceClient({
   const grouped = useMemo(() => {
     const map = new Map<string, Score[]>();
     filteredScores.forEach((s) => {
-      const key = s.student?.coordinator?.name ?? "ללא רכז";
+      const key = s.student?.coordinator?.name ?? "ללא משפיע";
       if (!map.has(key)) map.set(key, []);
       map.get(key)!.push(s);
     });
@@ -213,7 +213,7 @@ export default function AttendanceClient({
       @media print{body{-webkit-print-color-adjust:exact;print-color-adjust:exact}}
     </style></head><body>
     <h1>${selectedExam.parasha}</h1>
-    <div class="subtitle">סה"כ ${filteredScores.length} בחורים | ${grouped.length} רכזים | ${progressStats.participated} השתתפו בסדר (${progressStats.pct}%)</div>`;
+    <div class="subtitle">סה"כ ${filteredScores.length} בחורים | ${grouped.length} משפיעים | ${progressStats.participated} השתתפו בסדר (${progressStats.pct}%)</div>`;
 
     grouped.forEach(([coordName, records]) => {
       html += `<h2>${coordName} — ${records.length} בחורים</h2>
@@ -260,7 +260,7 @@ export default function AttendanceClient({
         {/* Coordinator filter */}
         <div className="flex flex-col gap-1">
           <label className="text-xs font-medium text-gray-500 flex items-center gap-1">
-            <Filter size={11} /> רכז
+            <Filter size={11} /> משפיע
           </label>
           <select
             value={coordinatorFilter}
@@ -343,7 +343,7 @@ export default function AttendanceClient({
               }`}
             >
               <AlertTriangle size={14} />
-              {missingCoordinators.length} רכזים ללא נתונים
+              {missingCoordinators.length} משפיעים ללא נתונים
             </button>
           </div>
 
@@ -376,7 +376,7 @@ export default function AttendanceClient({
             onClick={(e) => e.stopPropagation()}
           >
             <div className="flex items-center justify-between mb-4">
-              <h3 className="text-base font-bold text-gray-800">רכזים ללא נתונים השבוע</h3>
+              <h3 className="text-base font-bold text-gray-800">משפיעים ללא נתונים השבוע</h3>
               <button
                 onClick={() => setShowMissingModal(false)}
                 className="p-1 hover:bg-gray-100 rounded-lg"
@@ -385,7 +385,7 @@ export default function AttendanceClient({
               </button>
             </div>
             {missingCoordinators.length === 0 ? (
-              <p className="text-green-600 text-center py-4 font-medium">כל הרכזים הזינו נתונים ✓</p>
+              <p className="text-green-600 text-center py-4 font-medium">כל המשפיעים הזינו נתונים ✓</p>
             ) : (
               <ul className="space-y-1.5 max-h-64 overflow-y-auto">
                 {missingCoordinators.map((name) => (
@@ -395,7 +395,7 @@ export default function AttendanceClient({
                 ))}
               </ul>
             )}
-            <p className="mt-4 text-xs text-gray-400 text-center">סה"כ: {missingCoordinators.length} רכזים</p>
+            <p className="mt-4 text-xs text-gray-400 text-center">סה"כ: {missingCoordinators.length} משפיעים</p>
           </div>
         </div>
       )}
@@ -490,7 +490,7 @@ export default function AttendanceClient({
 
         <div className="px-5 py-3 bg-gray-50 border-t border-gray-200 text-xs text-gray-500 flex gap-4">
           <span>סה"כ: {filteredScores.length} בחורים</span>
-          <span>{grouped.length} רכזים</span>
+          <span>{grouped.length} משפיעים</span>
           <span className="flex items-center gap-1.5 mr-2 text-gray-400">
             <span className="w-3 h-3 rounded-sm bg-green-100 inline-block" /> 80%+ נוכחות
             <span className="w-3 h-3 rounded-sm bg-yellow-50 inline-block mr-1" /> 40-79%

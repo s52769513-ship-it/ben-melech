@@ -124,7 +124,7 @@ export default function InquiriesTable({ inquiries, coordinators, students }: Pr
             <tr>
               <th className="text-right px-6 py-4 font-semibold text-gray-600">כותרת</th>
               <th className="text-right px-6 py-4 font-semibold text-gray-600">בחור</th>
-              <th className="text-right px-6 py-4 font-semibold text-gray-600">רכז</th>
+              <th className="text-right px-6 py-4 font-semibold text-gray-600">משפיע</th>
               <th className="text-right px-6 py-4 font-semibold text-gray-600">קטגוריה</th>
               <th className="text-right px-6 py-4 font-semibold text-gray-600">תאריך פתיחה</th>
               <th className="text-right px-6 py-4 font-semibold text-gray-600">ימים פתוח</th>
@@ -270,13 +270,13 @@ export default function InquiriesTable({ inquiries, coordinators, students }: Pr
               </select>
             </div>
             <div className="flex flex-col gap-1">
-              <label className="text-xs font-medium text-gray-500">רכז</label>
+              <label className="text-xs font-medium text-gray-500">משפיע</label>
               <select
                 value={form.coordinator_id}
                 onChange={(e) => set("coordinator_id", e.target.value)}
                 className="text-sm border border-gray-200 rounded-lg px-3 py-2 bg-white focus:outline-none focus:ring-2 focus:ring-blue-300"
               >
-                <option value="">ללא רכז</option>
+                <option value="">ללא משפיע</option>
                 {coordinators.map((c) => (
                   <option key={c.id} value={c.id}>
                     {c.name}

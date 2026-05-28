@@ -84,7 +84,7 @@ export default function FinancesTable({ finances, coordinators }: Props) {
           <thead className="border-b border-gray-200">
             <tr>
               <th className="text-right px-6 py-4 font-semibold text-gray-600">שם</th>
-              <th className="text-right px-6 py-4 font-semibold text-gray-600">רכז</th>
+              <th className="text-right px-6 py-4 font-semibold text-gray-600">משפיע</th>
               <th className="text-right px-6 py-4 font-semibold text-gray-600">תאריך תשלום</th>
               <th className="text-right px-6 py-4 font-semibold text-gray-600">סכום</th>
             </tr>
@@ -173,13 +173,13 @@ export default function FinancesTable({ finances, coordinators }: Props) {
               />
             </div>
             <div className="flex flex-col gap-1 col-span-2">
-              <label className="text-xs font-medium text-gray-500">רכז</label>
+              <label className="text-xs font-medium text-gray-500">משפיע</label>
               <select
                 value={form.coordinator_id}
                 onChange={(e) => set("coordinator_id", e.target.value)}
                 className="text-sm border border-gray-200 rounded-lg px-3 py-2 bg-white focus:outline-none focus:ring-2 focus:ring-blue-300"
               >
-                <option value="">ללא רכז</option>
+                <option value="">ללא משפיע</option>
                 {coordinators.map((c) => (
                   <option key={c.id} value={c.id}>
                     {c.name}

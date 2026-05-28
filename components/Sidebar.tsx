@@ -16,7 +16,7 @@ import {
 
 const navItems = [
   { href: "/", label: "לוח בקרה", icon: LayoutDashboard },
-  { href: "/coordinators", label: "רכזים", icon: Users },
+  { href: "/coordinators", label: "משפיעים", icon: Users },
   { href: "/students", label: "בחורים", icon: GraduationCap },
   { href: "/exams", label: "מבחנים", icon: BookOpen },
   { href: "/scores", label: "ציונים", icon: Star },

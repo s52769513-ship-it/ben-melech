@@ -63,10 +63,10 @@ export default async function CoordinatorDetailPage({
           className="flex items-center gap-1 text-blue-600 hover:underline text-sm mb-4"
         >
           <ArrowRight size={14} />
-          חזרה לרכזים
+          חזרה למשפיעים
         </Link>
         <h1 className="text-3xl font-bold text-[#1e3a5f]">{coordinator.name}</h1>
-        <p className="text-gray-500 mt-1">פרופיל רכז</p>
+        <p className="text-gray-500 mt-1">פרופיל משפיע</p>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
@@ -163,7 +163,7 @@ export default async function CoordinatorDetailPage({
                 </tbody>
               </table>
             ) : (
-              <p className="text-gray-400 text-sm text-center py-6">אין בחורים משויכים לרכז זה</p>
+              <p className="text-gray-400 text-sm text-center py-6">אין בחורים משויכים למשפיע זה</p>
             )}
           </div>
 

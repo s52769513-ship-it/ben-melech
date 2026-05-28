@@ -62,13 +62,13 @@ export default async function StudentsPage({
 
       <form className="bg-white rounded-xl border border-gray-200 p-4 mb-6 flex flex-wrap gap-4 items-end">
         <div className="flex flex-col gap-1">
-          <label className="text-xs font-medium text-gray-500">סינון לפי רכז</label>
+          <label className="text-xs font-medium text-gray-500">סינון לפי משפיע</label>
           <select
             name="coordinator"
             defaultValue={filters.coordinator ?? ""}
             className="text-sm border border-gray-200 rounded-lg px-3 py-2 bg-white focus:outline-none focus:ring-2 focus:ring-blue-300"
           >
-            <option value="">כל הרכזים</option>
+            <option value="">כל המשפיעים</option>
             {(coordinators ?? []).map((c) => (
               <option key={c.id} value={c.id}>
                 {c.name}

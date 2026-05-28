@@ -123,7 +123,7 @@ export default function StudentsTable({ students, coordinators, scoreMap }: Prop
           <thead className="bg-gray-50 border-b border-gray-200">
             <tr>
               <th className="text-right px-6 py-4 font-semibold text-gray-600">שם</th>
-              <th className="text-right px-6 py-4 font-semibold text-gray-600">רכז</th>
+              <th className="text-right px-6 py-4 font-semibold text-gray-600">משפיע</th>
               <th className="text-right px-6 py-4 font-semibold text-gray-600">עיר</th>
               <th className="text-right px-6 py-4 font-semibold text-gray-600">ישיבה</th>
               <th className="text-right px-6 py-4 font-semibold text-gray-600">מסלול</th>
@@ -311,13 +311,13 @@ export default function StudentsTable({ students, coordinators, scoreMap }: Prop
               />
             </div>
             <div className="flex flex-col gap-1">
-              <label className="text-xs font-medium text-gray-500">רכז</label>
+              <label className="text-xs font-medium text-gray-500">משפיע</label>
               <select
                 value={form.coordinator_id}
                 onChange={(e) => set("coordinator_id", e.target.value)}
                 className="text-sm border border-gray-200 rounded-lg px-3 py-2 bg-white focus:outline-none focus:ring-2 focus:ring-blue-300"
               >
-                <option value="">ללא רכז</option>
+                <option value="">ללא משפיע</option>
                 {coordinators.map((c) => (
                   <option key={c.id} value={c.id}>
                     {c.name}

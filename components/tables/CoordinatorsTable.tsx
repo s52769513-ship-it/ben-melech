@@ -170,7 +170,7 @@ export default function CoordinatorsTable({ coordinators, studentCountMap, inqui
             ) : (
               <tr>
                 <td colSpan={7} className="px-6 py-16 text-center text-gray-400">
-                  אין רכזים במערכת
+                  אין משפיעים במערכת
                 </td>
               </tr>
             )}

@@ -87,7 +87,7 @@ export default async function ExamDetailPage({
             <thead className="border-b border-gray-200">
               <tr>
                 <th className="text-right px-6 py-3.5 font-semibold text-gray-600">בחור</th>
-                <th className="text-right px-6 py-3.5 font-semibold text-gray-600">רכז</th>
+                <th className="text-right px-6 py-3.5 font-semibold text-gray-600">משפיע</th>
                 <th className="text-right px-6 py-3.5 font-semibold text-gray-600">חסידות</th>
                 <th className="text-right px-6 py-3.5 font-semibold text-gray-600">הלכה</th>
                 <th className="text-right px-6 py-3.5 font-semibold text-gray-600">תפילה</th>

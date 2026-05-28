@@ -107,6 +107,17 @@ CREATE TABLE coordinator_instructions (
   bank_notice BOOLEAN DEFAULT false
 );
 
+CREATE TABLE coordinator_exam_notes (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  created_at TIMESTAMPTZ DEFAULT now(),
+  coordinator_id UUID REFERENCES coordinators(id) ON DELETE CASCADE,
+  exam_id UUID REFERENCES exams(id) ON DELETE CASCADE,
+  sicha_beinyan TEXT,
+  maskana TEXT,
+  hemshech_tipul TEXT,
+  UNIQUE(coordinator_id, exam_id)
+);
+
 ALTER TABLE coordinators ENABLE ROW LEVEL SECURITY;
 ALTER TABLE students ENABLE ROW LEVEL SECURITY;
 ALTER TABLE exams ENABLE ROW LEVEL SECURITY;

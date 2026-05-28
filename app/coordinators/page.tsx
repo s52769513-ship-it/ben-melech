@@ -43,10 +43,10 @@ export default async function CoordinatorsPage() {
       <div className="mb-8">
         <h1 className="text-3xl font-bold text-[#1e3a5f] flex items-center gap-2">
           <Users size={28} />
-          רכזים
+          משפיעים
         </h1>
         <p className="text-gray-500 mt-1">
-          {coordinators?.length ?? 0} רכזים במערכת
+          {coordinators?.length ?? 0} משפיעים במערכת
         </p>
       </div>
 

@@ -198,9 +198,9 @@ export default function StudentDetailsCard({ student, coordinator, coordinators 
           </div>
 
           <div>
-            <label className={labelCls}>רכז</label>
+            <label className={labelCls}>משפיע</label>
             <select className={inputCls} value={form.coordinator_id} onChange={(e) => set("coordinator_id", e.target.value)}>
-              <option value="">ללא רכז</option>
+              <option value="">ללא משפיע</option>
               {coordinators.map((c) => (
                 <option key={c.id} value={c.id}>{c.name}</option>
               ))}
@@ -317,7 +317,7 @@ export default function StudentDetailsCard({ student, coordinator, coordinators 
 
       {coordinator && (
         <div className="mt-5 pt-5 border-t border-gray-100">
-          <h3 className="text-sm font-semibold text-gray-700 mb-2">רכז</h3>
+          <h3 className="text-sm font-semibold text-gray-700 mb-2">משפיע</h3>
           <Link
             href={`/coordinators/${coordinator.id}`}
             className="text-sm text-blue-600 hover:underline"

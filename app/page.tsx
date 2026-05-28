@@ -68,10 +68,10 @@ export default async function DashboardPage() {
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5 mb-10">
         <StatCard
-          title="רכזים"
+          title="משפיעים"
           value={coordinatorsCount ?? 0}
           icon={Users}
-          description="סה״כ רכזים פעילים"
+          description="סה״כ משפיעים פעילים"
           color="blue"
         />
         <StatCard

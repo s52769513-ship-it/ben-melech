@@ -67,7 +67,7 @@ export default async function FinancesPage() {
           <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
             <div className="px-6 py-4 bg-gray-50 border-b border-gray-200 flex items-center gap-2">
               <TrendingUp size={16} className="text-gray-500" />
-              <h2 className="font-semibold text-gray-700">סיכום לפי רכז</h2>
+              <h2 className="font-semibold text-gray-700">סיכום לפי משפיע</h2>
             </div>
             <div className="p-6">
               {sortedCoordinators.length > 0 ? (
