@@ -1,7 +1,8 @@
 import { createClient } from "@/lib/supabase/server";
 import Link from "next/link";
-import { ArrowRight, User, Phone, MapPin, Calendar, BookOpen, Star } from "lucide-react";
+import { ArrowRight, Star } from "lucide-react";
 import { notFound } from "next/navigation";
+import StudentDetailsCard from "@/components/StudentDetailsCard";
 
 export default async function StudentDetailPage({
   params,
@@ -15,6 +16,7 @@ export default async function StudentDetailPage({
     { data: student },
     { data: scores },
     { data: inquiries },
+    { data: coordinators },
   ] = await Promise.all([
     supabase
       .from("students")
@@ -23,9 +25,7 @@ export default async function StudentDetailPage({
       .single(),
     supabase
       .from("scores")
-      .select(
-        "*, exam:exams(id, parasha, exam_date)"
-      )
+      .select("*, exam:exams(id, parasha, exam_date)")
       .eq("student_id", id)
       .order("created_at", { ascending: false }),
     supabase
@@ -33,6 +33,7 @@ export default async function StudentDetailPage({
       .select("*")
       .eq("student_id", id)
       .order("created_at", { ascending: false }),
+    supabase.from("coordinators").select("id, name").order("name"),
   ]);
 
   if (!student) notFound();
@@ -72,95 +73,11 @@ export default async function StudentDetailPage({
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <div className="lg:col-span-1 space-y-6">
-          <div className="bg-white rounded-xl border border-gray-200 p-6">
-            <h2 className="text-lg font-semibold text-[#1e3a5f] mb-4 flex items-center gap-2">
-              <User size={18} />
-              פרטים אישיים
-            </h2>
-            <dl className="space-y-3 text-sm">
-              {student.city && (
-                <div className="flex items-center gap-2 text-gray-600">
-                  <MapPin size={14} className="text-gray-400 shrink-0" />
-                  <span>{student.city}</span>
-                  {student.street && <span className="text-gray-400">, {student.street}</span>}
-                </div>
-              )}
-              {student.phone && (
-                <div className="flex items-center gap-2 text-gray-600">
-                  <Phone size={14} className="text-gray-400 shrink-0" />
-                  <span>{student.phone}</span>
-                </div>
-              )}
-              {student.birth_date && (
-                <div className="flex items-center gap-2 text-gray-600">
-                  <Calendar size={14} className="text-gray-400 shrink-0" />
-                  <span>
-                    {new Date(student.birth_date).toLocaleDateString("he-IL")}
-                  </span>
-                </div>
-              )}
-              {student.father_name && (
-                <div className="text-gray-600">
-                  <span className="text-gray-400 text-xs">שם האב: </span>
-                  {student.father_name}
-                </div>
-              )}
-              {student.id_number && (
-                <div className="text-gray-600">
-                  <span className="text-gray-400 text-xs">ת.ז: </span>
-                  {student.id_number}
-                </div>
-              )}
-              {student.enrollment_date && (
-                <div className="text-gray-600">
-                  <span className="text-gray-400 text-xs">תאריך הצטרפות: </span>
-                  {new Date(student.enrollment_date).toLocaleDateString("he-IL")}
-                </div>
-              )}
-            </dl>
-
-            {(student.yeshiva || student.track) && (
-              <div className="mt-5 pt-5 border-t border-gray-100">
-                <h3 className="text-sm font-semibold text-gray-700 mb-3 flex items-center gap-2">
-                  <BookOpen size={14} />
-                  לימודים
-                </h3>
-                <dl className="space-y-2 text-sm text-gray-600">
-                  {student.yeshiva && (
-                    <div>
-                      <span className="text-gray-400 text-xs">ישיבה: </span>
-                      {student.yeshiva}
-                    </div>
-                  )}
-                  {student.track && (
-                    <div>
-                      <span className="text-gray-400 text-xs">מסלול: </span>
-                      {student.track}
-                    </div>
-                  )}
-                </dl>
-              </div>
-            )}
-
-            {coordinator && (
-              <div className="mt-5 pt-5 border-t border-gray-100">
-                <h3 className="text-sm font-semibold text-gray-700 mb-2">רכז</h3>
-                <Link
-                  href={`/coordinators/${coordinator.id}`}
-                  className="text-sm text-blue-600 hover:underline"
-                >
-                  {coordinator.name}
-                </Link>
-              </div>
-            )}
-
-            {student.notes && (
-              <div className="mt-5 pt-5 border-t border-gray-100">
-                <h3 className="text-sm font-semibold text-gray-700 mb-2">הערות</h3>
-                <p className="text-sm text-gray-600">{student.notes}</p>
-              </div>
-            )}
-          </div>
+          <StudentDetailsCard
+            student={student}
+            coordinator={coordinator}
+            coordinators={coordinators ?? []}
+          />
 
           <div className="bg-white rounded-xl border border-gray-200 p-6">
             <h2 className="text-lg font-semibold text-[#1e3a5f] mb-4 flex items-center gap-2">
@@ -202,15 +119,9 @@ export default async function StudentDetailPage({
                               ? new Date(exam.exam_date).toLocaleDateString("he-IL")
                               : "—"}
                           </td>
-                          <td className="px-3 py-2.5 text-gray-700">
-                            {score.chassidut_score ?? "—"}
-                          </td>
-                          <td className="px-3 py-2.5 text-gray-700">
-                            {score.halacha_score ?? "—"}
-                          </td>
-                          <td className="px-3 py-2.5 text-gray-700">
-                            {score.tefila_score ?? "—"}
-                          </td>
+                          <td className="px-3 py-2.5 text-gray-700">{score.chassidut_score ?? "—"}</td>
+                          <td className="px-3 py-2.5 text-gray-700">{score.halacha_score ?? "—"}</td>
+                          <td className="px-3 py-2.5 text-gray-700">{score.tefila_score ?? "—"}</td>
                           <td className="px-3 py-2.5">
                             {score.attended_seder ? (
                               <span className="text-green-600 font-medium">✓</span>
@@ -245,14 +156,10 @@ export default async function StudentDetailPage({
                     <div>
                       <p className="font-medium text-gray-800">{inq.title}</p>
                       {inq.description && (
-                        <p className="text-xs text-gray-400 mt-0.5 line-clamp-1">
-                          {inq.description}
-                        </p>
+                        <p className="text-xs text-gray-400 mt-0.5 line-clamp-1">{inq.description}</p>
                       )}
                       <p className="text-xs text-gray-400 mt-0.5">
-                        {inq.created_at
-                          ? new Date(inq.created_at).toLocaleDateString("he-IL")
-                          : ""}
+                        {inq.created_at ? new Date(inq.created_at).toLocaleDateString("he-IL") : ""}
                       </p>
                     </div>
                     <span
