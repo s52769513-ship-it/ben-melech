@@ -12,6 +12,7 @@ import {
   Wallet,
   ClipboardList,
   Settings,
+  TableProperties,
 } from "lucide-react";
 
 const navItems = [
@@ -21,6 +22,7 @@ const navItems = [
   { href: "/exams", label: "מבחנים", icon: BookOpen },
   { href: "/scores", label: "ציונים", icon: Star },
   { href: "/attendance", label: "נוכחות", icon: ClipboardList },
+  { href: "/overview", label: "סקירת נוכחות", icon: TableProperties },
   { href: "/inquiries", label: "פניות", icon: MessageSquare },
   { href: "/finances", label: "כספים", icon: Wallet },
 ];
