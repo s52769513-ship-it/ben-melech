@@ -53,18 +53,28 @@ const ZMANIM_LIST: { label: string; key: keyof ZmanimTimes }[] = [
 ];
 
 export default function ZmanimBar() {
+  const [mounted, setMounted] = useState(false);
   const [data, setData] = useState<ZmanimData | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [now, setNow] = useState(() => new Date());
+  const [fetchError, setFetchError] = useState(false);
+  const [now, setNow] = useState<Date | null>(null);
+
+  // Prevent hydration mismatch — only render dynamic content after mount
+  useEffect(() => {
+    setMounted(true);
+    setNow(new Date());
+  }, []);
 
   // Live clock
   useEffect(() => {
+    if (!mounted) return;
     const id = setInterval(() => setNow(new Date()), 1000);
     return () => clearInterval(id);
-  }, []);
+  }, [mounted]);
 
   // Fetch zmanim once on mount
   useEffect(() => {
+    if (!mounted) return;
+
     async function load() {
       const today = new Date();
       const dateStr = today.toISOString().slice(0, 10);
@@ -73,16 +83,12 @@ export default function ZmanimBar() {
 
       try {
         const [zmanimRes, converterRes, learningRes] = await Promise.all([
-          fetch(
-            `https://www.hebcal.com/zmanim?cfg=json&geonameid=281184&date=${dateStr}`
-          ),
-          fetch(
-            `https://www.hebcal.com/converter?cfg=json&g2h=1&gy=${y}&gm=${m}&gd=${d}`
-          ),
-          fetch(
-            `https://www.hebcal.com/learning?cfg=json&v=1&daf_yomi=on&start=${dateStr}&end=${dateStr}`
-          ),
+          fetch(`https://www.hebcal.com/zmanim?cfg=json&geonameid=281184&date=${dateStr}`),
+          fetch(`https://www.hebcal.com/converter?cfg=json&g2h=1&gy=${y}&gm=${m}&gd=${d}`),
+          fetch(`https://www.hebcal.com/learning?cfg=json&v=1&daf_yomi=on&start=${dateStr}&end=${dateStr}`),
         ]);
+
+        if (!zmanimRes.ok || !converterRes.ok) throw new Error("fetch failed");
 
         const [zmanimJson, converterJson, learningJson] = await Promise.all([
           zmanimRes.json(),
@@ -92,131 +98,106 @@ export default function ZmanimBar() {
 
         const hebrewDate: string = converterJson.hebrew ?? "";
         const dafItem = (learningJson.items ?? []).find(
-          (i: { category: string; hebrew?: string; title?: string }) =>
-            i.category === "dafyomi"
+          (i: { category: string; hebrew?: string; title?: string }) => i.category === "dafyomi"
         );
         const dafYomi: string = dafItem?.hebrew ?? dafItem?.title ?? "";
-
         const times: ZmanimTimes = zmanimJson.times ?? {};
 
-        // Candle lighting = sunset - 18 min
         let candleLighting: string | undefined;
         if (isFriday && times.sunset) {
-          const sunsetMs = new Date(times.sunset).getTime();
-          const candles = new Date(sunsetMs - 18 * 60 * 1000);
-          candleLighting = candles.toISOString();
+          candleLighting = new Date(new Date(times.sunset).getTime() - 18 * 60 * 1000).toISOString();
         }
 
         setData({ hebrewDate, dafYomi, times, isFriday, candleLighting });
       } catch {
-        // fail silently — bar won't show zmanim but clock still works
-      } finally {
-        setLoading(false);
+        setFetchError(true);
       }
     }
 
     load();
-  }, []);
+  }, [mounted]);
 
-  // Countdown target: candle lighting on Friday, otherwise sunset
-  const countdownIso = data?.isFriday
-    ? data.candleLighting ?? data.times.sunset
-    : data?.times.sunset;
-
-  const countdownLabel = data?.isFriday ? "כניסת שבת" : "שקיעה";
-  const countdownTarget = countdownIso ? new Date(countdownIso) : null;
-  const countdownStr =
-    countdownTarget && countdownTarget > now
-      ? getCountdown(countdownTarget, now)
-      : null;
+  // Don't render anything until client-side (avoids hydration mismatch)
+  if (!mounted || !now) return null;
 
   const currentTimeStr = `${pad(now.getHours())}:${pad(now.getMinutes())}:${pad(now.getSeconds())}`;
+
+  const countdownIso = data?.isFriday ? (data.candleLighting ?? data.times.sunset) : data?.times.sunset;
+  const countdownLabel = data?.isFriday ? "כניסת שבת" : "שקיעה";
+  const countdownTarget = countdownIso ? new Date(countdownIso) : null;
+  const countdownStr = countdownTarget && countdownTarget > now ? getCountdown(countdownTarget, now) : null;
 
   return (
     <div
       dir="rtl"
-      className="sticky top-0 z-30 bg-[#152d4a] border-b border-[#2d4f7f] text-white text-xs flex items-center gap-0 overflow-x-auto print:hidden"
+      className="sticky top-0 z-30 bg-[#152d4a] border-b border-[#2d4f7f] text-white text-xs flex items-center overflow-x-auto print:hidden shrink-0"
     >
       {/* Clock */}
       <div className="flex items-center gap-1.5 px-4 py-2.5 border-l border-[#2d4f7f] shrink-0">
         <Clock size={13} className="text-blue-400" />
-        <span className="font-mono font-semibold text-sm tracking-wide">
-          {currentTimeStr}
-        </span>
+        <span className="font-mono font-semibold text-sm tracking-wide">{currentTimeStr}</span>
       </div>
 
-      {loading ? (
+      {fetchError ? (
+        <span className="px-4 text-blue-500 text-xs">לא ניתן לטעון זמנים</span>
+      ) : !data ? (
         <span className="px-4 text-blue-400 animate-pulse">טוען זמנים...</span>
-      ) : data ? (
+      ) : (
         <>
-          {/* Hebrew date */}
           {data.hebrewDate && (
             <div className="flex items-center gap-1.5 px-4 py-2.5 border-l border-[#2d4f7f] shrink-0">
               <span className="text-blue-300 font-medium">{data.hebrewDate}</span>
             </div>
           )}
 
-          {/* Daf Yomi */}
           {data.dafYomi && (
             <div className="flex items-center gap-1.5 px-4 py-2.5 border-l border-[#2d4f7f] shrink-0">
               <BookOpen size={12} className="text-blue-400 shrink-0" />
               <span className="text-blue-300">דף יומי:</span>
-              <span className="font-medium text-white">{data.dafYomi}</span>
+              <span className="font-medium text-white mr-1">{data.dafYomi}</span>
             </div>
           )}
 
-          {/* Zmanim */}
           <div className="flex items-center border-l border-[#2d4f7f]">
             {ZMANIM_LIST.map(({ label, key }) => {
               const val = data.times[key];
               if (!val) return null;
-              const isSunset = key === "sunset";
-              const isSunrise = key === "sunrise";
               return (
                 <div
                   key={key}
-                  className="flex items-center gap-1 px-3 py-2.5 border-l border-[#2d4f7f]/60 shrink-0 hover:bg-[#1e3a5f] transition-colors"
+                  className="flex items-center gap-1 px-3 py-2.5 border-l border-[#2d4f7f]/50 shrink-0"
                 >
-                  {(isSunrise || isSunset) && (
-                    <Sun size={11} className={isSunset ? "text-orange-400" : "text-yellow-300"} />
-                  )}
+                  {key === "sunrise" && <Sun size={11} className="text-yellow-300" />}
+                  {key === "sunset" && <Sun size={11} className="text-orange-400" />}
                   <span className="text-blue-300">{label}</span>
                   <span className="font-medium text-white mr-0.5">{formatTime(val)}</span>
                 </div>
               );
             })}
 
-            {/* Candle lighting (Friday) */}
             {data.isFriday && data.candleLighting && (
-              <div className="flex items-center gap-1 px-3 py-2.5 border-l border-[#2d4f7f]/60 shrink-0">
-                <span className="text-yellow-300">🕯</span>
+              <div className="flex items-center gap-1 px-3 py-2.5 border-l border-[#2d4f7f]/50 shrink-0">
+                <span>🕯</span>
                 <span className="text-yellow-300 font-medium">כניסת שבת</span>
-                <span className="font-semibold text-yellow-200 mr-0.5">
-                  {formatTime(data.candleLighting)}
-                </span>
+                <span className="font-semibold text-yellow-200 mr-0.5">{formatTime(data.candleLighting)}</span>
               </div>
             )}
           </div>
 
-          {/* Countdown */}
           {countdownStr && (
-            <div className="flex items-center gap-2 px-4 py-1.5 mr-auto shrink-0">
-              <div
-                className={`flex items-center gap-2 rounded-lg px-3 py-1.5 border ${
-                  data.isFriday
-                    ? "bg-yellow-900/40 border-yellow-600/50 text-yellow-200"
-                    : "bg-blue-900/50 border-blue-600/40 text-blue-100"
-                }`}
-              >
+            <div className="flex items-center gap-2 px-4 mr-auto shrink-0">
+              <div className={`flex items-center gap-2 rounded-lg px-3 py-1.5 border ${
+                data.isFriday
+                  ? "bg-yellow-900/40 border-yellow-600/50 text-yellow-200"
+                  : "bg-blue-900/50 border-blue-600/40 text-blue-100"
+              }`}>
                 <span className="text-[11px]">{countdownLabel} בעוד</span>
-                <span className="font-mono font-bold text-sm tracking-wider">
-                  {countdownStr}
-                </span>
+                <span className="font-mono font-bold text-sm tracking-wider">{countdownStr}</span>
               </div>
             </div>
           )}
         </>
-      ) : null}
+      )}
     </div>
   );
 }
