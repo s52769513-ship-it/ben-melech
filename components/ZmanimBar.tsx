@@ -76,39 +76,25 @@ export default function ZmanimBar() {
     if (!mounted) return;
 
     async function load() {
-      const today = new Date();
-      const dateStr = today.toISOString().slice(0, 10);
-      const [y, m, d] = dateStr.split("-");
-      const isFriday = today.getDay() === 5;
-
       try {
-        const [zmanimRes, converterRes, learningRes] = await Promise.all([
-          fetch(`https://www.hebcal.com/zmanim?cfg=json&geonameid=281184&date=${dateStr}`),
-          fetch(`https://www.hebcal.com/converter?cfg=json&g2h=1&gy=${y}&gm=${m}&gd=${d}`),
-          fetch(`https://www.hebcal.com/learning?cfg=json&v=1&daf_yomi=on&start=${dateStr}&end=${dateStr}`),
-        ]);
+        const res = await fetch("/api/zmanim");
+        if (!res.ok) throw new Error("api error");
+        const json = await res.json();
+        if (json.error) throw new Error(json.error);
 
-        if (!zmanimRes.ok || !converterRes.ok) throw new Error("fetch failed");
-
-        const [zmanimJson, converterJson, learningJson] = await Promise.all([
-          zmanimRes.json(),
-          converterRes.json(),
-          learningRes.json(),
-        ]);
-
-        const hebrewDate: string = converterJson.hebrew ?? "";
-        const dafItem = (learningJson.items ?? []).find(
-          (i: { category: string; hebrew?: string; title?: string }) => i.category === "dafyomi"
-        );
-        const dafYomi: string = dafItem?.hebrew ?? dafItem?.title ?? "";
-        const times: ZmanimTimes = zmanimJson.times ?? {};
-
+        const times: ZmanimTimes = json.times ?? {};
         let candleLighting: string | undefined;
-        if (isFriday && times.sunset) {
+        if (json.isFriday && times.sunset) {
           candleLighting = new Date(new Date(times.sunset).getTime() - 18 * 60 * 1000).toISOString();
         }
 
-        setData({ hebrewDate, dafYomi, times, isFriday, candleLighting });
+        setData({
+          hebrewDate: json.hebrewDate ?? "",
+          dafYomi: json.dafYomi ?? "",
+          times,
+          isFriday: json.isFriday ?? false,
+          candleLighting,
+        });
       } catch {
         setFetchError(true);
       }

@@ -38,13 +38,14 @@ const managementItems = [
 function FaviconUpdater({ logoUrl }: { logoUrl: string }) {
   useEffect(() => {
     if (!logoUrl) return;
-    let link = document.querySelector<HTMLLinkElement>("link[rel~='icon']");
-    if (!link) {
-      link = document.createElement("link");
-      link.rel = "icon";
-      document.head.appendChild(link);
-    }
+    // Remove all existing favicons
+    document.querySelectorAll("link[rel*='icon']").forEach((el) => el.remove());
+    // Insert fresh one
+    const link = document.createElement("link");
+    link.rel = "icon";
+    link.type = "image/png";
     link.href = logoUrl;
+    document.head.appendChild(link);
   }, [logoUrl]);
   return null;
 }
