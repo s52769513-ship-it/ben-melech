@@ -63,6 +63,8 @@ CREATE TABLE scores (
   arrived_on_time BOOLEAN DEFAULT false,
   attended_class BOOLEAN DEFAULT false,
   weekly_summary BOOLEAN DEFAULT false,
+  attended_seder_old BOOLEAN DEFAULT false,
+  arrived_on_time_old BOOLEAN DEFAULT false,
   paid BOOLEAN DEFAULT false,
   payment_amount NUMERIC(10,2) DEFAULT 0,
   personal_note TEXT,

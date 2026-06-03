@@ -64,6 +64,8 @@ export interface Score {
   arrived_on_time: boolean;
   attended_class: boolean;
   weekly_summary: boolean;
+  attended_seder_old: boolean;
+  arrived_on_time_old: boolean;
   paid: boolean;
   payment_amount: number;
   personal_note: string | null;

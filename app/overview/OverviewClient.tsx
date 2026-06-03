@@ -228,10 +228,6 @@ export default function OverviewClient({
                                   <span className="inline-flex items-center justify-center w-7 h-7 rounded-full bg-green-100 text-green-600 font-bold text-base">
                                     ✓
                                   </span>
-                                ) : attended === false ? (
-                                  <span className="inline-flex items-center justify-center w-7 h-7 rounded-full bg-red-50 text-red-300 text-base">
-                                    ✗
-                                  </span>
                                 ) : (
                                   <span className="inline-flex items-center justify-center w-7 h-7 text-gray-200 text-base">
                                     —

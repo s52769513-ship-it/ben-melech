@@ -29,7 +29,7 @@ export default async function ManagementPage({
       ? supabase
           .from("scores")
           .select(
-            "id, student_id, chassidut_score, halacha_score, tefila_score, beinoni_score, shleimut_score, attended_seder, arrived_on_time, attended_class, weekly_summary, paid, payment_amount, personal_note, rabbi_note, student:students(id, first_name, last_name, coordinator:coordinators(id, name))"
+            "id, student_id, chassidut_score, halacha_score, tefila_score, beinoni_score, shleimut_score, attended_seder, arrived_on_time, attended_class, weekly_summary, attended_seder_old, arrived_on_time_old, paid, payment_amount, personal_note, rabbi_note, student:students(id, first_name, last_name, coordinator:coordinators(id, name))"
           )
           .eq("exam_id", selectedExamId)
           .order("created_at")
