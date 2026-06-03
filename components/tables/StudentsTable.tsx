@@ -6,6 +6,7 @@ import Link from "next/link";
 import { ChevronLeft } from "lucide-react";
 import EditModal from "@/components/EditModal";
 import { updateStudent } from "@/app/students/actions";
+import { useSettings } from "@/lib/settings-context";
 
 type CoordinatorOption = { id: string; name: string };
 
@@ -77,6 +78,11 @@ export default function StudentsTable({ students, coordinators, scoreMap }: Prop
   const [isPending, startTransition] = useTransition();
   const [editing, setEditing] = useState<Student | null>(null);
   const [form, setForm] = useState<FormState | null>(null);
+  const { settings } = useSettings();
+
+  const visibleStudents = settings.hideKibbutz
+    ? students.filter((s) => !s.track?.includes("קיבוץ"))
+    : students;
 
   function openEdit(student: Student) {
     setEditing(student);
@@ -133,8 +139,8 @@ export default function StudentsTable({ students, coordinators, scoreMap }: Prop
             </tr>
           </thead>
           <tbody className="divide-y divide-gray-100">
-            {students.length > 0 ? (
-              students.map((student) => {
+            {visibleStudents.length > 0 ? (
+              visibleStudents.map((student) => {
                 const stats = scoreMap[student.id];
                 const avgScore =
                   stats && stats.count > 0

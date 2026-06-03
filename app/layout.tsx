@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Heebo } from "next/font/google";
 import "./globals.css";
 import Sidebar from "@/components/Sidebar";
+import { SettingsProvider } from "@/lib/settings-context";
 
 const heebo = Heebo({
   subsets: ["hebrew", "latin"],
@@ -22,8 +23,10 @@ export default function RootLayout({
   return (
     <html lang="he" dir="rtl" className={`${heebo.variable} h-full`}>
       <body className="min-h-full flex bg-gray-50 font-[family-name:var(--font-heebo)]">
-        <Sidebar />
-        <main className="flex-1 overflow-auto">{children}</main>
+        <SettingsProvider>
+          <Sidebar />
+          <main className="flex-1 overflow-auto">{children}</main>
+        </SettingsProvider>
       </body>
     </html>
   );

@@ -26,7 +26,7 @@ export default async function InquiriesPage({
 
   const [{ data: coordinators }, { data: students }] = await Promise.all([
     supabase.from("coordinators").select("id, name").order("name"),
-    supabase.from("students").select("id, first_name, last_name").order("first_name"),
+    supabase.from("students").select("id, first_name, last_name").order("last_name").order("first_name"),
   ]);
 
   const counts = (inquiries ?? []).reduce(

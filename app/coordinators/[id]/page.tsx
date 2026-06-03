@@ -32,6 +32,7 @@ export default async function CoordinatorDetailPage({
       .from("students")
       .select("*")
       .eq("coordinator_id", id)
+      .order("last_name")
       .order("first_name"),
     supabase
       .from("finances")

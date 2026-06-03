@@ -13,7 +13,7 @@ export default async function OverviewPage() {
     supabase
       .from("scores")
       .select(
-        "student_id, exam_id, attended_seder, student:students(id, first_name, last_name, coordinator:coordinators(id, name))"
+        "student_id, exam_id, attended_seder, student:students(id, first_name, last_name, track, coordinator:coordinators(id, name))"
       ),
   ]);
 

@@ -14,6 +14,7 @@ export default async function StudentsPage({
   let query = supabase
     .from("students")
     .select("*, coordinator:coordinators(id, name)")
+    .order("last_name")
     .order("first_name");
 
   if (filters.coordinator) query = query.eq("coordinator_id", filters.coordinator);

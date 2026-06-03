@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { Search } from "lucide-react";
+import { useSettings } from "@/lib/settings-context";
 
 type Exam = { id: string; parasha: string; exam_date: string | null };
 
@@ -13,6 +14,7 @@ type Score = {
     id: string;
     first_name: string;
     last_name: string;
+    track: string | null;
     coordinator: { id: string; name: string } | null;
   } | null;
 };
@@ -26,6 +28,7 @@ export default function OverviewClient({
 }) {
   const [nameSearch, setNameSearch] = useState("");
   const [coordinatorFilter, setCoordinatorFilter] = useState("");
+  const { settings } = useSettings();
 
   // Exams ordered oldest→newest; displayed newest→right (RTL: columns flow left, name is rightmost)
   const orderedExams = exams; // already ascending from server
@@ -67,6 +70,7 @@ export default function OverviewClient({
       const fullName = `${s.first_name} ${s.last_name}`;
       if (nameSearch && !fullName.includes(nameSearch)) return false;
       if (coordinatorFilter && s.coordinator?.name !== coordinatorFilter) return false;
+      if (settings.hideKibbutz && s.track?.includes("קיבוץ")) return false;
       return true;
     });
 
@@ -83,7 +87,7 @@ export default function OverviewClient({
       .map((g) => ({
         ...g,
         students: g.students.sort((a, b) =>
-          `${a.first_name} ${a.last_name}`.localeCompare(`${b.first_name} ${b.last_name}`, "he")
+          `${a.last_name} ${a.first_name}`.localeCompare(`${b.last_name} ${b.first_name}`, "he")
         ),
       }));
   }, [students, nameSearch, coordinatorFilter]);
