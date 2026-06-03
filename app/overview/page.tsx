@@ -5,7 +5,7 @@ import OverviewClient from "./OverviewClient";
 export default async function OverviewPage() {
   const supabase = await createClient();
 
-  const [{ data: exams }, { data: scores }] = await Promise.all([
+  const [{ data: exams }, { data: scores }, { data: groups }] = await Promise.all([
     supabase
       .from("exams")
       .select("id, parasha, exam_date")
@@ -13,9 +13,12 @@ export default async function OverviewPage() {
     supabase
       .from("scores")
       .select(
-        "student_id, exam_id, attended_seder, student:students(id, first_name, last_name, track, coordinator:coordinators(id, name))"
+        "student_id, exam_id, attended_seder, student:students(id, first_name, last_name, group_id, coordinator:coordinators(id, name))"
       ),
+    supabase.from("groups").select("id, name"),
   ]);
+
+  const kibbutzGroupId = (groups ?? []).find((g) => g.name === "קיבוץ")?.id ?? null;
 
   return (
     <div className="p-8">
@@ -26,7 +29,7 @@ export default async function OverviewPage() {
         </h1>
         <p className="text-gray-500 mt-1">השתתפות בסדר לפי בחור ופרשה</p>
       </div>
-      <OverviewClient exams={exams ?? []} scores={(scores ?? []) as any[]} />
+      <OverviewClient exams={exams ?? []} scores={(scores ?? []) as any[]} kibbutzGroupId={kibbutzGroupId} />
     </div>
   );
 }

@@ -23,8 +23,9 @@ export default async function StudentsPage({
 
   const { data: students } = await query;
 
-  const [{ data: coordinators }, { data: allScores }] = await Promise.all([
+  const [{ data: coordinators }, { data: groups }, { data: allScores }] = await Promise.all([
     supabase.from("coordinators").select("id, name").order("name"),
+    supabase.from("groups").select("id, name").order("name"),
     supabase
       .from("scores")
       .select("student_id, chassidut_score, halacha_score, tefila_score, attended_seder"),
@@ -117,6 +118,7 @@ export default async function StudentsPage({
       <StudentsTable
         students={students ?? []}
         coordinators={coordinators ?? []}
+        groups={groups ?? []}
         scoreMap={scoreMap}
       />
     </div>

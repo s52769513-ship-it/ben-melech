@@ -14,7 +14,7 @@ type Score = {
     id: string;
     first_name: string;
     last_name: string;
-    track: string | null;
+    group_id: string | null;
     coordinator: { id: string; name: string } | null;
   } | null;
 };
@@ -22,9 +22,11 @@ type Score = {
 export default function OverviewClient({
   exams,
   scores,
+  kibbutzGroupId,
 }: {
   exams: Exam[];
   scores: Score[];
+  kibbutzGroupId: string | null;
 }) {
   const [nameSearch, setNameSearch] = useState("");
   const [coordinatorFilter, setCoordinatorFilter] = useState("");
@@ -70,7 +72,7 @@ export default function OverviewClient({
       const fullName = `${s.first_name} ${s.last_name}`;
       if (nameSearch && !fullName.includes(nameSearch)) return false;
       if (coordinatorFilter && s.coordinator?.name !== coordinatorFilter) return false;
-      if (settings.hideKibbutz && s.track?.includes("קיבוץ")) return false;
+      if (settings.hideKibbutz && kibbutzGroupId && s.group_id === kibbutzGroupId) return false;
       return true;
     });
 

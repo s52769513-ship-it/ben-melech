@@ -9,6 +9,7 @@ import { updateStudent } from "@/app/students/actions";
 import { useSettings } from "@/lib/settings-context";
 
 type CoordinatorOption = { id: string; name: string };
+type GroupOption = { id: string; name: string };
 
 type Student = {
   id: string;
@@ -25,6 +26,7 @@ type Student = {
   enrollment_date: string | null;
   coordinator_id: string | null;
   nedarim_id: number | null;
+  group_id: string | null;
   notes: string | null;
   coordinator?: { id: string; name: string } | null;
 };
@@ -34,6 +36,7 @@ type ScoreStats = { total: number; count: number; attended: number; sessions: nu
 interface Props {
   students: Student[];
   coordinators: CoordinatorOption[];
+  groups: GroupOption[];
   scoreMap: Record<string, ScoreStats>;
 }
 
@@ -51,6 +54,7 @@ type FormState = {
   enrollment_date: string;
   coordinator_id: string;
   nedarim_id: string;
+  group_id: string;
   notes: string;
 };
 
@@ -69,20 +73,23 @@ function toForm(s: Student): FormState {
     enrollment_date: s.enrollment_date?.slice(0, 10) ?? "",
     coordinator_id: s.coordinator_id ?? "",
     nedarim_id: s.nedarim_id?.toString() ?? "",
+    group_id: s.group_id ?? "",
     notes: s.notes ?? "",
   };
 }
 
-export default function StudentsTable({ students, coordinators, scoreMap }: Props) {
+export default function StudentsTable({ students, coordinators, groups, scoreMap }: Props) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
   const [editing, setEditing] = useState<Student | null>(null);
   const [form, setForm] = useState<FormState | null>(null);
   const { settings } = useSettings();
 
-  const visibleStudents = settings.hideKibbutz
-    ? students.filter((s) => !s.track?.includes("קיבוץ"))
-    : students;
+  const kibbutzGroupId = groups.find((g) => g.name === "קיבוץ")?.id;
+  const visibleStudents =
+    settings.hideKibbutz && kibbutzGroupId
+      ? students.filter((s) => s.group_id !== kibbutzGroupId)
+      : students;
 
   function openEdit(student: Student) {
     setEditing(student);
@@ -115,6 +122,7 @@ export default function StudentsTable({ students, coordinators, scoreMap }: Prop
         enrollment_date: form.enrollment_date || null,
         coordinator_id: form.coordinator_id || null,
         nedarim_id: form.nedarim_id ? Number(form.nedarim_id) : null,
+        group_id: form.group_id || null,
         notes: form.notes || null,
       });
       closeEdit();
@@ -315,6 +323,21 @@ export default function StudentsTable({ students, coordinators, scoreMap }: Prop
                 onChange={(e) => set("track", e.target.value)}
                 className="text-sm border border-gray-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-300"
               />
+            </div>
+            <div className="flex flex-col gap-1">
+              <label className="text-xs font-medium text-gray-500">קבוצה</label>
+              <select
+                value={form.group_id}
+                onChange={(e) => set("group_id", e.target.value)}
+                className="text-sm border border-gray-200 rounded-lg px-3 py-2 bg-white focus:outline-none focus:ring-2 focus:ring-blue-300"
+              >
+                <option value="">ללא קבוצה</option>
+                {groups.map((g) => (
+                  <option key={g.id} value={g.id}>
+                    {g.name}
+                  </option>
+                ))}
+              </select>
             </div>
             <div className="flex flex-col gap-1">
               <label className="text-xs font-medium text-gray-500">משפיע</label>
