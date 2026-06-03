@@ -34,21 +34,6 @@ const managementItems = [
   { href: "/management", label: "ניהול", icon: Settings },
 ];
 
-// Updates browser favicon dynamically from a data-URL
-function FaviconUpdater({ logoUrl }: { logoUrl: string }) {
-  useEffect(() => {
-    if (!logoUrl) return;
-    // Remove all existing favicons
-    document.querySelectorAll("link[rel*='icon']").forEach((el) => el.remove());
-    // Insert fresh one
-    const link = document.createElement("link");
-    link.rel = "icon";
-    link.type = "image/png";
-    link.href = logoUrl;
-    document.head.appendChild(link);
-  }, [logoUrl]);
-  return null;
-}
 
 export default function Sidebar() {
   const pathname = usePathname();
@@ -57,8 +42,6 @@ export default function Sidebar() {
 
   return (
     <>
-      {settings.logoUrl && <FaviconUpdater logoUrl={settings.logoUrl} />}
-
       <aside className="w-64 bg-[#1e3a5f] min-h-screen flex flex-col shrink-0">
 
         {/* Header — logo or text */}

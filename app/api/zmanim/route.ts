@@ -1,46 +1,46 @@
 import { NextResponse } from "next/server";
+import { HDate, GeoLocation, Zmanim } from "@hebcal/core";
+import { DafYomi } from "@hebcal/learning";
 
-const GEO_ID = 281184; // Jerusalem
+// Jerusalem
+const GLOC = new GeoLocation("Jerusalem", 31.7683, 35.2137, 800, "Asia/Jerusalem");
+
+function toISO(d: Date | null | undefined): string | undefined {
+  return d ? d.toISOString() : undefined;
+}
 
 export async function GET() {
   const today = new Date();
-  const dateStr = today.toISOString().slice(0, 10);
-  const [y, m, d] = dateStr.split("-");
+  const z = new Zmanim(GLOC, today, false);
 
+  // Hebrew date
+  const hd = new HDate(today);
+  const hebrewDate = hd.renderGematriya();
+
+  // Daf Yomi
+  let dafYomi = "";
   try {
-    const [zmanimRes, converterRes, learningRes] = await Promise.all([
-      fetch(`https://www.hebcal.com/zmanim?cfg=json&geonameid=${GEO_ID}&date=${dateStr}`, {
-        next: { revalidate: 3600 },
-      }),
-      fetch(`https://www.hebcal.com/converter?cfg=json&g2h=1&gy=${y}&gm=${m}&gd=${d}`, {
-        next: { revalidate: 86400 },
-      }),
-      fetch(`https://www.hebcal.com/learning?cfg=json&v=1&daf_yomi=on&start=${dateStr}&end=${dateStr}`, {
-        next: { revalidate: 86400 },
-      }),
-    ]);
-
-    if (!zmanimRes.ok) {
-      return NextResponse.json({ error: "fetch_failed" }, { status: 502 });
-    }
-
-    const [zmanimJson, converterJson, learningJson] = await Promise.all([
-      zmanimRes.json(),
-      converterRes.ok ? converterRes.json() : {},
-      learningRes.ok ? learningRes.json() : {},
-    ]);
-
-    type DafItem = { category: string; hebrew?: string; title?: string };
-    const dafItem = ((learningJson as { items?: DafItem[] }).items ?? [])
-      .find((i) => i.category === "dafyomi");
-
-    return NextResponse.json({
-      hebrewDate: (converterJson as { hebrew?: string }).hebrew ?? "",
-      dafYomi: dafItem?.hebrew ?? dafItem?.title ?? "",
-      times: (zmanimJson as { times?: Record<string, string> }).times ?? {},
-      isFriday: today.getDay() === 5,
-    });
-  } catch (e) {
-    return NextResponse.json({ error: String(e) }, { status: 502 });
+    const dy = new DafYomi(today);
+    dafYomi = dy.render("he");
+  } catch {
+    dafYomi = "";
   }
+
+  const times = {
+    alotHaShachar: toISO(z.alotHaShachar()),
+    sunrise:       toISO(z.sunrise()),
+    sofZmanShma:   toISO(z.sofZmanShma()),
+    chatzot:       toISO(z.chatzot()),
+    minchaGedola:  toISO(z.minchaGedola()),
+    plagHaMincha:  toISO(z.plagHaMincha()),
+    sunset:        toISO(z.sunset()),
+    tzeis:         toISO(z.tzeit()),
+  };
+
+  return NextResponse.json({
+    hebrewDate,
+    dafYomi,
+    times,
+    isFriday: today.getDay() === 5,
+  });
 }

@@ -3,6 +3,7 @@ import { Heebo } from "next/font/google";
 import "./globals.css";
 import Sidebar from "@/components/Sidebar";
 import ZmanimBar from "@/components/ZmanimBar";
+import DynamicFavicon from "@/components/DynamicFavicon";
 import { SettingsProvider } from "@/lib/settings-context";
 
 const heebo = Heebo({
@@ -25,6 +26,7 @@ export default function RootLayout({
     <html lang="he" dir="rtl" className={`${heebo.variable} h-full`}>
       <body className="min-h-full flex bg-gray-50 font-[family-name:var(--font-heebo)]">
         <SettingsProvider>
+          <DynamicFavicon />
           <Sidebar />
           <main className="flex-1 overflow-auto flex flex-col">
             <ZmanimBar />
