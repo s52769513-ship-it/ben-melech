@@ -2,6 +2,7 @@ import { createClient } from "@/lib/supabase/server";
 import Link from "next/link";
 import { GraduationCap } from "lucide-react";
 import StudentsTable from "@/components/tables/StudentsTable";
+import StudentCount from "@/components/StudentCount";
 
 export default async function StudentsPage({
   searchParams,
@@ -59,7 +60,12 @@ export default async function StudentsPage({
           <GraduationCap size={28} />
           בחורים
         </h1>
-        <p className="text-gray-500 mt-1">{students?.length ?? 0} בחורים</p>
+        <p className="text-gray-500 mt-1">
+          <StudentCount
+            students={students ?? []}
+            kibbutzGroupId={(groups ?? []).find((g) => g.name === "קיבוץ")?.id}
+          />
+        </p>
       </div>
 
       <form className="bg-white rounded-xl border border-gray-200 p-4 mb-6 flex flex-wrap gap-4 items-end">

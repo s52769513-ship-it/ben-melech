@@ -1,5 +1,6 @@
 import { createClient } from "@/lib/supabase/server";
 import StatCard from "@/components/StatCard";
+import StudentCount from "@/components/StudentCount";
 import Link from "next/link";
 import {
   Users,
@@ -15,13 +16,13 @@ export default async function DashboardPage() {
 
   const [
     { count: coordinatorsCount },
-    { count: studentsCount },
+    { data: allStudents },
     { count: openInquiriesCount },
     { data: recentInquiries },
     { data: recentScores },
   ] = await Promise.all([
     supabase.from("coordinators").select("*", { count: "exact", head: true }),
-    supabase.from("students").select("*", { count: "exact", head: true }),
+    supabase.from("students").select("id, group_id"),
     supabase
       .from("inquiries")
       .select("*", { count: "exact", head: true })
@@ -39,6 +40,9 @@ export default async function DashboardPage() {
       .order("created_at", { ascending: false })
       .limit(5),
   ]);
+
+  const { data: groups } = await supabase.from("groups").select("id, name");
+  const kibbutzGroupId = (groups ?? []).find((g) => g.name === "קיבוץ")?.id ?? null;
 
   const avgScore =
     recentScores && recentScores.length > 0
@@ -76,7 +80,12 @@ export default async function DashboardPage() {
         />
         <StatCard
           title="בחורים"
-          value={studentsCount ?? 0}
+          customValue={
+            <StudentCount
+              students={allStudents ?? []}
+              kibbutzGroupId={kibbutzGroupId}
+            />
+          }
           icon={GraduationCap}
           description="סה״כ בחורים רשומים"
           color="purple"

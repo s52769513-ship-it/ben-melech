@@ -22,8 +22,6 @@ type ScoreRow = {
   arrived_on_time: boolean;
   attended_class: boolean;
   weekly_summary: boolean;
-  attended_seder_old: boolean;
-  arrived_on_time_old: boolean;
   paid: boolean;
   payment_amount: number | null;
   personal_note: string | null;
@@ -368,8 +366,6 @@ export default function ManagementClient({
                           <th className="text-right px-4 py-2.5 font-semibold text-gray-600">בחור</th>
                           <th className="text-center px-3 py-2.5 font-semibold text-gray-600">השתתף</th>
                           <th className="text-center px-3 py-2.5 font-semibold text-gray-600">הגעה ב-5 דקות</th>
-                          <th className="text-center px-3 py-2.5 font-semibold text-amber-600 text-xs">השתתף {"{ישן}"}</th>
-                          <th className="text-center px-3 py-2.5 font-semibold text-amber-600 text-xs">הגעה ב-5 דקות {"{ישן}"}</th>
                           <th className="text-center px-3 py-2.5 font-semibold text-gray-600">מבחן הלכה</th>
                           <th className="text-center px-3 py-2.5 font-semibold text-gray-600">סכום לתשלום</th>
                           <th className="text-right px-4 py-2.5 font-semibold text-gray-600 min-w-[160px]">פניה אישית</th>
@@ -390,12 +386,6 @@ export default function ManagementClient({
                               </td>
                               <td className="px-3 py-2.5 text-center">
                                 {score.arrived_on_time ? <span className="text-green-600 font-bold">✓</span> : <span className="text-red-400">✗</span>}
-                              </td>
-                              <td className="px-3 py-2.5 text-center bg-amber-50/40">
-                                {score.attended_seder_old ? <span className="text-amber-600 font-bold">✓</span> : <span className="text-gray-300">—</span>}
-                              </td>
-                              <td className="px-3 py-2.5 text-center bg-amber-50/40">
-                                {score.arrived_on_time_old ? <span className="text-amber-600 font-bold">✓</span> : <span className="text-gray-300">—</span>}
                               </td>
                               <td className="px-3 py-2.5 text-center text-gray-700">{score.halacha_score ?? "—"}</td>
                               <td className="px-3 py-2.5 text-center text-gray-700">

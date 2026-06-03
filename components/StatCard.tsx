@@ -1,8 +1,10 @@
 import { LucideIcon } from "lucide-react";
+import { ReactNode } from "react";
 
 interface StatCardProps {
   title: string;
-  value: string | number;
+  value?: string | number;
+  customValue?: ReactNode;
   icon: LucideIcon;
   description?: string;
   color?: "blue" | "green" | "orange" | "red" | "purple";
@@ -39,6 +41,7 @@ const colorMap = {
 export default function StatCard({
   title,
   value,
+  customValue,
   icon: Icon,
   description,
   color = "blue",
@@ -54,7 +57,9 @@ export default function StatCard({
       </div>
       <div className="min-w-0">
         <p className="text-gray-500 text-sm font-medium">{title}</p>
-        <p className={`${colors.value} text-2xl font-bold mt-1`}>{value}</p>
+        <p className={`${colors.value} text-2xl font-bold mt-1`}>
+          {customValue ?? value}
+        </p>
         {description && (
           <p className="text-gray-400 text-xs mt-1">{description}</p>
         )}
