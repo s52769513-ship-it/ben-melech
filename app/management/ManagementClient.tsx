@@ -225,7 +225,7 @@ export default function ManagementClient({
               : "bg-white text-gray-600 border-gray-300 hover:bg-gray-50"
           }`}
         >
-          {settings.hideKibbutz ? "גלה קיבוץ גלויות" : "הסתר קיבוץ גלויות"}
+          {settings.hideKibbutz ? "גלה קיבוץ" : "הסתר קיבוץ"}
         </button>
       </div>
 
