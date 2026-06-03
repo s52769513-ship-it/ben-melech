@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
@@ -34,6 +34,21 @@ const managementItems = [
   { href: "/management", label: "ניהול", icon: Settings },
 ];
 
+// Updates browser favicon dynamically from a data-URL
+function FaviconUpdater({ logoUrl }: { logoUrl: string }) {
+  useEffect(() => {
+    if (!logoUrl) return;
+    let link = document.querySelector<HTMLLinkElement>("link[rel~='icon']");
+    if (!link) {
+      link = document.createElement("link");
+      link.rel = "icon";
+      document.head.appendChild(link);
+    }
+    link.href = logoUrl;
+  }, [logoUrl]);
+  return null;
+}
+
 export default function Sidebar() {
   const pathname = usePathname();
   const { settings } = useSettings();
@@ -41,10 +56,25 @@ export default function Sidebar() {
 
   return (
     <>
+      {settings.logoUrl && <FaviconUpdater logoUrl={settings.logoUrl} />}
+
       <aside className="w-64 bg-[#1e3a5f] min-h-screen flex flex-col shrink-0">
-        <div className="px-6 py-6 border-b border-[#2d4f7f]">
-          <h1 className="text-white text-xl font-bold tracking-wide">בן מלך</h1>
-          <p className="text-blue-300 text-xs mt-1">מערכת ניהול</p>
+
+        {/* Header — logo or text */}
+        <div className="border-b border-[#2d4f7f] flex items-center justify-center min-h-[80px] px-4 py-4">
+          {settings.logoUrl ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img
+              src={settings.logoUrl}
+              alt="לוגו"
+              className="max-h-16 max-w-full object-contain"
+            />
+          ) : (
+            <div className="text-right w-full px-2">
+              <h1 className="text-white text-xl font-bold tracking-wide">בן מלך</h1>
+              <p className="text-blue-300 text-xs mt-1">מערכת ניהול</p>
+            </div>
+          )}
         </div>
 
         <nav className="flex-1 py-4">
@@ -85,21 +115,8 @@ export default function Sidebar() {
           })}
         </nav>
 
-        {/* הגדרות */}
+        {/* Bottom bar */}
         <div className="border-t border-[#2d4f7f]">
-          {/* Logo display */}
-          {settings.logoUrl && (
-            <div className="flex items-center justify-center px-4 pt-4">
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img
-                src={settings.logoUrl}
-                alt="לוגו"
-                className="max-h-20 max-w-full object-contain rounded-lg"
-              />
-            </div>
-          )}
-
-          {/* Settings button */}
           <button
             onClick={() => setSettingsOpen(true)}
             className="w-full flex items-center gap-3 px-6 py-3.5 text-sm text-blue-200 hover:bg-[#2d4f7f] hover:text-white transition-colors"
@@ -107,7 +124,6 @@ export default function Sidebar() {
             <Settings size={16} />
             <span>הגדרות</span>
           </button>
-
           <p className="text-blue-400 text-xs text-center py-2.5">© 2024 בן מלך</p>
         </div>
       </aside>
