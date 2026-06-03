@@ -80,8 +80,17 @@ export default function Sidebar() {
           );
         })}
       </nav>
-      <div className="px-6 py-4 border-t border-[#2d4f7f]">
-        <p className="text-blue-400 text-xs text-center">© 2024 בן מלך</p>
+      <div className="border-t border-[#2d4f7f]">
+        <div className="px-4 pt-4 pb-2">
+          <p className="text-blue-400 text-xs uppercase tracking-widest mb-3 px-2">הגדרות</p>
+          <div className="flex items-center justify-center bg-[#2d4f7f]/40 rounded-xl py-4 px-4">
+            {/* כאן יוצב הלוגו */}
+            <div className="w-20 h-20 rounded-full border-2 border-[#4a7ab5]/60 flex items-center justify-center">
+              <span className="text-blue-300 text-xs text-center leading-tight">לוגו</span>
+            </div>
+          </div>
+        </div>
+        <p className="text-blue-400 text-xs text-center py-3">© 2024 בן מלך</p>
       </div>
     </aside>
   );
