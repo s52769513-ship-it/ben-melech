@@ -5,18 +5,21 @@ import { createContext, useContext, useEffect, useState } from "react";
 type Settings = {
   hideKibbutz: boolean;
   logoUrl: string;
+  airtableToken: string;
 };
 
-const DEFAULT: Settings = { hideKibbutz: false, logoUrl: "" };
+const DEFAULT: Settings = { hideKibbutz: false, logoUrl: "", airtableToken: "" };
 
 const SettingsContext = createContext<{
   settings: Settings;
   toggle: (key: "hideKibbutz") => void;
   setLogo: (url: string) => void;
+  setAirtableToken: (token: string) => void;
 }>({
   settings: DEFAULT,
   toggle: () => {},
   setLogo: () => {},
+  setAirtableToken: () => {},
 });
 
 export function SettingsProvider({ children }: { children: React.ReactNode }) {
@@ -40,8 +43,11 @@ export function SettingsProvider({ children }: { children: React.ReactNode }) {
   const setLogo = (url: string) =>
     save({ ...settings, logoUrl: url });
 
+  const setAirtableToken = (token: string) =>
+    save({ ...settings, airtableToken: token });
+
   return (
-    <SettingsContext.Provider value={{ settings, toggle, setLogo }}>
+    <SettingsContext.Provider value={{ settings, toggle, setLogo, setAirtableToken }}>
       {children}
     </SettingsContext.Provider>
   );

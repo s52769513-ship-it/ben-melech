@@ -1,29 +1,13 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 
-const BASE_ID = process.env.AIRTABLE_BASE_ID!;
-const TABLE_ID = process.env.AIRTABLE_STUDENTS_TABLE!;
-const TOKEN = process.env.AIRTABLE_TOKEN!;
+const BASE_ID = "appFwuERdEigGl4Ko";
+const STUDENTS_TABLE = "tblWmWBpyEEcxVWIU";
 
 type AirtableRecord = {
   id: string;
   fields: Record<string, unknown>;
 };
-
-// Formula/computed fields in Airtable — do NOT sync these directly
-const FORMULA_FIELDS = new Set([
-  "שם בחור", "גיל", "נשאר להטעין", "נקודות זמן קיץ תשפו (מעל 500)",
-  "סך מבחנים", "סך סדרים", "סך פניות", "סך שקיבל",
-  "תאריך סדר אחרון", "תאריך עברי מסדר אחרון", "תאריך מבחן אחרון",
-  "פניות פתוחות", "ממוצע ציונים", "Average Lesson Attendance Rate (%)",
-  "מייל של הרכז", "טלפון של הרכז", "סיכום AI", "עדיפות לטיפול",
-  "סכום לתשלום שעדיין לא שולם", "סכום לתשלום ששולם",
-  "תאריך אחרון מבחן", "מספר ימים מתאריך ממבחן",
-  "תאריך אחרון נוכחות", "מספר ימים מסדר אחרון",
-  "Calculation", "Calculation 2", "מספר סידורי",
-  "ID (from קבוצה/ישיבה)", "שם רכז (from רכז)", "מייל (from רכז)",
-  "טלפון רכז", "ID רכז", "עיר (from רכז)",
-]);
 
 function mapToSupabase(rec: AirtableRecord) {
   const f = rec.fields;
@@ -45,24 +29,21 @@ function mapToSupabase(rec: AirtableRecord) {
   };
 }
 
-async function fetchAllRecords(): Promise<AirtableRecord[]> {
+async function fetchAllRecords(token: string, tableId: string): Promise<AirtableRecord[]> {
   const records: AirtableRecord[] = [];
   let offset: string | undefined;
 
   do {
-    const url = new URL(`https://api.airtable.com/v0/${BASE_ID}/${TABLE_ID}`);
+    const url = new URL(`https://api.airtable.com/v0/${BASE_ID}/${tableId}`);
     url.searchParams.set("pageSize", "100");
     if (offset) url.searchParams.set("offset", offset);
 
     const res = await fetch(url.toString(), {
-      headers: { Authorization: `Bearer ${TOKEN}` },
+      headers: { Authorization: `Bearer ${token}` },
       cache: "no-store",
     });
 
-    if (!res.ok) {
-      const body = await res.text();
-      throw new Error(`Airtable error: ${res.status} ${body} | URL: ${url.toString().replace(TOKEN, "***")}`);
-    }
+    if (!res.ok) throw new Error(`Airtable ${res.status}: ${await res.text()}`);
 
     const data = await res.json() as { records: AirtableRecord[]; offset?: string };
     records.push(...data.records);
@@ -72,26 +53,25 @@ async function fetchAllRecords(): Promise<AirtableRecord[]> {
   return records;
 }
 
-export async function POST() {
+export async function POST(req: NextRequest) {
+  const { token } = await req.json();
+  if (!token) return NextResponse.json({ error: "חסר טוקן Airtable" }, { status: 400 });
+
   try {
     const [records, supabase] = await Promise.all([
-      fetchAllRecords(),
+      fetchAllRecords(token, STUDENTS_TABLE),
       createClient(),
     ]);
 
     const rows = records.map(mapToSupabase);
 
-    // Upsert by airtable_id
     const { error } = await supabase
       .from("students")
       .upsert(rows, { onConflict: "airtable_id", ignoreDuplicates: false });
 
     if (error) return NextResponse.json({ error: error.message }, { status: 500 });
 
-    return NextResponse.json({
-      synced: rows.length,
-      total: records.length,
-    });
+    return NextResponse.json({ synced: rows.length, total: records.length });
   } catch (e) {
     return NextResponse.json({ error: String(e) }, { status: 500 });
   }

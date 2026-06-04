@@ -44,10 +44,19 @@ export default function Sidebar() {
   const [syncMsg, setSyncMsg] = useState<string | null>(null);
 
   async function handleSync() {
+    if (!settings.airtableToken) {
+      setSyncMsg("הכנס טוקן Airtable בהגדרות תחילה");
+      setTimeout(() => setSyncMsg(null), 4000);
+      return;
+    }
     setSyncing(true);
     setSyncMsg(null);
     try {
-      const res = await fetch("/api/sync", { method: "POST" });
+      const res = await fetch("/api/sync", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ token: settings.airtableToken }),
+      });
       const data = await res.json();
       if (data.error) setSyncMsg(`שגיאה: ${data.error}`);
       else setSyncMsg(`עודכנו ${data.synced} בחורים ✓`);

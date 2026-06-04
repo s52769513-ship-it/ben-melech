@@ -1,7 +1,7 @@
 "use client";
 
 import { useRef, useState } from "react";
-import { X, Upload, Trash2, Image } from "lucide-react";
+import { X, Upload, Trash2, Image, KeyRound, Eye, EyeOff } from "lucide-react";
 import { useSettings } from "@/lib/settings-context";
 
 interface Props {
@@ -9,9 +9,11 @@ interface Props {
 }
 
 export default function SettingsPanel({ onClose }: Props) {
-  const { settings, setLogo } = useSettings();
+  const { settings, setLogo, setAirtableToken } = useSettings();
   const fileRef = useRef<HTMLInputElement>(null);
   const [dragging, setDragging] = useState(false);
+  const [tokenInput, setTokenInput] = useState(settings.airtableToken);
+  const [showToken, setShowToken] = useState(false);
 
   function handleFile(file: File) {
     if (!file.type.startsWith("image/")) return;
@@ -55,6 +57,41 @@ export default function SettingsPanel({ onClose }: Props) {
         </div>
 
         <div className="flex-1 overflow-y-auto p-5 space-y-6">
+          {/* Airtable token section */}
+          <section>
+            <h3 className="text-sm font-semibold text-gray-700 mb-3 flex items-center gap-2">
+              <KeyRound size={15} className="text-[#1e3a5f]" />
+              טוקן Airtable (לסנכרון)
+            </h3>
+            <div className="flex gap-2">
+              <div className="relative flex-1">
+                <input
+                  type={showToken ? "text" : "password"}
+                  value={tokenInput}
+                  onChange={(e) => setTokenInput(e.target.value)}
+                  placeholder="pat..."
+                  className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm pr-8 focus:outline-none focus:ring-1 focus:ring-blue-400"
+                  dir="ltr"
+                />
+                <button
+                  onClick={() => setShowToken((v) => !v)}
+                  className="absolute left-2 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                >
+                  {showToken ? <EyeOff size={14} /> : <Eye size={14} />}
+                </button>
+              </div>
+              <button
+                onClick={() => setAirtableToken(tokenInput)}
+                className="px-3 py-2 bg-[#1e3a5f] text-white text-sm rounded-lg hover:bg-[#2d4f7f] transition-colors"
+              >
+                שמור
+              </button>
+            </div>
+            {settings.airtableToken && (
+              <p className="text-xs text-green-600 mt-1.5">✓ טוקן שמור</p>
+            )}
+          </section>
+
           {/* Logo section */}
           <section>
             <h3 className="text-sm font-semibold text-gray-700 mb-3 flex items-center gap-2">
