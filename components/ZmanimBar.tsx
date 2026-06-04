@@ -185,16 +185,21 @@ export default function ZmanimBar() {
           )}
         </div>
 
-        {/* === RIGHT: countdown === */}
-        {countdownStr && data && (
-          <div className={`flex items-center gap-1.5 px-4 shrink-0 border-l border-[#2d4f7f] ${
-            data.showShabbat ? "text-yellow-200" : "text-blue-200"
-          }`} dir="rtl">
-            <span className="text-[10px]">{countdownLabel} בעוד</span>
-            <span className={`font-mono font-bold text-sm ${data.showShabbat ? "text-yellow-300" : "text-white"}`}>
-              {countdownStr}
-            </span>
-          </div>
+        {/* === RIGHT: candle lighting time or sunset countdown === */}
+        {data && (
+          data.showShabbat && data.candleLightingTime ? (
+            <div className="flex items-center gap-1.5 px-4 shrink-0 border-l border-[#2d4f7f] text-yellow-200" dir="rtl">
+              <span>🕯</span>
+              <span className="text-[10px] text-yellow-400">כניסת שבת</span>
+              <span className="font-mono font-bold text-sm text-yellow-300">{formatTime(data.candleLightingTime)}</span>
+              <span className="text-[9px] text-yellow-600">ירושלים</span>
+            </div>
+          ) : countdownStr ? (
+            <div className="flex items-center gap-1.5 px-4 shrink-0 border-l border-[#2d4f7f] text-blue-200" dir="rtl">
+              <span className="text-[10px]">שקיעה בעוד</span>
+              <span className="font-mono font-bold text-sm text-white">{countdownStr}</span>
+            </div>
+          ) : null
         )}
       </div>
     </>
