@@ -14,6 +14,7 @@ import {
   ClipboardList,
   Settings,
   TableProperties,
+  RefreshCw,
 } from "lucide-react";
 import { useSettings } from "@/lib/settings-context";
 import SettingsPanel from "@/components/SettingsPanel";
@@ -39,6 +40,24 @@ export default function Sidebar() {
   const pathname = usePathname();
   const { settings } = useSettings();
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [syncing, setSyncing] = useState(false);
+  const [syncMsg, setSyncMsg] = useState<string | null>(null);
+
+  async function handleSync() {
+    setSyncing(true);
+    setSyncMsg(null);
+    try {
+      const res = await fetch("/api/sync", { method: "POST" });
+      const data = await res.json();
+      if (data.error) setSyncMsg(`שגיאה: ${data.error}`);
+      else setSyncMsg(`עודכנו ${data.synced} בחורים ✓`);
+    } catch {
+      setSyncMsg("שגיאת רשת");
+    } finally {
+      setSyncing(false);
+      setTimeout(() => setSyncMsg(null), 4000);
+    }
+  }
 
   return (
     <>
@@ -101,6 +120,19 @@ export default function Sidebar() {
 
         {/* Bottom bar */}
         <div className="border-t border-[#2d4f7f]">
+          <button
+            onClick={handleSync}
+            disabled={syncing}
+            className="w-full flex items-center gap-3 px-6 py-3.5 text-sm text-blue-200 hover:bg-[#2d4f7f] hover:text-white transition-colors disabled:opacity-60"
+          >
+            <RefreshCw size={16} className={syncing ? "animate-spin" : ""} />
+            <span>{syncing ? "מסנכרן..." : "סנכרן Airtable"}</span>
+          </button>
+          {syncMsg && (
+            <p className={`text-xs text-center px-4 pb-2 ${syncMsg.startsWith("שגיאה") ? "text-red-400" : "text-green-400"}`}>
+              {syncMsg}
+            </p>
+          )}
           <button
             onClick={() => setSettingsOpen(true)}
             className="w-full flex items-center gap-3 px-6 py-3.5 text-sm text-blue-200 hover:bg-[#2d4f7f] hover:text-white transition-colors"
