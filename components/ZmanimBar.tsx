@@ -29,8 +29,12 @@ type ZmanimData = {
 function pad(n: number) { return String(n).padStart(2, "0"); }
 
 function formatTime(iso: string): string {
-  const d = new Date(iso);
-  return `${pad(d.getHours())}:${pad(d.getMinutes())}`;
+  return new Date(iso).toLocaleTimeString("he-IL", {
+    hour: "2-digit",
+    minute: "2-digit",
+    timeZone: "Asia/Jerusalem",
+    hour12: false,
+  });
 }
 
 function getCountdown(target: Date, now: Date): string {
