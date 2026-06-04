@@ -20,7 +20,6 @@ export default async function FinancesPage() {
   const { data: studentsForNedarim } = await supabase
     .from("students")
     .select("id, first_name, last_name, nedarim_id, nedarim_amount, nedarim_charged")
-    .not("nedarim_id", "is", null)
     .order("last_name");
 
   const coordinatorTotals: Record<
