@@ -37,7 +37,9 @@ CREATE TABLE students (
   coordinator_id UUID REFERENCES coordinators(id),
   nedarim_id INTEGER,
   group_id UUID REFERENCES groups(id),
-  notes TEXT
+  notes TEXT,
+  nedarim_amount NUMERIC(10,2) DEFAULT 0,
+  nedarim_charged NUMERIC(10,2) DEFAULT 0
 );
 
 CREATE TABLE exams (

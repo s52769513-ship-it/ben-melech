@@ -38,6 +38,8 @@ export interface Student {
   nedarim_id: number | null;
   group_id: string | null;
   notes: string | null;
+  nedarim_amount: number | null;
+  nedarim_charged: number | null;
   coordinator?: Coordinator;
 }
 

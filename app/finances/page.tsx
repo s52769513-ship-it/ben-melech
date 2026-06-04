@@ -2,6 +2,7 @@ import { createClient } from "@/lib/supabase/server";
 import Link from "next/link";
 import { Wallet, TrendingUp } from "lucide-react";
 import FinancesTable from "@/components/tables/FinancesTable";
+import NedarimPanel from "@/components/NedarimPanel";
 
 export default async function FinancesPage() {
   const supabase = await createClient();
@@ -15,6 +16,12 @@ export default async function FinancesPage() {
     .from("coordinators")
     .select("id, name")
     .order("name");
+
+  const { data: studentsForNedarim } = await supabase
+    .from("students")
+    .select("id, first_name, last_name, nedarim_id, nedarim_amount, nedarim_charged")
+    .not("nedarim_id", "is", null)
+    .order("last_name");
 
   const coordinatorTotals: Record<
     string,
@@ -56,6 +63,10 @@ export default async function FinancesPage() {
         <p className="text-gray-500 mt-1">
           סה״כ תשלומים: ₪{grandTotal.toLocaleString()}
         </p>
+      </div>
+
+      <div className="mb-8">
+        <NedarimPanel students={studentsForNedarim ?? []} />
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
