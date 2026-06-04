@@ -196,7 +196,6 @@ export default function ZmanimBar() {
               <span>🕯</span>
               <span className="text-[10px] text-yellow-400">כניסת שבת</span>
               <span className="font-mono font-bold text-sm text-yellow-300">{formatTime(data.candleLightingTime)}</span>
-              <span className="text-[9px] text-yellow-600">ירושלים</span>
             </div>
           ) : countdownStr ? (
             <div className="flex items-center gap-1.5 px-4 shrink-0 border-l border-[#2d4f7f] text-blue-200" dir="rtl">
