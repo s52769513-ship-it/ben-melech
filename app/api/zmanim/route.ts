@@ -55,6 +55,21 @@ export async function GET() {
     tzeis:         toISO(z.tzeit()),
   };
 
+  const dayOfWeek = today.getDay();
+  const showShabbat = dayOfWeek >= 3 && dayOfWeek <= 5; // Wed=3, Thu=4, Fri=5
+
+  let candleLightingTime: string | undefined;
+  if (showShabbat) {
+    const daysUntilFriday = (5 - dayOfWeek + 7) % 7; // 0 on Friday
+    const friday = new Date(today);
+    friday.setDate(friday.getDate() + daysUntilFriday);
+    const zFri = new Zmanim(GLOC, friday, false);
+    const fridaySunset = zFri.sunset();
+    if (fridaySunset) {
+      candleLightingTime = new Date(fridaySunset.getTime() - 18 * 60 * 1000).toISOString();
+    }
+  }
+
   return NextResponse.json({
     hebrewDate,
     gregorianDate,
@@ -62,6 +77,8 @@ export async function GET() {
     parasha,
     holiday,
     times,
-    isFriday: today.getDay() === 5,
+    isFriday: dayOfWeek === 5,
+    showShabbat,
+    candleLightingTime,
   });
 }

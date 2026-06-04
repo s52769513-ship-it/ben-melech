@@ -22,7 +22,8 @@ type ZmanimData = {
   holiday: string;
   times: ZmanimTimes;
   isFriday: boolean;
-  candleLighting?: string;
+  showShabbat: boolean;
+  candleLightingTime?: string;
 };
 
 function pad(n: number) { return String(n).padStart(2, "0"); }
@@ -72,12 +73,7 @@ export default function ZmanimBar() {
     fetch("/api/zmanim")
       .then(r => r.json())
       .then(json => {
-        const times: ZmanimTimes = json.times ?? {};
-        let candleLighting: string | undefined;
-        if (json.isFriday && times.sunset) {
-          candleLighting = new Date(new Date(times.sunset).getTime() - 18 * 60 * 1000).toISOString();
-        }
-        setData({ ...json, times, candleLighting });
+        setData({ ...json, times: json.times ?? {} });
       })
       .catch(() => setFetchError(true));
   }, [mounted]);
@@ -86,8 +82,8 @@ export default function ZmanimBar() {
 
   const currentTimeStr = `${pad(now.getHours())}:${pad(now.getMinutes())}:${pad(now.getSeconds())}`;
 
-  const countdownIso = data?.isFriday ? (data.candleLighting ?? data.times.sunset) : data?.times.sunset;
-  const countdownLabel = data?.isFriday ? "כניסת שבת" : "שקיעה";
+  const countdownIso = data?.showShabbat ? data.candleLightingTime : data?.times.sunset;
+  const countdownLabel = data?.showShabbat ? "כניסת שבת" : "שקיעה";
   const countdownTarget = countdownIso ? new Date(countdownIso) : null;
   const countdownStr = countdownTarget && countdownTarget > now ? getCountdown(countdownTarget, now) : null;
 
@@ -159,14 +155,6 @@ export default function ZmanimBar() {
             <div className="zmanim-ticker">
               {[0, 1].map(i => (
                 <span key={i} className="flex items-center h-full" dir="rtl">
-                  {/* Daf Yomi */}
-                  {data.dafYomi && (
-                    <span className="flex items-center gap-1 px-3 border-r border-[#2d4f7f]/50 shrink-0 h-10">
-                      <span className="text-blue-400">דף יומי:</span>
-                      <span className="font-medium text-white mr-0.5">{data.dafYomi}</span>
-                    </span>
-                  )}
-
                   {/* Zmanim */}
                   {ZMANIM_LIST.map(({ label, key }) => {
                     const val = data.times[key];
@@ -181,12 +169,12 @@ export default function ZmanimBar() {
                     );
                   })}
 
-                  {/* Candle lighting on Friday */}
-                  {data.isFriday && data.candleLighting && (
+                  {/* Candle lighting from Wednesday */}
+                  {data.showShabbat && data.candleLightingTime && (
                     <span className="flex items-center gap-1 px-3 border-r border-[#2d4f7f]/50 shrink-0 h-10">
                       <span>🕯</span>
                       <span className="text-yellow-300 font-medium">כניסת שבת</span>
-                      <span className="font-semibold text-yellow-200 mr-0.5">{formatTime(data.candleLighting)}</span>
+                      <span className="font-semibold text-yellow-200 mr-0.5">{formatTime(data.candleLightingTime)}</span>
                     </span>
                   )}
 
@@ -200,10 +188,10 @@ export default function ZmanimBar() {
         {/* === RIGHT: countdown === */}
         {countdownStr && data && (
           <div className={`flex items-center gap-1.5 px-4 shrink-0 border-l border-[#2d4f7f] ${
-            data.isFriday ? "text-yellow-200" : "text-blue-200"
+            data.showShabbat ? "text-yellow-200" : "text-blue-200"
           }`} dir="rtl">
             <span className="text-[10px]">{countdownLabel} בעוד</span>
-            <span className={`font-mono font-bold text-sm ${data.isFriday ? "text-yellow-300" : "text-white"}`}>
+            <span className={`font-mono font-bold text-sm ${data.showShabbat ? "text-yellow-300" : "text-white"}`}>
               {countdownStr}
             </span>
           </div>
