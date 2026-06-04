@@ -151,6 +151,8 @@ export default function ZmanimBar() {
 
       {/* spacer between repeats */}
       <span className="px-8 shrink-0 text-[#2d4f7f]">◆</span>
+    </>
+  );
 
   return (
     <>
