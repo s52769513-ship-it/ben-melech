@@ -59,7 +59,10 @@ async function fetchAllRecords(): Promise<AirtableRecord[]> {
       cache: "no-store",
     });
 
-    if (!res.ok) throw new Error(`Airtable error: ${res.status} ${await res.text()}`);
+    if (!res.ok) {
+      const body = await res.text();
+      throw new Error(`Airtable error: ${res.status} ${body} | URL: ${url.toString().replace(TOKEN, "***")}`);
+    }
 
     const data = await res.json() as { records: AirtableRecord[]; offset?: string };
     records.push(...data.records);
