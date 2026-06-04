@@ -63,7 +63,7 @@ export async function POST(req: NextRequest) {
       createClient(),
     ]);
 
-    const rows = records.map(mapToSupabase);
+    const rows = records.map(mapToSupabase).filter(r => r.first_name && r.last_name);
 
     const { error } = await supabase
       .from("students")
