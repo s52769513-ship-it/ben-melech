@@ -149,23 +149,8 @@ export default function ZmanimBar() {
         </span>
       )}
 
-      {countdownStr && (
-        <span className="flex items-center gap-2 px-4 shrink-0">
-          <span className={`flex items-center gap-2 rounded-lg px-3 py-0.5 border ${
-            data.isFriday
-              ? "bg-yellow-900/40 border-yellow-600/50 text-yellow-200"
-              : "bg-blue-900/50 border-blue-600/40 text-blue-100"
-          }`}>
-            <span className="text-[11px]">{countdownLabel} בעוד</span>
-            <span className="font-mono font-bold text-sm tracking-wider">{countdownStr}</span>
-          </span>
-        </span>
-      )}
-
       {/* spacer between repeats */}
       <span className="px-8 shrink-0 text-[#2d4f7f]">◆</span>
-    </>
-  );
 
   return (
     <>
@@ -195,7 +180,7 @@ export default function ZmanimBar() {
         </div>
 
         {/* Scrolling ticker */}
-        <div className="flex-1 overflow-hidden h-full flex items-center">
+        <div className="flex-1 overflow-hidden h-full flex items-center min-w-0">
           {fetchError ? (
             <span className="px-4 text-blue-500">לא ניתן לטעון זמנים</span>
           ) : !data ? (
@@ -207,6 +192,18 @@ export default function ZmanimBar() {
             </div>
           )}
         </div>
+
+        {/* Fixed countdown — outside ticker */}
+        {countdownStr && data && (
+          <div className={`flex items-center gap-2 px-3 shrink-0 border-l border-[#2d4f7f] h-full ${
+            data.isFriday ? "text-yellow-200" : "text-blue-100"
+          }`}>
+            <span className="text-[11px]">{countdownLabel} בעוד</span>
+            <span className={`font-mono font-bold text-sm tracking-wider ${data.isFriday ? "text-yellow-300" : "text-white"}`}>
+              {countdownStr}
+            </span>
+          </div>
+        )}
       </div>
     </>
   );
