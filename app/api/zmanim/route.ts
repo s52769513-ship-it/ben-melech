@@ -1,8 +1,7 @@
 import { NextResponse } from "next/server";
-import { HDate, GeoLocation, Zmanim } from "@hebcal/core";
+import { HDate, GeoLocation, Zmanim, HebrewCalendar } from "@hebcal/core";
 import { DafYomi } from "@hebcal/learning";
 
-// Jerusalem
 const GLOC = new GeoLocation("Jerusalem", 31.7683, 35.2137, 800, "Asia/Jerusalem");
 
 function toISO(d: Date | null | undefined): string | undefined {
@@ -12,19 +11,38 @@ function toISO(d: Date | null | undefined): string | undefined {
 export async function GET() {
   const today = new Date();
   const z = new Zmanim(GLOC, today, false);
-
-  // Hebrew date
   const hd = new HDate(today);
+
   const hebrewDate = hd.renderGematriya();
 
-  // Daf Yomi
+  const gregorianDate = today.toLocaleDateString("he-IL", {
+    day: "numeric", month: "long", year: "numeric",
+    timeZone: "Asia/Jerusalem",
+  });
+
   let dafYomi = "";
+  try { dafYomi = new DafYomi(today).render("he"); } catch { dafYomi = ""; }
+
+  // Parasha — next Shabbat within 7 days
+  let parasha = "";
   try {
-    const dy = new DafYomi(today);
-    dafYomi = dy.render("he");
-  } catch {
-    dafYomi = "";
-  }
+    for (let i = 0; i <= 7; i++) {
+      const candidate = new HDate(hd.abs() + i);
+      if (candidate.getDay() === 6) {
+        const events = HebrewCalendar.calendar({ start: candidate, end: candidate, il: true, sedrot: true, noHolidays: true });
+        const pe = events.find(e => e.constructor.name === "ParshaEvent");
+        if (pe) parasha = pe.render("he");
+        break;
+      }
+    }
+  } catch { parasha = ""; }
+
+  // Holiday / Rosh Chodesh today
+  let holiday = "";
+  try {
+    const events = HebrewCalendar.calendar({ start: hd, end: hd, il: true, noHolidays: false, sedrot: false });
+    holiday = events.filter(e => e.constructor.name !== "ParshaEvent").map(e => e.render("he")).filter(Boolean).join(" | ");
+  } catch { holiday = ""; }
 
   const times = {
     alotHaShachar: toISO(z.alotHaShachar()),
@@ -39,7 +57,10 @@ export async function GET() {
 
   return NextResponse.json({
     hebrewDate,
+    gregorianDate,
     dafYomi,
+    parasha,
+    holiday,
     times,
     isFriday: today.getDay() === 5,
   });
