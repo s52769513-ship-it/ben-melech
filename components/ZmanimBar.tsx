@@ -185,26 +185,25 @@ export default function ZmanimBar() {
       `}</style>
 
       <div
-        dir="rtl"
+        dir="ltr"
         className="sticky top-0 z-30 bg-[#152d4a] border-b border-[#2d4f7f] text-white text-xs flex items-center print:hidden shrink-0 h-10 overflow-hidden"
       >
         {/* Fixed clock */}
-        <div className="flex items-center gap-1.5 px-4 border-l border-[#2d4f7f] shrink-0 h-full">
+        <div className="flex items-center gap-1.5 px-4 border-r border-[#2d4f7f] shrink-0 h-full">
           <Clock size={13} className="text-blue-400" />
           <span className="font-mono font-semibold text-sm tracking-wide">{currentTimeStr}</span>
         </div>
 
         {/* Scrolling ticker */}
-        <div className="flex-1 overflow-hidden h-full flex items-center" dir="ltr">
+        <div className="flex-1 overflow-hidden h-full flex items-center">
           {fetchError ? (
             <span className="px-4 text-blue-500">לא ניתן לטעון זמנים</span>
           ) : !data ? (
             <span className="px-4 text-blue-400 animate-pulse">טוען זמנים...</span>
           ) : (
-            <div className="zmanim-ticker items-center h-full" style={{ alignItems: "center" }}>
-              {/* Duplicate for seamless loop */}
-              <span className="flex items-center h-full">{tickerContent}</span>
-              <span className="flex items-center h-full">{tickerContent}</span>
+            <div className="zmanim-ticker" style={{ alignItems: "center" }}>
+              <span className="flex items-center h-full" dir="rtl">{tickerContent}</span>
+              <span className="flex items-center h-full" dir="rtl">{tickerContent}</span>
             </div>
           )}
         </div>
