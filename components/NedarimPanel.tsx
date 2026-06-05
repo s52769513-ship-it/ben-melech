@@ -1,7 +1,7 @@
 "use client";
 
-import { useState } from "react";
-import { CreditCard, Loader2, CheckCircle, XCircle, Zap, FlaskConical, Save } from "lucide-react";
+import { useState, useRef } from "react";
+import { CreditCard, Loader2, CheckCircle, XCircle, Zap, FlaskConical, Save, Lock } from "lucide-react";
 
 type StudentRow = {
   id: string;
@@ -28,6 +28,10 @@ export default function NedarimPanel({ students }: { students: StudentRow[] }) {
   const [localCharged, setLocalCharged] = useState<Record<string, number>>({});
   const [editingAmount, setEditingAmount] = useState<Record<string, string>>({});
   const [savingAmount, setSavingAmount] = useState<string | null>(null);
+  const [passwordModal, setPasswordModal] = useState<{ pendingIds?: string[]; dryRun: boolean } | null>(null);
+  const [passwordInput, setPasswordInput] = useState("");
+  const [passwordError, setPasswordError] = useState(false);
+  const passwordRef = useRef<HTMLInputElement>(null);
 
   const studentsWithNedarim = students.filter((s) => s.nedarim_id);
 
@@ -69,6 +73,25 @@ export default function NedarimPanel({ students }: { students: StudentRow[] }) {
     }
   }
 
+  function requestCharge(studentIds?: string[], dryRun = false) {
+    setPasswordInput("");
+    setPasswordError(false);
+    setPasswordModal({ pendingIds: studentIds, dryRun });
+    setTimeout(() => passwordRef.current?.focus(), 50);
+  }
+
+  function confirmPassword() {
+    if (passwordInput === "2447") {
+      const { pendingIds, dryRun } = passwordModal!;
+      setPasswordModal(null);
+      doCharge(pendingIds, dryRun);
+    } else {
+      setPasswordError(true);
+      setPasswordInput("");
+      passwordRef.current?.focus();
+    }
+  }
+
   async function doCharge(studentIds?: string[], dryRun = false) {
     const key = dryRun ? "dry" : studentIds?.length === 1 ? studentIds[0] : "all";
     setLoading(key);
@@ -100,6 +123,7 @@ export default function NedarimPanel({ students }: { students: StudentRow[] }) {
   }
 
   return (
+    <>
     <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
       <div className="px-6 py-4 bg-gray-50 border-b border-gray-200 flex items-center justify-between gap-4 flex-wrap">
         <div className="flex items-center gap-2">
@@ -113,20 +137,26 @@ export default function NedarimPanel({ students }: { students: StudentRow[] }) {
         </div>
         <div className="flex items-center gap-2">
           <button
-            onClick={() => doCharge(undefined, true)}
+            onClick={() => requestCharge(undefined, true)}
             disabled={loading !== null || eligible.length === 0}
-            className="flex items-center gap-2 px-4 py-2 border border-purple-400 text-purple-700 text-sm rounded-lg hover:bg-purple-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+            className="flex flex-col items-center gap-0 px-4 py-1.5 border border-purple-400 text-purple-700 text-sm rounded-lg hover:bg-purple-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
           >
-            {loading === "dry" ? <Loader2 size={14} className="animate-spin" /> : <FlaskConical size={14} />}
-            ניסוי בלבד
+            <span className="flex items-center gap-2">
+              {loading === "dry" ? <Loader2 size={14} className="animate-spin" /> : <FlaskConical size={14} />}
+              ניסוי בלבד
+            </span>
+            <span className="text-[10px] text-purple-400 leading-tight">דרישת אימות</span>
           </button>
           <button
-            onClick={() => doCharge(undefined, false)}
+            onClick={() => requestCharge(undefined, false)}
             disabled={loading !== null || eligible.length === 0}
-            className="flex items-center gap-2 px-4 py-2 bg-[#1e3a5f] text-white text-sm rounded-lg hover:bg-[#2d4f7f] disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+            className="flex flex-col items-center gap-0 px-4 py-1.5 bg-[#1e3a5f] text-white text-sm rounded-lg hover:bg-[#2d4f7f] disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
           >
-            {loading === "all" ? <Loader2 size={14} className="animate-spin" /> : <Zap size={14} />}
-            הטען הכל ({eligible.length})
+            <span className="flex items-center gap-2">
+              {loading === "all" ? <Loader2 size={14} className="animate-spin" /> : <Zap size={14} />}
+              הטען הכל ({eligible.length})
+            </span>
+            <span className="text-[10px] text-blue-300 leading-tight">דרישת אימות</span>
           </button>
         </div>
       </div>
@@ -224,12 +254,15 @@ export default function NedarimPanel({ students }: { students: StudentRow[] }) {
                   </div>
 
                   <button
-                    onClick={() => doCharge([s.id], false)}
+                    onClick={() => requestCharge([s.id], false)}
                     disabled={loading !== null || remaining <= 0}
-                    className="flex items-center justify-center gap-1.5 px-3 py-1.5 text-xs border border-[#1e3a5f] text-[#1e3a5f] rounded-lg hover:bg-[#1e3a5f] hover:text-white disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                    className="flex flex-col items-center gap-0 px-3 py-1 text-xs border border-[#1e3a5f] text-[#1e3a5f] rounded-lg hover:bg-[#1e3a5f] hover:text-white disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
                   >
-                    {loading === s.id ? <Loader2 size={12} className="animate-spin" /> : <CreditCard size={12} />}
-                    {remaining > 0 ? `הטען ₪${remaining.toLocaleString()}` : "הושלם"}
+                    <span className="flex items-center gap-1.5">
+                      {loading === s.id ? <Loader2 size={12} className="animate-spin" /> : <CreditCard size={12} />}
+                      {remaining > 0 ? `הטען ₪${remaining.toLocaleString()}` : "הושלם"}
+                    </span>
+                    {remaining > 0 && <span className="text-[9px] opacity-60 leading-tight">לאחר אימות</span>}
                   </button>
                 </div>
               );
@@ -237,5 +270,42 @@ export default function NedarimPanel({ students }: { students: StudentRow[] }) {
         </div>
       )}
     </div>
+
+      {passwordModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
+          <div className="bg-white rounded-xl shadow-xl p-6 w-80 flex flex-col gap-4" dir="rtl">
+            <div className="flex items-center gap-2 text-[#1e3a5f]">
+              <Lock size={18} />
+              <h3 className="font-semibold text-base">אימות נדרש</h3>
+            </div>
+            <p className="text-sm text-gray-500">הזן סיסמה כדי להמשיך עם הטעינה</p>
+            <input
+              ref={passwordRef}
+              type="password"
+              value={passwordInput}
+              onChange={(e) => { setPasswordInput(e.target.value); setPasswordError(false); }}
+              onKeyDown={(e) => { if (e.key === "Enter") confirmPassword(); if (e.key === "Escape") setPasswordModal(null); }}
+              placeholder="סיסמה"
+              className={`border rounded-lg px-3 py-2 text-sm text-center focus:outline-none focus:ring-2 ${passwordError ? "border-red-400 focus:ring-red-300" : "border-gray-300 focus:ring-blue-300"}`}
+            />
+            {passwordError && <p className="text-xs text-red-500 text-center -mt-2">סיסמה שגויה, נסה שנית</p>}
+            <div className="flex gap-2">
+              <button
+                onClick={() => setPasswordModal(null)}
+                className="flex-1 px-4 py-2 text-sm border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
+              >
+                ביטול
+              </button>
+              <button
+                onClick={confirmPassword}
+                className="flex-1 px-4 py-2 text-sm bg-[#1e3a5f] text-white rounded-lg hover:bg-[#2d4f7f] transition-colors"
+              >
+                אישור
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </>
   );
 }
