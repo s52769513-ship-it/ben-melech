@@ -3,8 +3,6 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
-  LayoutDashboard,
-  Users,
   GraduationCap,
   BookOpen,
   Star,
@@ -22,8 +20,6 @@ import SettingsPanel from "@/components/SettingsPanel";
 import { logout } from "@/app/login/actions";
 
 const navItems = [
-  { href: "/", label: "לוח בקרה", icon: LayoutDashboard },
-  { href: "/coordinators", label: "משפיעים", icon: Users },
   { href: "/students", label: "בחורים", icon: GraduationCap },
   { href: "/exams", label: "מבחנים", icon: BookOpen },
   { href: "/scores", label: "ציונים", icon: Star },

@@ -30,7 +30,7 @@ export default async function RootLayout({
 
   return (
     <html lang="he" dir="rtl" className={`${heebo.variable} h-full`}>
-      <body className="min-h-full flex bg-gray-50 font-[family-name:var(--font-heebo)]">
+      <body className="min-h-full bg-gray-50 font-[family-name:var(--font-heebo)]">
         <SettingsProvider>
           <DynamicFavicon />
           <ConditionalShell coordinatorName={coordinator?.name ?? null}>

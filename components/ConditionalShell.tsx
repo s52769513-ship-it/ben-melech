@@ -13,16 +13,16 @@ export default function ConditionalShell({ coordinatorName, children }: Props) {
   const pathname = usePathname();
 
   if (pathname === "/login") {
-    return <>{children}</>;
+    return <div className="min-h-screen">{children}</div>;
   }
 
   return (
-    <>
+    <div className="flex min-h-screen">
       <Sidebar coordinatorName={coordinatorName} />
-      <main className="flex-1 overflow-auto flex flex-col">
+      <main className="flex-1 overflow-auto flex flex-col min-w-0">
         <ZmanimBar />
         <div className="flex-1">{children}</div>
       </main>
-    </>
+    </div>
   );
 }

@@ -58,7 +58,7 @@ export default function LoginForm() {
   useEffect(() => {
     if (state?.success) {
       setShowWelcome(true);
-      const t = setTimeout(() => router.push("/"), 3000);
+      const t = setTimeout(() => router.push("/exams"), 3000);
       return () => clearTimeout(t);
     }
   }, [state, router]);

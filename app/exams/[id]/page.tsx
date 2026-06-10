@@ -16,6 +16,8 @@ export default async function ExamDetailPage({
   const [exam, allScores] = await Promise.all([getExam(id), getScoresByExam(id)]);
 
   if (!exam) notFound();
+  // exam is Exam from here
+  const safeExam = exam as NonNullable<typeof exam>;
 
   const scores = coordinatorId
     ? allScores.filter((s) => s.student?.coordinator_id === coordinatorId)
@@ -51,11 +53,11 @@ export default async function ExamDetailPage({
           <div>
             <h1 className="text-3xl font-bold text-[#1e3a5f] flex items-center gap-2">
               <BookOpen size={28} />
-              {exam.parasha}
+              {safeExam.parasha}
             </h1>
             <p className="text-gray-500 mt-1">
-              {exam.exam_date
-                ? new Date(exam.exam_date).toLocaleDateString("he-IL", {
+              {safeExam.exam_date
+                ? new Date(safeExam.exam_date).toLocaleDateString("he-IL", {
                     year: "numeric",
                     month: "long",
                     day: "numeric",

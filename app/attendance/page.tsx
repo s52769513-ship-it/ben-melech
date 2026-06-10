@@ -1,13 +1,17 @@
 import AttendanceClient from "./AttendanceClient";
 import { ClipboardList } from "lucide-react";
 import { getExams, getScoresByExam, getAllScores } from "@/lib/airtable/db";
+import { getSession } from "@/lib/auth";
 
 export default async function AttendancePage({
   searchParams,
 }: {
   searchParams: Promise<{ exam?: string }>;
 }) {
-  const { exam: examId } = await searchParams;
+  const [{ exam: examId }, coordinatorId] = await Promise.all([
+    searchParams,
+    getSession(),
+  ]);
 
   const exams = await getExams();
   const selectedExamId = examId ?? exams[0]?.id ?? null;
@@ -17,12 +21,22 @@ export default async function AttendancePage({
     getAllScores(),
   ]);
 
+  const filteredScores = coordinatorId
+    ? scores.filter((s) => s.student?.coordinator_id === coordinatorId)
+    : scores;
+
   const attendanceMap: Record<string, { attended: number; total: number }> = {};
-  allAttendance.forEach((row) => {
+  const attendanceSrc = coordinatorId
+    ? allAttendance.filter((s) => {
+        return true;
+      })
+    : allAttendance;
+
+  attendanceSrc.forEach((row) => {
     if (!row.student_id) return;
     if (!attendanceMap[row.student_id]) attendanceMap[row.student_id] = { attended: 0, total: 0 };
     attendanceMap[row.student_id].total++;
-    if (row.attended_seder) attendanceMap[row.student_id].attended++;
+    if (row.attended_seder || row.attended_seder_old) attendanceMap[row.student_id].attended++;
   });
 
   const attendanceRates: Record<string, number> = {};
@@ -42,7 +56,7 @@ export default async function AttendancePage({
 
       <AttendanceClient
         exams={exams}
-        scores={scores as any[]}
+        scores={filteredScores as any[]}
         selectedExamId={selectedExamId}
         attendanceRates={attendanceRates}
       />
