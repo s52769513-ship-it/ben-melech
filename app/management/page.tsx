@@ -31,7 +31,7 @@ export default async function ManagementPage({
           exams={exams}
           coordinators={coordinators}
           scores={scores as any}
-          examNotes={examNotes}
+          examNotes={examNotes as any}
           selectedExamId={selectedExamId}
           activeTab={activeTab}
         />
