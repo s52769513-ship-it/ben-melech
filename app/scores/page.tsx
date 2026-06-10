@@ -1,6 +1,6 @@
-import { createClient } from "@/lib/supabase/server";
 import Link from "next/link";
 import { Star } from "lucide-react";
+import { getScoresWithRelations, getExams, getCoordinators } from "@/lib/airtable/db";
 
 export default async function ScoresPage({
   searchParams,
@@ -8,45 +8,25 @@ export default async function ScoresPage({
   searchParams: Promise<{ exam?: string; coordinator?: string }>;
 }) {
   const filters = await searchParams;
-  const supabase = await createClient();
 
-  let query = supabase
-    .from("scores")
-    .select(
-      "*, student:students(id, first_name, last_name, coordinator:coordinators(id, name)), exam:exams(id, parasha, exam_date)"
-    )
-    .order("created_at", { ascending: false });
-
-  if (filters.exam) query = query.eq("exam_id", filters.exam);
-
-  const { data: scores } = await query;
-
-  const [{ data: exams }, { data: coordinators }] = await Promise.all([
-    supabase.from("exams").select("id, parasha, exam_date").order("exam_date", { ascending: false }),
-    supabase.from("coordinators").select("id, name").order("name"),
+  const [scores, exams, coordinators] = await Promise.all([
+    getScoresWithRelations(filters.exam),
+    getExams(),
+    getCoordinators(),
   ]);
 
   const filteredScores = filters.coordinator
-    ? (scores ?? []).filter((s) => {
-        const student = s.student as {
-          coordinator: { id: string } | null;
-        } | null;
-        return student?.coordinator?.id === filters.coordinator;
-      })
-    : scores ?? [];
+    ? scores.filter((s) => s.student?.coordinator_id === filters.coordinator)
+    : scores;
 
   const overallAvg =
     filteredScores.length > 0
       ? (
           filteredScores.reduce((acc, s) => {
-            const vals = [
-              s.chassidut_score,
-              s.halacha_score,
-              s.tefila_score,
-            ].filter((v): v is number => v !== null);
-            return (
-              acc + (vals.length ? vals.reduce((a, b) => a + b, 0) / vals.length : 0)
+            const vals = [s.chassidut_score, s.halacha_score, s.tefila_score].filter(
+              (v): v is number => v !== null
             );
+            return acc + (vals.length ? vals.reduce((a, b) => a + b, 0) / vals.length : 0);
           }, 0) / filteredScores.length
         ).toFixed(1)
       : "—";
@@ -72,12 +52,10 @@ export default async function ScoresPage({
             className="text-sm border border-gray-200 rounded-lg px-3 py-2 bg-white focus:outline-none focus:ring-2 focus:ring-blue-300"
           >
             <option value="">כל המבחנים</option>
-            {(exams ?? []).map((e) => (
+            {exams.map((e) => (
               <option key={e.id} value={e.id}>
                 {e.parasha}
-                {e.exam_date
-                  ? ` — ${new Date(e.exam_date).toLocaleDateString("he-IL")}`
-                  : ""}
+                {e.exam_date ? ` — ${new Date(e.exam_date).toLocaleDateString("he-IL")}` : ""}
               </option>
             ))}
           </select>
@@ -90,7 +68,7 @@ export default async function ScoresPage({
             className="text-sm border border-gray-200 rounded-lg px-3 py-2 bg-white focus:outline-none focus:ring-2 focus:ring-blue-300"
           >
             <option value="">כל המשפיעים</option>
-            {(coordinators ?? []).map((c) => (
+            {coordinators.map((c) => (
               <option key={c.id} value={c.id}>
                 {c.name}
               </option>
@@ -104,10 +82,7 @@ export default async function ScoresPage({
           סנן
         </button>
         {(filters.exam || filters.coordinator) && (
-          <Link
-            href="/scores"
-            className="text-sm text-gray-500 hover:text-gray-700 py-2"
-          >
+          <Link href="/scores" className="text-sm text-gray-500 hover:text-gray-700 py-2">
             נקה סינון
           </Link>
         )}
@@ -134,51 +109,37 @@ export default async function ScoresPage({
             <tbody className="divide-y divide-gray-100">
               {filteredScores.length > 0 ? (
                 filteredScores.map((score) => {
-                  const student = score.student as {
-                    id: string;
-                    first_name: string;
-                    last_name: string;
-                    coordinator: { id: string; name: string } | null;
-                  } | null;
-                  const exam = score.exam as {
-                    id: string;
-                    parasha: string;
-                    exam_date: string | null;
-                  } | null;
-                  const vals = [
-                    score.chassidut_score,
-                    score.halacha_score,
-                    score.tefila_score,
-                  ].filter((v): v is number => v !== null);
+                  const vals = [score.chassidut_score, score.halacha_score, score.tefila_score].filter(
+                    (v): v is number => v !== null
+                  );
                   const avg =
                     vals.length > 0
                       ? (vals.reduce((a, b) => a + b, 0) / vals.length).toFixed(1)
                       : "—";
-
                   return (
                     <tr key={score.id} className="hover:bg-gray-50 transition-colors">
                       <td className="px-6 py-3 font-medium text-gray-900">
-                        {student ? (
+                        {score.student ? (
                           <Link
-                            href={`/students/${student.id}`}
+                            href={`/students/${score.student.id}`}
                             className="text-blue-600 hover:underline"
                           >
-                            {student.first_name} {student.last_name}
+                            {score.student.first_name} {score.student.last_name}
                           </Link>
                         ) : (
                           "—"
                         )}
                       </td>
                       <td className="px-6 py-3 text-gray-500 text-xs">
-                        {student?.coordinator?.name ?? "—"}
+                        {score.student?.coordinator?.name ?? "—"}
                       </td>
                       <td className="px-6 py-3 text-gray-600">
-                        {exam ? (
+                        {score.exam ? (
                           <Link
-                            href={`/exams/${exam.id}`}
+                            href={`/exams/${score.exam.id}`}
                             className="text-blue-600 hover:underline"
                           >
-                            {exam.parasha}
+                            {score.exam.parasha}
                           </Link>
                         ) : (
                           "—"

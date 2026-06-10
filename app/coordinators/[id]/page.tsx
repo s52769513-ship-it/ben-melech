@@ -1,17 +1,15 @@
-import { createClient } from "@/lib/supabase/server";
 import Link from "next/link";
 import {
-  ArrowRight,
-  Phone,
-  MapPin,
-  Mail,
-  CreditCard,
-  User,
-  GraduationCap,
-  MessageSquare,
-  Wallet,
+  ArrowRight, Phone, MapPin, Mail, CreditCard,
+  User, GraduationCap, MessageSquare, Wallet,
 } from "lucide-react";
 import { notFound } from "next/navigation";
+import {
+  getCoordinator,
+  getStudents,
+  getFinancesByCoordinator,
+  getInquiriesByCoordinator,
+} from "@/lib/airtable/db";
 
 export default async function CoordinatorDetailPage({
   params,
@@ -19,36 +17,17 @@ export default async function CoordinatorDetailPage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
-  const supabase = await createClient();
 
-  const [
-    { data: coordinator },
-    { data: students },
-    { data: finances },
-    { data: inquiries },
-  ] = await Promise.all([
-    supabase.from("coordinators").select("*").eq("id", id).single(),
-    supabase
-      .from("students")
-      .select("*")
-      .eq("coordinator_id", id)
-      .order("last_name")
-      .order("first_name"),
-    supabase
-      .from("finances")
-      .select("*")
-      .eq("coordinator_id", id)
-      .order("payment_date", { ascending: false }),
-    supabase
-      .from("inquiries")
-      .select("*, student:students(first_name, last_name)")
-      .eq("coordinator_id", id)
-      .order("created_at", { ascending: false }),
+  const [coordinator, students, finances, inquiries] = await Promise.all([
+    getCoordinator(id),
+    getStudents({ coordinator: id }),
+    getFinancesByCoordinator(id),
+    getInquiriesByCoordinator(id),
   ]);
 
   if (!coordinator) notFound();
 
-  const totalPaid = (finances ?? []).reduce((acc, f) => acc + (f.amount ?? 0), 0);
+  const totalPaid = finances.reduce((acc, f) => acc + (f.amount ?? 0), 0);
 
   const statusColors: Record<string, string> = {
     פתוח: "bg-red-100 text-red-700",
@@ -129,9 +108,9 @@ export default async function CoordinatorDetailPage({
           <div className="bg-white rounded-xl border border-gray-200 p-6">
             <h2 className="text-lg font-semibold text-[#1e3a5f] mb-4 flex items-center gap-2">
               <GraduationCap size={18} />
-              בחורים ({students?.length ?? 0})
+              בחורים ({students.length})
             </h2>
-            {students && students.length > 0 ? (
+            {students.length > 0 ? (
               <table className="w-full text-sm">
                 <thead className="bg-gray-50 border-b border-gray-100">
                   <tr>
@@ -164,7 +143,9 @@ export default async function CoordinatorDetailPage({
                 </tbody>
               </table>
             ) : (
-              <p className="text-gray-400 text-sm text-center py-6">אין בחורים משויכים למשפיע זה</p>
+              <p className="text-gray-400 text-sm text-center py-6">
+                אין בחורים משויכים למשפיע זה
+              </p>
             )}
           </div>
 
@@ -180,7 +161,7 @@ export default async function CoordinatorDetailPage({
                   ₪{totalPaid.toLocaleString()}
                 </span>
               </div>
-              {finances && finances.length > 0 ? (
+              {finances.length > 0 ? (
                 <ul className="divide-y divide-gray-100 text-sm max-h-52 overflow-auto">
                   {finances.map((f) => (
                     <li key={f.id} className="py-2.5 flex justify-between">
@@ -205,32 +186,32 @@ export default async function CoordinatorDetailPage({
                 <MessageSquare size={18} />
                 פניות
               </h2>
-              {inquiries && inquiries.length > 0 ? (
+              {inquiries.length > 0 ? (
                 <ul className="divide-y divide-gray-100 text-sm max-h-52 overflow-auto">
-                  {inquiries.map((inq) => {
-                    const student = inq.student as { first_name: string; last_name: string } | null;
-                    return (
-                      <li key={inq.id} className="py-2.5 flex items-start justify-between gap-2">
-                        <div>
-                          <p className="font-medium text-gray-800 text-xs leading-snug">
-                            {inq.title}
+                  {inquiries.map((inq) => (
+                    <li
+                      key={inq.id}
+                      className="py-2.5 flex items-start justify-between gap-2"
+                    >
+                      <div>
+                        <p className="font-medium text-gray-800 text-xs leading-snug">
+                          {inq.title}
+                        </p>
+                        {inq.student && (
+                          <p className="text-xs text-gray-400 mt-0.5">
+                            {inq.student.first_name} {inq.student.last_name}
                           </p>
-                          {student && (
-                            <p className="text-xs text-gray-400 mt-0.5">
-                              {student.first_name} {student.last_name}
-                            </p>
-                          )}
-                        </div>
-                        <span
-                          className={`text-xs px-2 py-0.5 rounded-full shrink-0 ${
-                            statusColors[inq.status] ?? "bg-gray-100 text-gray-600"
-                          }`}
-                        >
-                          {inq.status}
-                        </span>
-                      </li>
-                    );
-                  })}
+                        )}
+                      </div>
+                      <span
+                        className={`text-xs px-2 py-0.5 rounded-full shrink-0 ${
+                          statusColors[inq.status] ?? "bg-gray-100 text-gray-600"
+                        }`}
+                      >
+                        {inq.status}
+                      </span>
+                    </li>
+                  ))}
                 </ul>
               ) : (
                 <p className="text-gray-400 text-sm text-center py-4">אין פניות</p>

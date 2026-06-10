@@ -1,56 +1,35 @@
-import { createClient } from "@/lib/supabase/server";
 import Link from "next/link";
 import { Wallet, TrendingUp } from "lucide-react";
 import FinancesTable from "@/components/tables/FinancesTable";
 import NedarimPanel from "@/components/NedarimPanel";
+import { getFinances, getCoordinators, getStudentsForNedarim } from "@/lib/airtable/db";
 
 export default async function FinancesPage() {
-  const supabase = await createClient();
+  const [finances, coordinators, studentsForNedarim] = await Promise.all([
+    getFinances(),
+    getCoordinators(),
+    getStudentsForNedarim(),
+  ]);
 
-  const { data: finances } = await supabase
-    .from("finances")
-    .select("*, coordinator:coordinators(id, name)")
-    .order("payment_date", { ascending: false });
+  const coordinatorTotals: Record<string, { name: string; id: string; total: number; count: number }> = {};
 
-  const { data: coordinators } = await supabase
-    .from("coordinators")
-    .select("id, name")
-    .order("name");
-
-  const { data: studentsForNedarim } = await supabase
-    .from("students")
-    .select("id, first_name, last_name, nedarim_id, nedarim_amount, nedarim_charged")
-    .order("last_name");
-
-  const coordinatorTotals: Record<
-    string,
-    { name: string; id: string; total: number; count: number }
-  > = {};
-
-  (finances ?? []).forEach((f) => {
-    const coordinator = f.coordinator as { id: string; name: string } | null;
-    if (coordinator) {
-      if (!coordinatorTotals[coordinator.id]) {
-        coordinatorTotals[coordinator.id] = {
-          name: coordinator.name,
-          id: coordinator.id,
+  finances.forEach((f) => {
+    if (f.coordinator) {
+      if (!coordinatorTotals[f.coordinator.id]) {
+        coordinatorTotals[f.coordinator.id] = {
+          name: f.coordinator.name,
+          id: f.coordinator.id,
           total: 0,
           count: 0,
         };
       }
-      coordinatorTotals[coordinator.id].total += f.amount ?? 0;
-      coordinatorTotals[coordinator.id].count++;
+      coordinatorTotals[f.coordinator.id].total += f.amount ?? 0;
+      coordinatorTotals[f.coordinator.id].count++;
     }
   });
 
-  const grandTotal = Object.values(coordinatorTotals).reduce(
-    (acc, c) => acc + c.total,
-    0
-  );
-
-  const sortedCoordinators = Object.values(coordinatorTotals).sort(
-    (a, b) => b.total - a.total
-  );
+  const grandTotal = Object.values(coordinatorTotals).reduce((acc, c) => acc + c.total, 0);
+  const sortedCoordinators = Object.values(coordinatorTotals).sort((a, b) => b.total - a.total);
 
   return (
     <div className="p-8">
@@ -59,18 +38,16 @@ export default async function FinancesPage() {
           <Wallet size={28} />
           כספים
         </h1>
-        <p className="text-gray-500 mt-1">
-          סה״כ תשלומים: ₪{grandTotal.toLocaleString()}
-        </p>
+        <p className="text-gray-500 mt-1">סה״כ תשלומים: ₪{grandTotal.toLocaleString()}</p>
       </div>
 
       <div className="mb-8">
-        <NedarimPanel students={studentsForNedarim ?? []} />
+        <NedarimPanel students={studentsForNedarim} />
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
         <div className="lg:col-span-2">
-          <FinancesTable finances={finances ?? []} coordinators={coordinators ?? []} />
+          <FinancesTable finances={finances} coordinators={coordinators} />
         </div>
 
         <div className="lg:col-span-1">

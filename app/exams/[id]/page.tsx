@@ -1,7 +1,7 @@
-import { createClient } from "@/lib/supabase/server";
 import Link from "next/link";
 import { ArrowRight, BookOpen } from "lucide-react";
 import { notFound } from "next/navigation";
+import { getExam, getScoresByExam } from "@/lib/airtable/db";
 
 export default async function ExamDetailPage({
   params,
@@ -9,26 +9,13 @@ export default async function ExamDetailPage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
-  const supabase = await createClient();
 
-  const [{ data: exam }, { data: scores }] = await Promise.all([
-    supabase.from("exams").select("*").eq("id", id).single(),
-    supabase
-      .from("scores")
-      .select(
-        "*, student:students(id, first_name, last_name, coordinator_id, coordinator:coordinators(name))"
-      )
-      .eq("exam_id", id)
-      .order("created_at"),
-  ]);
+  const [exam, scores] = await Promise.all([getExam(id), getScoresByExam(id)]);
 
   if (!exam) notFound();
 
-  const totalScores = (scores ?? []).filter(
-    (s) =>
-      s.chassidut_score !== null ||
-      s.halacha_score !== null ||
-      s.tefila_score !== null
+  const totalScores = scores.filter(
+    (s) => s.chassidut_score !== null || s.halacha_score !== null || s.tefila_score !== null
   );
 
   const overallAvg =
@@ -42,6 +29,13 @@ export default async function ExamDetailPage({
           }, 0) / totalScores.length
         ).toFixed(1)
       : "—";
+
+  const Check = ({ val }: { val: boolean }) =>
+    val ? (
+      <span className="text-green-600 font-bold">✓</span>
+    ) : (
+      <span className="text-red-400">✗</span>
+    );
 
   return (
     <div className="p-8">
@@ -78,9 +72,7 @@ export default async function ExamDetailPage({
 
       <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
         <div className="px-6 py-4 bg-gray-50 border-b border-gray-200 flex items-center justify-between">
-          <h2 className="font-semibold text-gray-700">
-            ציונים ({scores?.length ?? 0} בחורים)
-          </h2>
+          <h2 className="font-semibold text-gray-700">ציונים ({scores.length} בחורים)</h2>
         </div>
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
@@ -101,65 +93,41 @@ export default async function ExamDetailPage({
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-100">
-              {scores && scores.length > 0 ? (
+              {scores.length > 0 ? (
                 scores.map((score) => {
-                  const student = score.student as {
-                    id: string;
-                    first_name: string;
-                    last_name: string;
-                    coordinator: { name: string } | null;
-                  } | null;
-                  const vals = [
-                    score.chassidut_score,
-                    score.halacha_score,
-                    score.tefila_score,
-                  ].filter((v): v is number => v !== null);
+                  const vals = [score.chassidut_score, score.halacha_score, score.tefila_score].filter(
+                    (v): v is number => v !== null
+                  );
                   const avg =
                     vals.length > 0
                       ? (vals.reduce((a, b) => a + b, 0) / vals.length).toFixed(1)
                       : "—";
-
-                  const Check = ({ val }: { val: boolean }) =>
-                    val ? (
-                      <span className="text-green-600 font-bold">✓</span>
-                    ) : (
-                      <span className="text-red-400">✗</span>
-                    );
-
                   return (
                     <tr key={score.id} className="hover:bg-gray-50 transition-colors">
                       <td className="px-6 py-3 font-medium text-gray-900">
-                        {student ? (
+                        {score.student ? (
                           <Link
-                            href={`/students/${student.id}`}
+                            href={`/students/${score.student.id}`}
                             className="text-blue-600 hover:underline"
                           >
-                            {student.first_name} {student.last_name}
+                            {score.student.first_name} {score.student.last_name}
                           </Link>
                         ) : (
                           "—"
                         )}
                       </td>
                       <td className="px-6 py-3 text-gray-500 text-xs">
-                        {student?.coordinator?.name ?? "—"}
+                        {score.student?.coordinator?.name ?? "—"}
                       </td>
                       <td className="px-6 py-3 text-gray-700">{score.chassidut_score ?? "—"}</td>
                       <td className="px-6 py-3 text-gray-700">{score.halacha_score ?? "—"}</td>
                       <td className="px-6 py-3 text-gray-700">{score.tefila_score ?? "—"}</td>
                       <td className="px-6 py-3 text-gray-700">{score.beinoni_score ?? "—"}</td>
                       <td className="px-6 py-3 text-gray-700">{score.shleimut_score ?? "—"}</td>
-                      <td className="px-6 py-3">
-                        <Check val={score.attended_seder} />
-                      </td>
-                      <td className="px-6 py-3">
-                        <Check val={score.arrived_on_time} />
-                      </td>
-                      <td className="px-6 py-3">
-                        <Check val={score.attended_class} />
-                      </td>
-                      <td className="px-6 py-3">
-                        <Check val={score.paid} />
-                      </td>
+                      <td className="px-6 py-3"><Check val={score.attended_seder} /></td>
+                      <td className="px-6 py-3"><Check val={score.arrived_on_time} /></td>
+                      <td className="px-6 py-3"><Check val={score.attended_class} /></td>
+                      <td className="px-6 py-3"><Check val={score.paid} /></td>
                       <td className="px-6 py-3">
                         {avg !== "—" ? (
                           <span className="bg-blue-50 text-blue-700 font-semibold text-xs px-2 py-0.5 rounded-full">

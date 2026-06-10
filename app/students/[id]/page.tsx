@@ -1,8 +1,8 @@
-import { createClient } from "@/lib/supabase/server";
 import Link from "next/link";
 import { ArrowRight, Star } from "lucide-react";
 import { notFound } from "next/navigation";
 import StudentDetailsCard from "@/components/StudentDetailsCard";
+import { getStudent, getScoresByStudent, getInquiriesByStudent, getCoordinators } from "@/lib/airtable/db";
 
 export default async function StudentDetailPage({
   params,
@@ -10,37 +10,17 @@ export default async function StudentDetailPage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
-  const supabase = await createClient();
 
-  const [
-    { data: student },
-    { data: scores },
-    { data: inquiries },
-    { data: coordinators },
-  ] = await Promise.all([
-    supabase
-      .from("students")
-      .select("*, coordinator:coordinators(id, name)")
-      .eq("id", id)
-      .single(),
-    supabase
-      .from("scores")
-      .select("*, exam:exams(id, parasha, exam_date)")
-      .eq("student_id", id)
-      .order("created_at", { ascending: false }),
-    supabase
-      .from("inquiries")
-      .select("*")
-      .eq("student_id", id)
-      .order("created_at", { ascending: false }),
-    supabase.from("coordinators").select("id, name").order("name"),
+  const [student, scores, inquiries, coordinators] = await Promise.all([
+    getStudent(id),
+    getScoresByStudent(id),
+    getInquiriesByStudent(id),
+    getCoordinators(),
   ]);
 
   if (!student) notFound();
 
-  const coordinator = student.coordinator as { id: string; name: string } | null;
-
-  const totalPoints = (scores ?? []).reduce((acc, s) => {
+  const totalPoints = scores.reduce((acc, s) => {
     let pts = 0;
     if (s.attended_seder) pts += 5;
     if (s.arrived_on_time) pts += 3;
@@ -75,8 +55,8 @@ export default async function StudentDetailPage({
         <div className="lg:col-span-1 space-y-6">
           <StudentDetailsCard
             student={student}
-            coordinator={coordinator}
-            coordinators={coordinators ?? []}
+            coordinator={student.coordinator ?? null}
+            coordinators={coordinators}
           />
 
           <div className="bg-white rounded-xl border border-gray-200 p-6">
@@ -92,7 +72,7 @@ export default async function StudentDetailPage({
         <div className="lg:col-span-2 space-y-6">
           <div className="bg-white rounded-xl border border-gray-200 p-6">
             <h2 className="text-lg font-semibold text-[#1e3a5f] mb-4">היסטוריית ציונים</h2>
-            {scores && scores.length > 0 ? (
+            {scores.length > 0 ? (
               <div className="overflow-x-auto">
                 <table className="w-full text-sm">
                   <thead className="bg-gray-50 border-b border-gray-100">
@@ -107,38 +87,35 @@ export default async function StudentDetailPage({
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-gray-50">
-                    {scores.map((score) => {
-                      const exam = score.exam as { parasha: string; exam_date: string | null } | null;
-                      return (
-                        <tr key={score.id} className="hover:bg-gray-50">
-                          <td className="px-3 py-2.5 font-medium text-gray-800">
-                            {exam?.parasha ?? "—"}
-                          </td>
-                          <td className="px-3 py-2.5 text-gray-500">
-                            {exam?.exam_date
-                              ? new Date(exam.exam_date).toLocaleDateString("he-IL")
-                              : "—"}
-                          </td>
-                          <td className="px-3 py-2.5 text-gray-700">{score.chassidut_score ?? "—"}</td>
-                          <td className="px-3 py-2.5 text-gray-700">{score.halacha_score ?? "—"}</td>
-                          <td className="px-3 py-2.5 text-gray-700">{score.tefila_score ?? "—"}</td>
-                          <td className="px-3 py-2.5">
-                            {score.attended_seder ? (
-                              <span className="text-green-600 font-medium">✓</span>
-                            ) : (
-                              <span className="text-red-400">✗</span>
-                            )}
-                          </td>
-                          <td className="px-3 py-2.5">
-                            {score.paid ? (
-                              <span className="text-green-600 font-medium">✓</span>
-                            ) : (
-                              <span className="text-red-400">✗</span>
-                            )}
-                          </td>
-                        </tr>
-                      );
-                    })}
+                    {scores.map((score) => (
+                      <tr key={score.id} className="hover:bg-gray-50">
+                        <td className="px-3 py-2.5 font-medium text-gray-800">
+                          {score.exam?.parasha ?? "—"}
+                        </td>
+                        <td className="px-3 py-2.5 text-gray-500">
+                          {score.exam?.exam_date
+                            ? new Date(score.exam.exam_date).toLocaleDateString("he-IL")
+                            : "—"}
+                        </td>
+                        <td className="px-3 py-2.5 text-gray-700">{score.chassidut_score ?? "—"}</td>
+                        <td className="px-3 py-2.5 text-gray-700">{score.halacha_score ?? "—"}</td>
+                        <td className="px-3 py-2.5 text-gray-700">{score.tefila_score ?? "—"}</td>
+                        <td className="px-3 py-2.5">
+                          {score.attended_seder ? (
+                            <span className="text-green-600 font-medium">✓</span>
+                          ) : (
+                            <span className="text-red-400">✗</span>
+                          )}
+                        </td>
+                        <td className="px-3 py-2.5">
+                          {score.paid ? (
+                            <span className="text-green-600 font-medium">✓</span>
+                          ) : (
+                            <span className="text-red-400">✗</span>
+                          )}
+                        </td>
+                      </tr>
+                    ))}
                   </tbody>
                 </table>
               </div>
@@ -149,14 +126,16 @@ export default async function StudentDetailPage({
 
           <div className="bg-white rounded-xl border border-gray-200 p-6">
             <h2 className="text-lg font-semibold text-[#1e3a5f] mb-4">פניות</h2>
-            {inquiries && inquiries.length > 0 ? (
+            {inquiries.length > 0 ? (
               <ul className="divide-y divide-gray-100 text-sm">
                 {inquiries.map((inq) => (
                   <li key={inq.id} className="py-3 flex items-start justify-between gap-2">
                     <div>
                       <p className="font-medium text-gray-800">{inq.title}</p>
                       {inq.description && (
-                        <p className="text-xs text-gray-400 mt-0.5 line-clamp-1">{inq.description}</p>
+                        <p className="text-xs text-gray-400 mt-0.5 line-clamp-1">
+                          {inq.description}
+                        </p>
                       )}
                       <p className="text-xs text-gray-400 mt-0.5">
                         {inq.created_at ? new Date(inq.created_at).toLocaleDateString("he-IL") : ""}

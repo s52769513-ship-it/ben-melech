@@ -1,24 +1,39 @@
-import { createClient } from "@/lib/supabase/server";
 import { TableProperties } from "lucide-react";
 import OverviewClient from "./OverviewClient";
+import { getExams, getAllScores, getGroups, getStudents, getCoordinators } from "@/lib/airtable/db";
 
 export default async function OverviewPage() {
-  const supabase = await createClient();
-
-  const [{ data: exams }, { data: scores }, { data: groups }] = await Promise.all([
-    supabase
-      .from("exams")
-      .select("id, parasha, exam_date")
-      .order("exam_date", { ascending: true }),
-    supabase
-      .from("scores")
-      .select(
-        "student_id, exam_id, attended_seder, student:students(id, first_name, last_name, group_id, coordinator:coordinators(id, name))"
-      ),
-    supabase.from("groups").select("id, name"),
+  const [exams, allScores, groups, students, coordinators] = await Promise.all([
+    getExams(),
+    getAllScores(),
+    getGroups(),
+    getStudents(),
+    getCoordinators(),
   ]);
 
-  const kibbutzGroupId = (groups ?? []).find((g) => g.name === "קיבוץ")?.id ?? null;
+  const kibbutzGroupId = groups.find((g) => g.name === "קיבוץ")?.id ?? null;
+
+  const coordinatorMap = new Map(coordinators.map((c) => [c.id, c]));
+  const studentMap = new Map(students.map((s) => [s.id, s]));
+
+  const scoresWithRelations = allScores.map((s) => {
+    const student = studentMap.get(s.student_id);
+    return {
+      ...s,
+      student: student
+        ? {
+            ...student,
+            coordinator: student.coordinator_id
+              ? coordinatorMap.get(student.coordinator_id)
+              : undefined,
+          }
+        : undefined,
+    };
+  });
+
+  const sortedExams = [...exams].sort((a, b) =>
+    (a.exam_date ?? "").localeCompare(b.exam_date ?? "")
+  );
 
   return (
     <div className="p-8">
@@ -29,7 +44,11 @@ export default async function OverviewPage() {
         </h1>
         <p className="text-gray-500 mt-1">השתתפות בסדר לפי בחור ופרשה</p>
       </div>
-      <OverviewClient exams={exams ?? []} scores={(scores ?? []) as any[]} kibbutzGroupId={kibbutzGroupId} />
+      <OverviewClient
+        exams={sortedExams}
+        scores={scoresWithRelations as any[]}
+        kibbutzGroupId={kibbutzGroupId}
+      />
     </div>
   );
 }
