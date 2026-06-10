@@ -1,59 +1,33 @@
-import { createClient } from "@/lib/supabase/server";
 import StatCard from "@/components/StatCard";
 import StudentCount from "@/components/StudentCount";
 import Link from "next/link";
-import {
-  Users,
-  GraduationCap,
-  MessageSquare,
-  Star,
-  Clock,
-  AlertCircle,
-} from "lucide-react";
+import { Users, GraduationCap, MessageSquare, Star, Clock, AlertCircle } from "lucide-react";
+import { getCoordinators, getStudents, getInquiries, getScoresWithRelations, getGroups } from "@/lib/airtable/db";
 
 export default async function DashboardPage() {
-  const supabase = await createClient();
-
-  const [
-    { count: coordinatorsCount },
-    { data: allStudents },
-    { count: openInquiriesCount },
-    { data: recentInquiries },
-    { data: recentScores },
-  ] = await Promise.all([
-    supabase.from("coordinators").select("*", { count: "exact", head: true }),
-    supabase.from("students").select("id, group_id"),
-    supabase
-      .from("inquiries")
-      .select("*", { count: "exact", head: true })
-      .eq("status", "פתוח"),
-    supabase
-      .from("inquiries")
-      .select("id, title, status, created_at, student:students(first_name, last_name)")
-      .order("created_at", { ascending: false })
-      .limit(5),
-    supabase
-      .from("scores")
-      .select(
-        "id, created_at, chassidut_score, halacha_score, student:students(first_name, last_name), exam:exams(parasha)"
-      )
-      .order("created_at", { ascending: false })
-      .limit(5),
+  const [coordinators, students, inquiries, recentScores, groups] = await Promise.all([
+    getCoordinators(),
+    getStudents(),
+    getInquiries(),
+    getScoresWithRelations(),
+    getGroups(),
   ]);
 
-  const { data: groups } = await supabase.from("groups").select("id, name");
-  const kibbutzGroupId = (groups ?? []).find((g) => g.name === "קיבוץ")?.id ?? null;
+  const openInquiries = inquiries.filter((i) => i.status === "פתוח");
+  const last5Inquiries = [...inquiries].slice(0, 5);
+  const last5Scores = [...recentScores].slice(0, 5);
+
+  const kibbutzGroupId = groups.find((g) => g.name === "קיבוץ")?.id ?? null;
 
   const avgScore =
-    recentScores && recentScores.length > 0
+    last5Scores.length > 0
       ? (
-          recentScores.reduce((acc, s) => {
-            const scores = [
-              s.chassidut_score,
-              s.halacha_score,
-            ].filter((v): v is number => v !== null);
-            return acc + (scores.length ? scores.reduce((a, b) => a + b, 0) / scores.length : 0);
-          }, 0) / recentScores.length
+          last5Scores.reduce((acc, s) => {
+            const vals = [s.chassidut_score, s.halacha_score].filter(
+              (v): v is number => v !== null
+            );
+            return acc + (vals.length ? vals.reduce((a, b) => a + b, 0) / vals.length : 0);
+          }, 0) / last5Scores.length
         ).toFixed(1)
       : "—";
 
@@ -73,7 +47,7 @@ export default async function DashboardPage() {
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5 mb-10">
         <StatCard
           title="משפיעים"
-          value={coordinatorsCount ?? 0}
+          value={coordinators.length}
           icon={Users}
           description="סה״כ משפיעים פעילים"
           color="blue"
@@ -81,10 +55,7 @@ export default async function DashboardPage() {
         <StatCard
           title="בחורים"
           customValue={
-            <StudentCount
-              students={allStudents ?? []}
-              kibbutzGroupId={kibbutzGroupId}
-            />
+            <StudentCount students={students} kibbutzGroupId={kibbutzGroupId} />
           }
           icon={GraduationCap}
           description="סה״כ בחורים רשומים"
@@ -92,7 +63,7 @@ export default async function DashboardPage() {
         />
         <StatCard
           title="פניות פתוחות"
-          value={openInquiriesCount ?? 0}
+          value={openInquiries.length}
           icon={MessageSquare}
           description="ממתינות לטיפול"
           color="orange"
@@ -113,42 +84,36 @@ export default async function DashboardPage() {
               <AlertCircle size={18} />
               פניות אחרונות
             </h2>
-            <Link
-              href="/inquiries"
-              className="text-sm text-blue-600 hover:underline"
-            >
+            <Link href="/inquiries" className="text-sm text-blue-600 hover:underline">
               כל הפניות
             </Link>
           </div>
-          {recentInquiries && recentInquiries.length > 0 ? (
+          {last5Inquiries.length > 0 ? (
             <ul className="divide-y divide-gray-100">
-              {recentInquiries.map((inq) => {
-                const student = (Array.isArray(inq.student) ? inq.student[0] : inq.student) as { first_name: string; last_name: string } | null;
-                return (
-                  <li key={inq.id} className="py-3 flex items-center justify-between">
-                    <div>
-                      <Link
-                        href={`/inquiries`}
-                        className="font-medium text-gray-800 hover:text-blue-600 text-sm"
-                      >
-                        {inq.title}
-                      </Link>
-                      {student && (
-                        <p className="text-xs text-gray-400 mt-0.5">
-                          {student.first_name} {student.last_name}
-                        </p>
-                      )}
-                    </div>
-                    <span
-                      className={`text-xs font-medium px-2.5 py-1 rounded-full ${
-                        statusColors[inq.status] ?? "bg-gray-100 text-gray-600"
-                      }`}
+              {last5Inquiries.map((inq) => (
+                <li key={inq.id} className="py-3 flex items-center justify-between">
+                  <div>
+                    <Link
+                      href="/inquiries"
+                      className="font-medium text-gray-800 hover:text-blue-600 text-sm"
                     >
-                      {inq.status}
-                    </span>
-                  </li>
-                );
-              })}
+                      {inq.title}
+                    </Link>
+                    {inq.student && (
+                      <p className="text-xs text-gray-400 mt-0.5">
+                        {inq.student.first_name} {inq.student.last_name}
+                      </p>
+                    )}
+                  </div>
+                  <span
+                    className={`text-xs font-medium px-2.5 py-1 rounded-full ${
+                      statusColors[inq.status] ?? "bg-gray-100 text-gray-600"
+                    }`}
+                  >
+                    {inq.status}
+                  </span>
+                </li>
+              ))}
             </ul>
           ) : (
             <p className="text-gray-400 text-sm text-center py-6">אין פניות להצגה</p>
@@ -165,26 +130,23 @@ export default async function DashboardPage() {
               כל המבחנים
             </Link>
           </div>
-          {recentScores && recentScores.length > 0 ? (
+          {last5Scores.length > 0 ? (
             <ul className="divide-y divide-gray-100">
-              {recentScores.map((score) => {
-                const student = (Array.isArray(score.student) ? score.student[0] : score.student) as { first_name: string; last_name: string } | null;
-                const exam = (Array.isArray(score.exam) ? score.exam[0] : score.exam) as { parasha: string } | null;
-                const avg =
-                  [score.chassidut_score, score.halacha_score]
-                    .filter((v): v is number => v !== null)
-                    .reduce((a, b, _, arr) => a + b / arr.length, 0)
-                    .toFixed(1);
+              {last5Scores.map((score) => {
+                const avg = [score.chassidut_score, score.halacha_score]
+                  .filter((v): v is number => v !== null)
+                  .reduce((a, b, _, arr) => a + b / arr.length, 0)
+                  .toFixed(1);
                 return (
                   <li key={score.id} className="py-3 flex items-center justify-between">
                     <div>
                       <p className="font-medium text-gray-800 text-sm">
-                        {student
-                          ? `${student.first_name} ${student.last_name}`
+                        {score.student
+                          ? `${score.student.first_name} ${score.student.last_name}`
                           : "—"}
                       </p>
                       <p className="text-xs text-gray-400 mt-0.5">
-                        {exam?.parasha ?? "—"}
+                        {score.exam?.parasha ?? "—"}
                       </p>
                     </div>
                     <span className="text-sm font-semibold text-[#1e3a5f] bg-blue-50 px-3 py-1 rounded-full">

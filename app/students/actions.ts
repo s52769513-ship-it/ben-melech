@@ -1,11 +1,10 @@
 "use server";
 
-import { createClient } from "@/lib/supabase/server";
 import { revalidatePath } from "next/cache";
+import { updateStudent as updateStudentDB } from "@/lib/airtable/db";
 
 export async function updateStudent(id: string, data: Record<string, unknown>) {
-  const supabase = await createClient();
-  await supabase.from("students").update(data).eq("id", id);
+  await updateStudentDB(id, data);
   revalidatePath("/students");
   revalidatePath(`/students/${id}`);
 }

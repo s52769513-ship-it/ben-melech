@@ -1,8 +1,8 @@
-import { createClient } from "@/lib/supabase/server";
 import Link from "next/link";
 import { GraduationCap } from "lucide-react";
 import StudentsTable from "@/components/tables/StudentsTable";
 import StudentCount from "@/components/StudentCount";
+import { getStudents, getCoordinators, getGroups, getAllScores } from "@/lib/airtable/db";
 
 export default async function StudentsPage({
   searchParams,
@@ -10,33 +10,16 @@ export default async function StudentsPage({
   searchParams: Promise<{ coordinator?: string; city?: string; yeshiva?: string }>;
 }) {
   const filters = await searchParams;
-  const supabase = await createClient();
 
-  let query = supabase
-    .from("students")
-    .select("*, coordinator:coordinators(id, name)")
-    .order("last_name")
-    .order("first_name");
-
-  if (filters.coordinator) query = query.eq("coordinator_id", filters.coordinator);
-  if (filters.city) query = query.eq("city", filters.city);
-  if (filters.yeshiva) query = query.ilike("yeshiva", `%${filters.yeshiva}%`);
-
-  const { data: students } = await query;
-
-  const [{ data: coordinators }, { data: groups }, { data: allScores }] = await Promise.all([
-    supabase.from("coordinators").select("id, name").order("name"),
-    supabase.from("groups").select("id, name").order("name"),
-    supabase
-      .from("scores")
-      .select("student_id, chassidut_score, halacha_score, tefila_score, attended_seder"),
+  const [students, coordinators, groups, allScores] = await Promise.all([
+    getStudents(filters),
+    getCoordinators(),
+    getGroups(),
+    getAllScores(),
   ]);
 
-  const scoreMap: Record<
-    string,
-    { total: number; count: number; attended: number; sessions: number }
-  > = {};
-  (allScores ?? []).forEach((s) => {
+  const scoreMap: Record<string, { total: number; count: number; attended: number; sessions: number }> = {};
+  allScores.forEach((s) => {
     if (!scoreMap[s.student_id]) {
       scoreMap[s.student_id] = { total: 0, count: 0, attended: 0, sessions: 0 };
     }
@@ -51,7 +34,7 @@ export default async function StudentsPage({
     if (s.attended_seder) scoreMap[s.student_id].attended++;
   });
 
-  const cities = [...new Set((students ?? []).map((s) => s.city).filter(Boolean))].sort();
+  const cities = [...new Set(students.map((s) => s.city).filter(Boolean))].sort() as string[];
 
   return (
     <div className="p-8">
@@ -62,8 +45,8 @@ export default async function StudentsPage({
         </h1>
         <p className="text-gray-500 mt-1">
           <StudentCount
-            students={students ?? []}
-            kibbutzGroupId={(groups ?? []).find((g) => g.name === "קיבוץ")?.id}
+            students={students}
+            kibbutzGroupId={groups.find((g) => g.name === "קיבוץ")?.id}
           />
         </p>
       </div>
@@ -77,7 +60,7 @@ export default async function StudentsPage({
             className="text-sm border border-gray-200 rounded-lg px-3 py-2 bg-white focus:outline-none focus:ring-2 focus:ring-blue-300"
           >
             <option value="">כל המשפיעים</option>
-            {(coordinators ?? []).map((c) => (
+            {coordinators.map((c) => (
               <option key={c.id} value={c.id}>
                 {c.name}
               </option>
@@ -93,7 +76,7 @@ export default async function StudentsPage({
           >
             <option value="">כל הערים</option>
             {cities.map((city) => (
-              <option key={city} value={city!}>
+              <option key={city} value={city}>
                 {city}
               </option>
             ))}
@@ -122,9 +105,9 @@ export default async function StudentsPage({
       </form>
 
       <StudentsTable
-        students={students ?? []}
-        coordinators={coordinators ?? []}
-        groups={groups ?? []}
+        students={students}
+        coordinators={coordinators}
+        groups={groups}
         scoreMap={scoreMap}
       />
     </div>

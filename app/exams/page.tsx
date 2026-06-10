@@ -1,28 +1,13 @@
-import { createClient } from "@/lib/supabase/server";
 import { BookOpen } from "lucide-react";
 import ExamsTable from "@/components/tables/ExamsTable";
+import { getExams, getAllScores } from "@/lib/airtable/db";
 
 export default async function ExamsPage() {
-  const supabase = await createClient();
+  const [exams, scores] = await Promise.all([getExams(), getAllScores()]);
 
-  const { data: exams } = await supabase
-    .from("exams")
-    .select("*")
-    .order("exam_date", { ascending: false });
+  const examStatsMap: Record<string, { total: number; count: number; participants: number }> = {};
 
-  const examIds = (exams ?? []).map((e) => e.id);
-
-  const { data: scores } = await supabase
-    .from("scores")
-    .select("exam_id, chassidut_score, halacha_score, tefila_score, beinoni_score, shleimut_score")
-    .in("exam_id", examIds.length ? examIds : [""]);
-
-  const examStatsMap: Record<
-    string,
-    { total: number; count: number; participants: number }
-  > = {};
-
-  (scores ?? []).forEach((s) => {
+  scores.forEach((s) => {
     if (!examStatsMap[s.exam_id]) {
       examStatsMap[s.exam_id] = { total: 0, count: 0, participants: 0 };
     }
@@ -47,10 +32,10 @@ export default async function ExamsPage() {
           <BookOpen size={28} />
           מבחנים
         </h1>
-        <p className="text-gray-500 mt-1">{exams?.length ?? 0} מבחנים</p>
+        <p className="text-gray-500 mt-1">{exams.length} מבחנים</p>
       </div>
 
-      <ExamsTable exams={exams ?? []} examStatsMap={examStatsMap} />
+      <ExamsTable exams={exams} examStatsMap={examStatsMap} />
     </div>
   );
 }

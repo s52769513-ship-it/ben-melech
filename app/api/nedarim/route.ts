@@ -1,10 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createClient } from "@/lib/supabase/server";
+import { getStudentsForNedarim, updateNedarimCharged } from "@/lib/airtable/db";
 
 const MOSAD_ID = "7009191";
 const API_PASSWORD = "kd987";
 const LIMITED_ID = "352";
-const NEDARIM_URL = "https://www.matara.pro/nedarimplus/Mechubad/Reports/ManageReports.aspx";
+const NEDARIM_URL =
+  "https://www.matara.pro/nedarimplus/Mechubad/Reports/ManageReports.aspx";
 
 async function chargeStudent(nedarimId: number, amount: number): Promise<boolean> {
   const params = new URLSearchParams({
@@ -15,17 +16,12 @@ async function chargeStudent(nedarimId: number, amount: number): Promise<boolean
     Amount: String(amount),
     LimitedId: LIMITED_ID,
   });
-
   const res = await fetch(`${NEDARIM_URL}?${params}`, { cache: "no-store" });
   const text = await res.text();
   return text.includes("Result") && text.includes("OK");
 }
 
-// POST /api/nedarim
-// body: { studentIds?: string[], dryRun?: boolean }
 export async function POST(req: NextRequest) {
-  const supabase = await createClient();
-
   let studentIds: string[] | undefined;
   let dryRun = false;
   try {
@@ -33,26 +29,25 @@ export async function POST(req: NextRequest) {
     studentIds = body.studentIds;
     dryRun = body.dryRun === true;
   } catch {
-    // no body = charge all
+    // ללא גוף = הטעינה לכולם
   }
 
-  let query = supabase
-    .from("students")
-    .select("id, first_name, last_name, nedarim_id, nedarim_amount, nedarim_charged");
+  const allStudents = await getStudentsForNedarim();
+  const students =
+    studentIds && studentIds.length > 0
+      ? allStudents.filter((s) => studentIds!.includes(s.id))
+      : allStudents;
 
-  if (studentIds && studentIds.length > 0) {
-    query = query.in("id", studentIds);
-  }
+  const results: {
+    id: string;
+    name: string;
+    amount: number;
+    success: boolean;
+    dryRun?: boolean;
+    reason?: string;
+  }[] = [];
 
-  const { data: students, error } = await query;
-
-  if (error) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
-  }
-
-  const results: { id: string; name: string; amount: number; success: boolean; dryRun?: boolean; reason?: string }[] = [];
-
-  for (const student of students ?? []) {
+  for (const student of students) {
     const name = `${student.last_name} ${student.first_name}`;
 
     if (!student.nedarim_id) {
@@ -80,10 +75,7 @@ export async function POST(req: NextRequest) {
     }
 
     if (ok) {
-      await supabase
-        .from("students")
-        .update({ nedarim_charged: (student.nedarim_charged ?? 0) + toCharge })
-        .eq("id", student.id);
+      await updateNedarimCharged(student.id, (student.nedarim_charged ?? 0) + toCharge);
     }
 
     results.push({ id: student.id, name, amount: toCharge, success: ok });

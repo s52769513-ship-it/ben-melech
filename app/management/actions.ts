@@ -1,15 +1,14 @@
 "use server";
 
-import { createClient } from "@/lib/supabase/server";
 import { revalidatePath } from "next/cache";
+import { updateScore, upsertExamNote } from "@/lib/airtable/db";
 
 export async function updateExamNote(
   scoreId: string,
   field: "personal_note" | "rabbi_note",
   value: string | null
 ) {
-  const supabase = await createClient();
-  await supabase.from("scores").update({ [field]: value }).eq("id", scoreId);
+  await updateScore(scoreId, { [field]: value });
   revalidatePath("/management");
 }
 
@@ -26,10 +25,6 @@ export async function upsertCoordinatorNote({
   maskana: string | null;
   hemshech_tipul: string | null;
 }) {
-  const supabase = await createClient();
-  await supabase.from("coordinator_exam_notes").upsert(
-    { coordinator_id: coordinatorId, exam_id: examId, sicha_beinyan, maskana, hemshech_tipul },
-    { onConflict: "coordinator_id,exam_id" }
-  );
+  await upsertExamNote({ coordinatorId, examId, sicha_beinyan, maskana, hemshech_tipul });
   revalidatePath("/management");
 }

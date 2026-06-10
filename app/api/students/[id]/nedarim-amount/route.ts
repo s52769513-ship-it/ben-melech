@@ -1,17 +1,10 @@
-import { NextRequest, NextResponse } from "next/server";
-import { createClient } from "@/lib/supabase/server";
+import { NextResponse } from "next/server";
 
-export async function PATCH(
-  req: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
-) {
-  const { id } = await params;
-  const { nedarim_amount } = await req.json();
-  const supabase = await createClient();
-  const { error } = await supabase
-    .from("students")
-    .update({ nedarim_amount })
-    .eq("id", id);
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
-  return NextResponse.json({ ok: true });
+// שדה "כסף להטענה" בבחורים הוא נוסחה מחושבת אוטומטית באיירטייבל לפי הנקודות.
+// לא ניתן לעדכן אותו ידנית — הוא מתעדכן אוטומטית.
+export async function PATCH() {
+  return NextResponse.json(
+    { error: "שדה זה מחושב אוטומטית באיירטייבל ולא ניתן לעדכונו ידנית" },
+    { status: 405 }
+  );
 }
