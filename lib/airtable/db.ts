@@ -412,9 +412,9 @@ export async function getScoresWithRelations(examId?: string): Promise<Score[]> 
   ]);
   const studentMap = await getStudentMap(coordinatorMap);
 
-  const params = examId
+  const params: Record<string, string> | undefined = examId
     ? { filterByFormula: `FIND("${examId}", ARRAYJOIN({מבחן}))>0` }
-    : {};
+    : undefined;
   const recs = await fetchAll(TABLES.SCORES, params);
   return recs
     .map((r) => toScore(r, studentMap, examMap))
