@@ -204,7 +204,7 @@ async function getStudentMap(
 }
 
 async function getExamMap(): Promise<Map<string, Exam>> {
-  const recs = await fetchAll(TABLES.EXAMS, { sort: "[{field: 'תאריך', direction: 'desc'}]" });
+  const recs = await fetchAll(TABLES.EXAMS);
   return new Map(recs.map((r) => [r.id, toExam(r)]));
 }
 
@@ -348,7 +348,7 @@ export async function getExams(): Promise<Exam[]> {
   const recs = await fetchAll(TABLES.EXAMS);
   return recs
     .map(toExam)
-    .sort((a, b) => (b.exam_date ?? "").localeCompare(a.exam_date ?? ""));
+    .sort((a, b) => (b.created_at ?? "").localeCompare(a.created_at ?? ""));
 }
 
 export async function getExam(id: string): Promise<Exam | null> {

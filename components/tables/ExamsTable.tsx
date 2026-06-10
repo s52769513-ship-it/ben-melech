@@ -105,7 +105,7 @@ export default function ExamsTable({ exams, examStatsMap }: Props) {
                   <tr
                     key={exam.id}
                     className="hover:bg-blue-50/40 transition-colors cursor-pointer"
-                    onClick={() => openEdit(exam)}
+                    onClick={() => router.push(`/exams/${exam.id}`)}
                   >
                     <td className="px-6 py-4 font-semibold text-gray-900">{exam.parasha}</td>
                     <td className="px-6 py-4 text-gray-600">
@@ -135,13 +135,13 @@ export default function ExamsTable({ exams, examStatsMap }: Props) {
                       )}
                     </td>
                     <td className="px-6 py-4" onClick={(e) => e.stopPropagation()}>
-                      <Link
-                        href={`/exams/${exam.id}`}
-                        className="flex items-center gap-1 text-blue-600 hover:text-blue-800 font-medium text-xs"
+                      <button
+                        onClick={() => openEdit(exam)}
+                        className="text-gray-400 hover:text-gray-600 transition-colors p-1 rounded"
+                        title="עריכת פרטי מבחן"
                       >
-                        פרטים
                         <ChevronLeft size={14} />
-                      </Link>
+                      </button>
                     </td>
                   </tr>
                 );

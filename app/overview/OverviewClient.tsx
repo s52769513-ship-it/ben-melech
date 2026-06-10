@@ -10,6 +10,7 @@ type Score = {
   student_id: string;
   exam_id: string;
   attended_seder: boolean;
+  attended_seder_old: boolean;
   student: {
     id: string;
     first_name: string;
@@ -41,7 +42,7 @@ export default function OverviewClient({
     scores.forEach((s) => {
       if (!s.student_id) return;
       if (!map.has(s.student_id)) map.set(s.student_id, new Map());
-      map.get(s.student_id)!.set(s.exam_id, s.attended_seder);
+      map.get(s.student_id)!.set(s.exam_id, s.attended_seder || s.attended_seder_old);
     });
     return map;
   }, [scores]);
