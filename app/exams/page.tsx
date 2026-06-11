@@ -1,9 +1,16 @@
 import { BookOpen } from "lucide-react";
 import ExamsTable from "@/components/tables/ExamsTable";
-import { getExams, getAllScores } from "@/lib/airtable/db";
+import { getExams, getAllScores, getAllScoresForCoordinator } from "@/lib/airtable/db";
+import { getSession } from "@/lib/auth";
 
 export default async function ExamsPage() {
-  const [exams, scores] = await Promise.all([getExams(), getAllScores()]);
+  const coordinatorId = await getSession().catch(() => null);
+  const isAdmin = coordinatorId === "ADMIN";
+  const loggedIn = isAdmin ? null : coordinatorId;
+  const [exams, scores] = await Promise.all([
+    getExams(),
+    loggedIn ? getAllScoresForCoordinator(loggedIn) : getAllScores(),
+  ]);
 
   const examStatsMap: Record<string, { total: number; count: number; participants: number }> = {};
 

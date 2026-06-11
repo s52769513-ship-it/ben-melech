@@ -21,7 +21,7 @@ export default async function OverviewPage() {
 
   const scoresWithRelations = allScores
     .filter((s) => {
-      if (!coordinatorId) return true;
+      if (!coordinatorId || coordinatorId === "ADMIN") return true;
       const st = studentMap.get(s.student_id);
       return st?.coordinator_id === coordinatorId;
     })

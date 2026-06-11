@@ -2,13 +2,18 @@ import Link from "next/link";
 import { Wallet, TrendingUp } from "lucide-react";
 import FinancesTable from "@/components/tables/FinancesTable";
 import NedarimPanel from "@/components/NedarimPanel";
-import { getFinances, getCoordinators, getStudentsForNedarim } from "@/lib/airtable/db";
+import { getFinances, getFinancesByCoordinator, getCoordinators, getStudentsForNedarim } from "@/lib/airtable/db";
+import { getSession } from "@/lib/auth";
 
 export default async function FinancesPage() {
+  const coordinatorId = await getSession();
+  const isAdmin = coordinatorId === "ADMIN";
+  const loggedIn = isAdmin ? null : coordinatorId;
+
   const [finances, coordinators, studentsForNedarim] = await Promise.all([
-    getFinances(),
+    loggedIn ? getFinancesByCoordinator(loggedIn) : getFinances(),
     getCoordinators(),
-    getStudentsForNedarim(),
+    getStudentsForNedarim(loggedIn ?? undefined),
   ]);
 
   const coordinatorTotals: Record<string, { name: string; id: string; total: number; count: number }> = {};

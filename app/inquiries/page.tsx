@@ -14,8 +14,9 @@ export default async function InquiriesPage({
     getSession(),
   ]);
 
+  const isAdmin = coordinatorId === "ADMIN";
   const [allInquiries, coordinators, students] = await Promise.all([
-    coordinatorId ? getInquiriesByCoordinator(coordinatorId) : getInquiries(),
+    !coordinatorId || isAdmin ? getInquiries() : getInquiriesByCoordinator(coordinatorId),
     getCoordinators(),
     getStudents(),
   ]);

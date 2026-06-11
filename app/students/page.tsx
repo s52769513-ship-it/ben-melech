@@ -15,10 +15,10 @@ export default async function StudentsPage({
     getSession(),
   ]);
 
-  const effectiveFilters = {
-    ...filters,
-    coordinator: coordinatorId ?? filters.coordinator,
-  };
+  const effectiveFilters =
+    coordinatorId && coordinatorId !== "ADMIN"
+      ? { ...filters, coordinator: coordinatorId }
+      : filters;
 
   const [students, coordinators, groups, allScores] = await Promise.all([
     getStudents(effectiveFilters),

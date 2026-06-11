@@ -35,9 +35,10 @@ const managementItems = [
 
 interface Props {
   coordinatorName: string | null;
+  isAdmin?: boolean;
 }
 
-export default function Sidebar({ coordinatorName }: Props) {
+export default function Sidebar({ coordinatorName, isAdmin }: Props) {
   const pathname = usePathname();
   const { settings } = useSettings();
   const [settingsOpen, setSettingsOpen] = useState(false);
@@ -91,8 +92,7 @@ export default function Sidebar({ coordinatorName }: Props) {
               </Link>
             );
           })}
-          <div className="mx-6 my-2 border-t border-[#2d4f7f]" />
-          {managementItems.map(({ href, label, icon: Icon }) => {
+          {isAdmin && managementItems.map(({ href, label, icon: Icon }) => {
             const isActive = pathname.startsWith(href);
             return (
               <Link
