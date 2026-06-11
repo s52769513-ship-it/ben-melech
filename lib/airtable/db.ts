@@ -1,3 +1,4 @@
+import { unstable_cache } from "next/cache";
 import {
   fetchAll,
   fetchOne,
@@ -204,21 +205,29 @@ async function getStudentMap(
 }
 
 async function getExamMap(): Promise<Map<string, Exam>> {
-  const recs = await fetchAll(TABLES.EXAMS, { sort: "[{field: 'תאריך', direction: 'desc'}]" });
+  const recs = await fetchAll(TABLES.EXAMS);
   return new Map(recs.map((r) => [r.id, toExam(r)]));
 }
 
 // ─── Coordinators ────────────────────────────────────────────────────────────
 
-export async function getCoordinators(): Promise<Coordinator[]> {
-  const recs = await fetchAll(TABLES.COORDINATORS);
-  return recs.map(toCoordinator).sort((a, b) => a.name.localeCompare(b.name, "he"));
-}
+export const getCoordinators = unstable_cache(
+  async (): Promise<Coordinator[]> => {
+    const recs = await fetchAll(TABLES.COORDINATORS);
+    return recs.map(toCoordinator).sort((a, b) => a.name.localeCompare(b.name, "he"));
+  },
+  ["coordinators"],
+  { revalidate: 120, tags: ["coordinators"] }
+);
 
-export async function getCoordinator(id: string): Promise<Coordinator | null> {
-  const r = await fetchOne(TABLES.COORDINATORS, id);
-  return r ? toCoordinator(r) : null;
-}
+export const getCoordinator = unstable_cache(
+  async (id: string): Promise<Coordinator | null> => {
+    const r = await fetchOne(TABLES.COORDINATORS, id);
+    return r ? toCoordinator(r) : null;
+  },
+  ["coordinator"],
+  { revalidate: 120, tags: ["coordinators"] }
+);
 
 export async function updateCoordinator(
   id: string,
@@ -344,12 +353,16 @@ export async function getGroups(): Promise<Group[]> {
 
 // ─── Exams ───────────────────────────────────────────────────────────────────
 
-export async function getExams(): Promise<Exam[]> {
-  const recs = await fetchAll(TABLES.EXAMS);
-  return recs
-    .map(toExam)
-    .sort((a, b) => (b.exam_date ?? "").localeCompare(a.exam_date ?? ""));
-}
+export const getExams = unstable_cache(
+  async (): Promise<Exam[]> => {
+    const recs = await fetchAll(TABLES.EXAMS);
+    return recs
+      .map(toExam)
+      .sort((a, b) => (b.created_at ?? "").localeCompare(a.created_at ?? ""));
+  },
+  ["exams"],
+  { revalidate: 60, tags: ["exams"] }
+);
 
 export async function getExam(id: string): Promise<Exam | null> {
   const r = await fetchOne(TABLES.EXAMS, id);
@@ -412,9 +425,9 @@ export async function getScoresWithRelations(examId?: string): Promise<Score[]> 
   ]);
   const studentMap = await getStudentMap(coordinatorMap);
 
-  const params = examId
+  const params: Record<string, string> | undefined = examId
     ? { filterByFormula: `FIND("${examId}", ARRAYJOIN({מבחן}))>0` }
-    : {};
+    : undefined;
   const recs = await fetchAll(TABLES.SCORES, params);
   return recs
     .map((r) => toScore(r, studentMap, examMap))

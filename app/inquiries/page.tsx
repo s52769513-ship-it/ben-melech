@@ -1,17 +1,21 @@
 import { MessageSquare } from "lucide-react";
 import Link from "next/link";
 import InquiriesTable from "@/components/tables/InquiriesTable";
-import { getInquiries, getCoordinators, getStudents } from "@/lib/airtable/db";
+import { getInquiries, getInquiriesByCoordinator, getCoordinators, getStudents } from "@/lib/airtable/db";
+import { getSession } from "@/lib/auth";
 
 export default async function InquiriesPage({
   searchParams,
 }: {
   searchParams: Promise<{ status?: string }>;
 }) {
-  const { status } = await searchParams;
+  const [{ status }, coordinatorId] = await Promise.all([
+    searchParams,
+    getSession(),
+  ]);
 
   const [allInquiries, coordinators, students] = await Promise.all([
-    getInquiries(),
+    coordinatorId ? getInquiriesByCoordinator(coordinatorId) : getInquiries(),
     getCoordinators(),
     getStudents(),
   ]);

@@ -1,10 +1,11 @@
 import type { Metadata } from "next";
 import { Heebo } from "next/font/google";
 import "./globals.css";
-import Sidebar from "@/components/Sidebar";
-import ZmanimBar from "@/components/ZmanimBar";
+import ConditionalShell from "@/components/ConditionalShell";
 import DynamicFavicon from "@/components/DynamicFavicon";
 import { SettingsProvider } from "@/lib/settings-context";
+import { getSession } from "@/lib/auth";
+import { getCoordinator } from "@/lib/airtable/db";
 
 const heebo = Heebo({
   subsets: ["hebrew", "latin"],
@@ -17,21 +18,24 @@ export const metadata: Metadata = {
   description: "מערכת CRM לניהול תוכנית בן מלך",
 };
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  const coordinatorId = await getSession().catch(() => null);
+  const coordinator = coordinatorId
+    ? await getCoordinator(coordinatorId).catch(() => null)
+    : null;
+
   return (
     <html lang="he" dir="rtl" className={`${heebo.variable} h-full`}>
-      <body className="min-h-full flex bg-gray-50 font-[family-name:var(--font-heebo)]">
+      <body className="min-h-full bg-gray-50 font-[family-name:var(--font-heebo)]">
         <SettingsProvider>
           <DynamicFavicon />
-          <Sidebar />
-          <main className="flex-1 overflow-auto flex flex-col">
-            <ZmanimBar />
-            <div className="flex-1">{children}</div>
-          </main>
+          <ConditionalShell coordinatorName={coordinator?.name ?? null}>
+            {children}
+          </ConditionalShell>
         </SettingsProvider>
       </body>
     </html>

@@ -1,13 +1,14 @@
 import Link from "next/link";
 import { Star } from "lucide-react";
 import { getScoresWithRelations, getExams, getCoordinators } from "@/lib/airtable/db";
+import { getSession } from "@/lib/auth";
 
 export default async function ScoresPage({
   searchParams,
 }: {
   searchParams: Promise<{ exam?: string; coordinator?: string }>;
 }) {
-  const filters = await searchParams;
+  const [filters, coordinatorId] = await Promise.all([searchParams, getSession()]);
 
   const [scores, exams, coordinators] = await Promise.all([
     getScoresWithRelations(filters.exam),
@@ -15,8 +16,9 @@ export default async function ScoresPage({
     getCoordinators(),
   ]);
 
-  const filteredScores = filters.coordinator
-    ? scores.filter((s) => s.student?.coordinator_id === filters.coordinator)
+  const effectiveCoordinator = coordinatorId ?? filters.coordinator;
+  const filteredScores = effectiveCoordinator
+    ? scores.filter((s) => s.student?.coordinator_id === effectiveCoordinator)
     : scores;
 
   const overallAvg =

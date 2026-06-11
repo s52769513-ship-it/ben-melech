@@ -3,16 +3,25 @@ import { GraduationCap } from "lucide-react";
 import StudentsTable from "@/components/tables/StudentsTable";
 import StudentCount from "@/components/StudentCount";
 import { getStudents, getCoordinators, getGroups, getAllScores } from "@/lib/airtable/db";
+import { getSession } from "@/lib/auth";
 
 export default async function StudentsPage({
   searchParams,
 }: {
   searchParams: Promise<{ coordinator?: string; city?: string; yeshiva?: string }>;
 }) {
-  const filters = await searchParams;
+  const [filters, coordinatorId] = await Promise.all([
+    searchParams,
+    getSession(),
+  ]);
+
+  const effectiveFilters = {
+    ...filters,
+    coordinator: coordinatorId ?? filters.coordinator,
+  };
 
   const [students, coordinators, groups, allScores] = await Promise.all([
-    getStudents(filters),
+    getStudents(effectiveFilters),
     getCoordinators(),
     getGroups(),
     getAllScores(),

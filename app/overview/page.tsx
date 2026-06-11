@@ -1,35 +1,44 @@
 import { TableProperties } from "lucide-react";
 import OverviewClient from "./OverviewClient";
 import { getExams, getAllScores, getGroups, getStudents, getCoordinators } from "@/lib/airtable/db";
+import { getSession } from "@/lib/auth";
+import type { Student, Coordinator } from "@/lib/types";
 
 export default async function OverviewPage() {
-  const [exams, allScores, groups, students, coordinators] = await Promise.all([
+  const [exams, allScores, groups, students, coordinators, coordinatorId] = await Promise.all([
     getExams(),
     getAllScores(),
     getGroups(),
     getStudents(),
     getCoordinators(),
+    getSession(),
   ]);
 
   const kibbutzGroupId = groups.find((g) => g.name === "קיבוץ")?.id ?? null;
 
-  const coordinatorMap = new Map(coordinators.map((c) => [c.id, c]));
-  const studentMap = new Map(students.map((s) => [s.id, s]));
+  const coordinatorMap = new Map<string, Coordinator>(coordinators.map((c) => [c.id, c]));
+  const studentMap = new Map<string, Student>(students.map((s) => [s.id, s]));
 
-  const scoresWithRelations = allScores.map((s) => {
-    const student = studentMap.get(s.student_id);
-    return {
-      ...s,
-      student: student
-        ? {
-            ...student,
-            coordinator: student.coordinator_id
-              ? coordinatorMap.get(student.coordinator_id)
-              : undefined,
-          }
-        : undefined,
-    };
-  });
+  const scoresWithRelations = allScores
+    .filter((s) => {
+      if (!coordinatorId) return true;
+      const st = studentMap.get(s.student_id);
+      return st?.coordinator_id === coordinatorId;
+    })
+    .map((s) => {
+      const student = studentMap.get(s.student_id);
+      return {
+        ...s,
+        student: student
+          ? {
+              ...student,
+              coordinator: student.coordinator_id
+                ? coordinatorMap.get(student.coordinator_id) ?? null
+                : null,
+            }
+          : undefined,
+      };
+    });
 
   const sortedExams = [...exams].sort((a, b) =>
     (a.exam_date ?? "").localeCompare(b.exam_date ?? "")
