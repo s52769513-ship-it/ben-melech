@@ -1,4 +1,4 @@
-import { MessageSquare } from "lucide-react";
+import { MessageSquare, Plus } from "lucide-react";
 import Link from "next/link";
 import InquiriesTable from "@/components/tables/InquiriesTable";
 import { getInquiries, getInquiriesByCoordinator, getCoordinators, getStudents } from "@/lib/airtable/db";
@@ -15,10 +15,13 @@ export default async function InquiriesPage({
   ]);
 
   const isAdmin = coordinatorId === "ADMIN";
+  const loggedIn = isAdmin ? null : coordinatorId;
+
   const [allInquiries, coordinators, students] = await Promise.all([
     !coordinatorId || isAdmin ? getInquiries() : getInquiriesByCoordinator(coordinatorId),
     getCoordinators(),
-    getStudents(),
+    // Students filtered to coordinator so the "new inquiry" dropdown shows relevant students only
+    getStudents(loggedIn ? { coordinator: loggedIn } : undefined),
   ]);
 
   const inquiries = status ? allInquiries.filter((i) => i.status === status) : allInquiries;
@@ -31,19 +34,21 @@ export default async function InquiriesPage({
     {} as Record<string, number>
   );
 
-  const statuses = ["פתוח", "בטיפול", "סגור"];
+  const statuses = ["חדש", "פתוח", "בטיפול", "סגור"];
 
   return (
     <div className="p-8">
-      <div className="mb-8">
-        <h1 className="text-3xl font-bold text-[#1e3a5f] flex items-center gap-2">
-          <MessageSquare size={28} />
-          פניות
-        </h1>
-        <p className="text-gray-500 mt-1">{inquiries.length} פניות</p>
+      <div className="mb-8 flex items-start justify-between">
+        <div>
+          <h1 className="text-3xl font-bold text-[#1e3a5f] flex items-center gap-2">
+            <MessageSquare size={28} />
+            פניות
+          </h1>
+          <p className="text-gray-500 mt-1">{allInquiries.length} פניות</p>
+        </div>
       </div>
 
-      <div className="flex gap-3 mb-6">
+      <div className="flex gap-3 mb-6 flex-wrap">
         <Link
           href="/inquiries"
           className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
@@ -54,7 +59,7 @@ export default async function InquiriesPage({
         >
           הכל ({allInquiries.length})
         </Link>
-        {statuses.map((s) => (
+        {statuses.map((s) => (counts[s] ?? 0) > 0 ? (
           <Link
             key={s}
             href={`/inquiries?status=${encodeURIComponent(s)}`}
@@ -66,10 +71,15 @@ export default async function InquiriesPage({
           >
             {s} ({counts[s] ?? 0})
           </Link>
-        ))}
+        ) : null)}
       </div>
 
-      <InquiriesTable inquiries={inquiries} coordinators={coordinators} students={students} />
+      <InquiriesTable
+        inquiries={inquiries}
+        coordinators={coordinators}
+        students={students}
+        isAdmin={isAdmin}
+      />
     </div>
   );
 }

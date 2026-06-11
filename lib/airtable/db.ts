@@ -596,6 +596,26 @@ export async function getInquiriesByCoordinator(coordinatorId: string): Promise<
     .sort((a, b) => (b.created_at ?? "").localeCompare(a.created_at ?? ""));
 }
 
+export async function createInquiry(data: {
+  title: string;
+  coordinator_id: string | null;
+  student_id: string | null;
+  inquiry_date: string | null;
+  target_date: string | null;
+  description: string | null;
+}): Promise<void> {
+  const fields: Record<string, unknown> = {
+    "שם": data.title,
+    "סטטוס": "חדש",
+  };
+  if (data.coordinator_id) fields["רכז"] = [data.coordinator_id];
+  if (data.student_id) fields["בחור"] = [data.student_id];
+  if (data.inquiry_date) fields["תאריך"] = data.inquiry_date;
+  if (data.target_date) fields["תאריך יעד"] = data.target_date;
+  if (data.description) fields["תיאור"] = data.description;
+  await createRecord(TABLES.INQUIRIES, fields);
+}
+
 export async function updateInquiry(
   id: string,
   data: Record<string, unknown>
