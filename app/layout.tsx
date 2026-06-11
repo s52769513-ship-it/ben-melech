@@ -24,16 +24,18 @@ export default async function RootLayout({
   children: React.ReactNode;
 }>) {
   const coordinatorId = await getSession().catch(() => null);
-  const coordinator = coordinatorId
+  const isAdmin = coordinatorId === "ADMIN";
+  const coordinator = coordinatorId && !isAdmin
     ? await getCoordinator(coordinatorId).catch(() => null)
     : null;
+  const coordinatorName = isAdmin ? "מנהל" : (coordinator?.name ?? null);
 
   return (
     <html lang="he" dir="rtl" className={`${heebo.variable} h-full`}>
       <body className="min-h-full bg-gray-50 font-[family-name:var(--font-heebo)]">
         <SettingsProvider>
           <DynamicFavicon />
-          <ConditionalShell coordinatorName={coordinator?.name ?? null}>
+          <ConditionalShell coordinatorName={coordinatorName} isAdmin={isAdmin}>
             {children}
           </ConditionalShell>
         </SettingsProvider>

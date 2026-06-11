@@ -37,38 +37,38 @@ export default function LoginPage() {
       <div className="relative z-10 w-full max-w-md">
         {/* Logo + orbits */}
         <div className="flex flex-col items-center mb-10 animate-float-up">
-          <div className="relative flex items-center justify-center" style={{ width: 280, height: 280 }}>
+          <div className="relative flex items-center justify-center" style={{ width: 360, height: 360 }}>
             {/* Outer glow */}
             <div
               className="absolute inset-0 rounded-full login-glow"
               style={{
                 background:
-                  "radial-gradient(circle, rgba(96,165,250,0.2) 0%, transparent 65%)",
+                  "radial-gradient(circle, rgba(96,165,250,0.18) 0%, transparent 65%)",
               }}
             />
 
             {/* Outer orbit ring */}
             <div
               className="absolute rounded-full border border-blue-400/25 login-orbit-ccw"
-              style={{ width: 272, height: 272 }}
+              style={{ width: 352, height: 352 }}
             >
-              <div className="absolute -top-1 left-1/2 -translate-x-1/2 w-2.5 h-2.5 bg-blue-300/80 rounded-full shadow-[0_0_8px_rgba(147,197,253,0.8)]" />
-              <div className="absolute top-1/2 -right-1 -translate-y-1/2 w-2 h-2 bg-blue-200/60 rounded-full" />
-              <div className="absolute -bottom-1 left-1/2 -translate-x-1/2 w-1.5 h-1.5 bg-blue-300/50 rounded-full" />
+              <div className="absolute -top-1.5 left-1/2 -translate-x-1/2 w-3 h-3 bg-blue-300/80 rounded-full shadow-[0_0_10px_rgba(147,197,253,0.8)]" />
+              <div className="absolute top-1/2 -right-1.5 -translate-y-1/2 w-2.5 h-2.5 bg-blue-200/60 rounded-full" />
+              <div className="absolute -bottom-1.5 left-1/2 -translate-x-1/2 w-2 h-2 bg-blue-300/50 rounded-full" />
             </div>
 
             {/* Inner orbit ring */}
             <div
               className="absolute rounded-full border border-blue-300/20 login-orbit-cw"
-              style={{ width: 210, height: 210 }}
+              style={{ width: 272, height: 272 }}
             >
-              <div className="absolute -top-1 left-1/2 -translate-x-1/2 w-2 h-2 bg-indigo-300/90 rounded-full shadow-[0_0_6px_rgba(165,180,252,0.9)]" />
-              <div className="absolute -bottom-1 left-1/2 -translate-x-1/2 w-1.5 h-1.5 bg-blue-400/70 rounded-full" />
-              <div className="absolute top-1/2 -left-1 -translate-y-1/2 w-1.5 h-1.5 bg-blue-200/60 rounded-full" />
+              <div className="absolute -top-1 left-1/2 -translate-x-1/2 w-2.5 h-2.5 bg-indigo-300/90 rounded-full shadow-[0_0_7px_rgba(165,180,252,0.9)]" />
+              <div className="absolute -bottom-1 left-1/2 -translate-x-1/2 w-2 h-2 bg-blue-400/70 rounded-full" />
+              <div className="absolute top-1/2 -left-1 -translate-y-1/2 w-2 h-2 bg-blue-200/60 rounded-full" />
             </div>
 
             {/* Logo */}
-            <div className="relative w-44 h-44 flex items-center justify-center login-logo-enter">
+            <div className="relative w-56 h-56 flex items-center justify-center login-logo-enter">
               <LoginLogo envLogoUrl={envLogoUrl} large />
             </div>
           </div>

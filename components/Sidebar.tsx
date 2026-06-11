@@ -35,9 +35,10 @@ const managementItems = [
 
 interface Props {
   coordinatorName: string | null;
+  isAdmin?: boolean;
 }
 
-export default function Sidebar({ coordinatorName }: Props) {
+export default function Sidebar({ coordinatorName, isAdmin }: Props) {
   const pathname = usePathname();
   const { settings } = useSettings();
   const [settingsOpen, setSettingsOpen] = useState(false);
@@ -76,6 +77,23 @@ export default function Sidebar({ coordinatorName }: Props) {
         <nav className="flex-1 py-4">
           {navItems.map(({ href, label, icon: Icon }) => {
             const isActive = href === "/" ? pathname === "/" : pathname.startsWith(href);
+            return (
+              <Link
+                key={href}
+                href={href}
+                className={`flex items-center gap-3 px-6 py-3 text-sm transition-colors ${
+                  isActive
+                    ? "bg-[#2d4f7f] text-white font-medium border-r-4 border-blue-400"
+                    : "text-blue-200 hover:bg-[#2d4f7f] hover:text-white"
+                }`}
+              >
+                <Icon size={18} />
+                <span>{label}</span>
+              </Link>
+            );
+          })}
+          {isAdmin && managementItems.map(({ href, label, icon: Icon }) => {
+            const isActive = pathname.startsWith(href);
             return (
               <Link
                 key={href}
