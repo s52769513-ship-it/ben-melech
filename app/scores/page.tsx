@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { Star } from "lucide-react";
-import { getScoresWithRelations, getExams, getCoordinators } from "@/lib/airtable/db";
+import { getScoresWithRelations, getScoresWithRelationsForCoordinator, getExams, getCoordinators } from "@/lib/airtable/db";
 import { getSession } from "@/lib/auth";
 
 export default async function ScoresPage({
@@ -9,17 +9,27 @@ export default async function ScoresPage({
   searchParams: Promise<{ exam?: string; coordinator?: string }>;
 }) {
   const [filters, coordinatorId] = await Promise.all([searchParams, getSession()]);
+  const isAdmin = coordinatorId === "ADMIN";
+  const loggedInCoordinator = isAdmin ? null : coordinatorId;
 
-  const [scores, exams, coordinators] = await Promise.all([
-    getScoresWithRelations(filters.exam),
+  const [allScores, exams, coordinators] = await Promise.all([
+    loggedInCoordinator
+      ? getScoresWithRelationsForCoordinator(loggedInCoordinator)
+      : getScoresWithRelations(),
     getExams(),
     getCoordinators(),
   ]);
 
-  const effectiveCoordinator = coordinatorId ?? filters.coordinator;
-  const filteredScores = effectiveCoordinator
-    ? scores.filter((s) => s.student?.coordinator_id === effectiveCoordinator)
-    : scores;
+  // Filter by exam in memory — safe, exam_id comes from REST API record link (IDs)
+  const examFiltered = filters.exam
+    ? allScores.filter((s) => s.exam_id === filters.exam)
+    : allScores;
+
+  // Admin can filter by coordinator via query param
+  const coordFilter = isAdmin ? filters.coordinator : null;
+  const filteredScores = coordFilter
+    ? examFiltered.filter((s) => s.student?.coordinator_id === coordFilter)
+    : examFiltered;
 
   const overallAvg =
     filteredScores.length > 0
@@ -62,21 +72,23 @@ export default async function ScoresPage({
             ))}
           </select>
         </div>
-        <div className="flex flex-col gap-1">
-          <label className="text-xs font-medium text-gray-500">סינון לפי משפיע</label>
-          <select
-            name="coordinator"
-            defaultValue={filters.coordinator ?? ""}
-            className="text-sm border border-gray-200 rounded-lg px-3 py-2 bg-white focus:outline-none focus:ring-2 focus:ring-blue-300"
-          >
-            <option value="">כל המשפיעים</option>
-            {coordinators.map((c) => (
-              <option key={c.id} value={c.id}>
-                {c.name}
-              </option>
-            ))}
-          </select>
-        </div>
+        {isAdmin && (
+          <div className="flex flex-col gap-1">
+            <label className="text-xs font-medium text-gray-500">סינון לפי משפיע</label>
+            <select
+              name="coordinator"
+              defaultValue={filters.coordinator ?? ""}
+              className="text-sm border border-gray-200 rounded-lg px-3 py-2 bg-white focus:outline-none focus:ring-2 focus:ring-blue-300"
+            >
+              <option value="">כל המשפיעים</option>
+              {coordinators.map((c) => (
+                <option key={c.id} value={c.id}>
+                  {c.name}
+                </option>
+              ))}
+            </select>
+          </div>
+        )}
         <button
           type="submit"
           className="bg-[#1e3a5f] text-white text-sm px-5 py-2 rounded-lg hover:bg-[#2d4f7f] transition-colors"

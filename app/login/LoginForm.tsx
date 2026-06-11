@@ -2,7 +2,7 @@
 
 import { useActionState, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { loginAction } from "./actions";
+import { loginAction, adminLoginAction } from "./actions";
 
 type LoginResult =
   | { success: true; name: string }
@@ -33,7 +33,7 @@ function WelcomeModal({ name }: { name: string }) {
         </div>
         <h2 className="text-3xl font-bold text-[#1e3a5f] mb-1">ברוכים הבאים</h2>
         <p className="text-2xl font-semibold text-gray-700 mt-2">
-          הרב {name} שליט&quot;א
+          {name === "מנהל" ? "מנהל" : `הרב ${name} שליט"א`}
         </p>
         <p className="text-sm text-gray-400 mt-6">מועבר למערכת...</p>
         <div className="mt-4 h-1 w-full bg-gray-100 rounded-full overflow-hidden">
@@ -47,6 +47,80 @@ function WelcomeModal({ name }: { name: string }) {
   );
 }
 
+function AdminModal({ onClose }: { onClose: () => void }) {
+  const router = useRouter();
+  const [state, action, pending] = useActionState<LoginResult | null, FormData>(
+    adminLoginAction,
+    null
+  );
+  const [showWelcome, setShowWelcome] = useState(false);
+
+  useEffect(() => {
+    if (state?.success) {
+      setShowWelcome(true);
+      const t = setTimeout(() => router.push("/exams"), 3000);
+      return () => clearTimeout(t);
+    }
+  }, [state, router]);
+
+  return (
+    <>
+      <div
+        className="fixed inset-0 z-40 flex items-center justify-center bg-black/60 backdrop-blur-sm"
+        onClick={onClose}
+      >
+        <div
+          className="relative rounded-2xl p-7 w-full max-w-xs mx-4"
+          style={{
+            background: "rgba(15,25,50,0.92)",
+            border: "1px solid rgba(255,255,255,0.15)",
+            boxShadow: "0 20px 50px rgba(0,0,0,0.6)",
+          }}
+          onClick={(e) => e.stopPropagation()}
+        >
+          <button
+            onClick={onClose}
+            className="absolute top-3 left-3 text-white/40 hover:text-white/80 text-lg leading-none"
+          >
+            ✕
+          </button>
+          <h3 className="text-white font-bold text-lg mb-5 text-center">כניסת מנהל</h3>
+          <form action={action} className="space-y-4">
+            <div className="relative">
+              <input
+                name="password"
+                type="password"
+                placeholder="סיסמה"
+                required
+                dir="ltr"
+                className="w-full rounded-xl px-4 py-3 text-sm text-white placeholder:text-white/30 focus:outline-none focus:ring-2 focus:ring-blue-400/60 transition-all"
+                style={{
+                  background: "rgba(255,255,255,0.08)",
+                  border: "1px solid rgba(255,255,255,0.15)",
+                }}
+              />
+            </div>
+            {state && !state.success && (
+              <p className="text-red-300 text-xs text-center">{state.error}</p>
+            )}
+            <button
+              type="submit"
+              disabled={pending}
+              className="w-full font-semibold py-3 rounded-xl text-sm text-white disabled:opacity-50 transition-all"
+              style={{
+                background: "linear-gradient(135deg, #3b82f6 0%, #1e3a5f 100%)",
+              }}
+            >
+              {pending ? "מתחבר..." : "כניסה"}
+            </button>
+          </form>
+        </div>
+      </div>
+      {showWelcome && state?.success && <WelcomeModal name="מנהל" />}
+    </>
+  );
+}
+
 export default function LoginForm() {
   const router = useRouter();
   const [state, action, pending] = useActionState<LoginResult | null, FormData>(
@@ -54,6 +128,7 @@ export default function LoginForm() {
     null
   );
   const [showWelcome, setShowWelcome] = useState(false);
+  const [showAdminModal, setShowAdminModal] = useState(false);
 
   useEffect(() => {
     if (state?.success) {
@@ -144,7 +219,18 @@ export default function LoginForm() {
         </button>
       </form>
 
+      <div className="mt-5 text-center">
+        <button
+          type="button"
+          onClick={() => setShowAdminModal(true)}
+          className="text-blue-400/40 hover:text-blue-400/70 text-xs transition-colors"
+        >
+          כניסת מנהל
+        </button>
+      </div>
+
       {showWelcome && state?.success && <WelcomeModal name={state.name} />}
+      {showAdminModal && <AdminModal onClose={() => setShowAdminModal(false)} />}
     </>
   );
 }

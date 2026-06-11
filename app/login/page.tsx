@@ -37,7 +37,7 @@ export default function LoginPage() {
       <div className="relative z-10 w-full max-w-md">
         {/* Logo + orbits */}
         <div className="flex flex-col items-center mb-10 animate-float-up">
-          <div className="relative flex items-center justify-center mb-7" style={{ width: 200, height: 200 }}>
+          <div className="relative flex items-center justify-center" style={{ width: 280, height: 280 }}>
             {/* Outer glow */}
             <div
               className="absolute inset-0 rounded-full login-glow"
@@ -50,36 +50,28 @@ export default function LoginPage() {
             {/* Outer orbit ring */}
             <div
               className="absolute rounded-full border border-blue-400/25 login-orbit-ccw"
-              style={{ width: 192, height: 192 }}
+              style={{ width: 272, height: 272 }}
             >
-              <div className="absolute -top-1 left-1/2 -translate-x-1/2 w-2 h-2 bg-blue-300/80 rounded-full shadow-[0_0_6px_rgba(147,197,253,0.8)]" />
-              <div className="absolute top-1/2 -right-1 -translate-y-1/2 w-1.5 h-1.5 bg-blue-200/60 rounded-full" />
-              <div className="absolute -bottom-1 left-1/2 -translate-x-1/2 w-1 h-1 bg-blue-300/50 rounded-full" />
+              <div className="absolute -top-1 left-1/2 -translate-x-1/2 w-2.5 h-2.5 bg-blue-300/80 rounded-full shadow-[0_0_8px_rgba(147,197,253,0.8)]" />
+              <div className="absolute top-1/2 -right-1 -translate-y-1/2 w-2 h-2 bg-blue-200/60 rounded-full" />
+              <div className="absolute -bottom-1 left-1/2 -translate-x-1/2 w-1.5 h-1.5 bg-blue-300/50 rounded-full" />
             </div>
 
             {/* Inner orbit ring */}
             <div
               className="absolute rounded-full border border-blue-300/20 login-orbit-cw"
-              style={{ width: 148, height: 148 }}
+              style={{ width: 210, height: 210 }}
             >
-              <div className="absolute -top-1 left-1/2 -translate-x-1/2 w-1.5 h-1.5 bg-indigo-300/90 rounded-full shadow-[0_0_5px_rgba(165,180,252,0.9)]" />
-              <div className="absolute -bottom-1 left-1/2 -translate-x-1/2 w-1 h-1 bg-blue-400/70 rounded-full" />
-              <div className="absolute top-1/2 -left-1 -translate-y-1/2 w-1 h-1 bg-blue-200/60 rounded-full" />
+              <div className="absolute -top-1 left-1/2 -translate-x-1/2 w-2 h-2 bg-indigo-300/90 rounded-full shadow-[0_0_6px_rgba(165,180,252,0.9)]" />
+              <div className="absolute -bottom-1 left-1/2 -translate-x-1/2 w-1.5 h-1.5 bg-blue-400/70 rounded-full" />
+              <div className="absolute top-1/2 -left-1 -translate-y-1/2 w-1.5 h-1.5 bg-blue-200/60 rounded-full" />
             </div>
 
             {/* Logo */}
-            <div className="relative w-28 h-28 flex items-center justify-center login-logo-enter">
+            <div className="relative w-44 h-44 flex items-center justify-center login-logo-enter">
               <LoginLogo envLogoUrl={envLogoUrl} large />
             </div>
           </div>
-
-          <h1
-            className="text-5xl font-bold text-white tracking-wide"
-            style={{ textShadow: "0 0 40px rgba(147,197,253,0.4)" }}
-          >
-            בן מלך
-          </h1>
-          <p className="text-blue-300/70 text-sm mt-2 tracking-[0.3em]">מערכת ניהול</p>
         </div>
 
         {/* Glass card */}

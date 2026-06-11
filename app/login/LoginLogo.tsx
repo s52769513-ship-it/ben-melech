@@ -29,15 +29,15 @@ export default function LoginLogo({ envLogoUrl, large }: Props) {
       <img
         src={logoUrl}
         alt="לוגו"
-        className={large ? "max-h-24 max-w-[180px] object-contain drop-shadow-2xl" : "max-h-28 max-w-[220px] object-contain drop-shadow-xl"}
+        className={large ? "max-h-40 max-w-[160px] object-contain drop-shadow-2xl" : "max-h-28 max-w-[220px] object-contain drop-shadow-xl"}
       />
     );
   }
 
   return (
     <div
-      className={`${large ? "w-24 h-24 text-5xl" : "w-20 h-20 text-5xl"} bg-white/10 backdrop-blur rounded-2xl flex items-center justify-center border border-white/20 shadow-xl select-none`}
-      style={{ boxShadow: large ? "0 0 30px rgba(147,197,253,0.3)" : undefined }}
+      className={`${large ? "w-36 h-36 text-6xl" : "w-20 h-20 text-5xl"} bg-white/10 backdrop-blur rounded-2xl flex items-center justify-center border border-white/20 shadow-xl select-none`}
+      style={{ boxShadow: large ? "0 0 40px rgba(147,197,253,0.3)" : undefined }}
     >
       👑
     </div>

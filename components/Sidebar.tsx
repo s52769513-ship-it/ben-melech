@@ -91,24 +91,6 @@ export default function Sidebar({ coordinatorName }: Props) {
               </Link>
             );
           })}
-          <div className="mx-6 my-2 border-t border-[#2d4f7f]" />
-          {managementItems.map(({ href, label, icon: Icon }) => {
-            const isActive = pathname.startsWith(href);
-            return (
-              <Link
-                key={href}
-                href={href}
-                className={`flex items-center gap-3 px-6 py-3 text-sm transition-colors ${
-                  isActive
-                    ? "bg-[#2d4f7f] text-white font-medium border-r-4 border-blue-400"
-                    : "text-blue-200 hover:bg-[#2d4f7f] hover:text-white"
-                }`}
-              >
-                <Icon size={18} />
-                <span>{label}</span>
-              </Link>
-            );
-          })}
         </nav>
 
         {/* Bottom bar */}

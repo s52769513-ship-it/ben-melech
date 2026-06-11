@@ -5,9 +5,11 @@ import { getSession } from "@/lib/auth";
 
 export default async function ExamsPage() {
   const coordinatorId = await getSession().catch(() => null);
+  const isAdmin = coordinatorId === "ADMIN";
+  const loggedIn = isAdmin ? null : coordinatorId;
   const [exams, scores] = await Promise.all([
     getExams(),
-    coordinatorId ? getAllScoresForCoordinator(coordinatorId) : getAllScores(),
+    loggedIn ? getAllScoresForCoordinator(loggedIn) : getAllScores(),
   ]);
 
   const examStatsMap: Record<string, { total: number; count: number; participants: number }> = {};

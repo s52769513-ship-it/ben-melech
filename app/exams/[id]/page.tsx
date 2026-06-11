@@ -13,11 +13,11 @@ export default async function ExamDetailPage({
   const { id } = await params;
 
   const coordinatorId = await getSession();
+  const isAdmin = coordinatorId === "ADMIN";
+  const loggedIn = isAdmin ? null : coordinatorId;
   const [exam, scores] = await Promise.all([
     getExam(id),
-    coordinatorId
-      ? getScoresByExamForCoordinator(id, coordinatorId)
-      : getScoresByExam(id),
+    loggedIn ? getScoresByExamForCoordinator(id, loggedIn) : getScoresByExam(id),
   ]);
 
   if (!exam) notFound();

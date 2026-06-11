@@ -8,6 +8,18 @@ type LoginResult =
   | { success: true; name: string }
   | { success: false; error: string };
 
+export async function adminLoginAction(
+  _prev: LoginResult | null,
+  formData: FormData
+): Promise<LoginResult> {
+  const password = (formData.get("password") as string | null) ?? "";
+  if (password !== "2447") {
+    return { success: false, error: "סיסמה שגויה" };
+  }
+  await createSession("ADMIN");
+  return { success: true, name: "מנהל" };
+}
+
 export async function loginAction(
   _prev: LoginResult | null,
   formData: FormData
