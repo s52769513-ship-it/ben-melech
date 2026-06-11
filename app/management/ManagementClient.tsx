@@ -4,7 +4,6 @@ import { useRouter } from "next/navigation";
 import { useOptimistic, useTransition, useCallback, useState } from "react";
 import { ChevronRight, ChevronLeft, Download, Printer } from "lucide-react";
 import { updateExamNote, upsertCoordinatorNote } from "./actions";
-import { useSettings } from "@/lib/settings-context";
 
 type Exam = { id: string; parasha: string; exam_date: string | null };
 
@@ -68,7 +67,6 @@ export default function ManagementClient({
 }: Props) {
   const router = useRouter();
   const [, startTransition] = useTransition();
-  const { settings, toggle } = useSettings();
 
   // Build initial coord notes map (one per coordinator)
   const buildNotesMap = (notes: Props["examNotes"]): Map<string, CoordNote> => {
@@ -215,16 +213,6 @@ export default function ManagementClient({
             </button>
           ))}
         </div>
-        <button
-          onClick={() => toggle("hideKibbutz")}
-          className={`text-sm px-4 py-1.5 rounded-full border font-medium transition-colors ${
-            settings.hideKibbutz
-              ? "bg-[#1e3a5f] text-white border-[#1e3a5f]"
-              : "bg-white text-gray-600 border-gray-300 hover:bg-gray-50"
-          }`}
-        >
-          {settings.hideKibbutz ? "גלה קיבוץ" : "הסתר קיבוץ"}
-        </button>
       </div>
 
       <div className="flex-1 overflow-auto p-6">

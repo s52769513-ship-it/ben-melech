@@ -83,13 +83,11 @@ export default function StudentsTable({ students, coordinators, groups, scoreMap
   const [isPending, startTransition] = useTransition();
   const [editing, setEditing] = useState<Student | null>(null);
   const [form, setForm] = useState<FormState | null>(null);
-  const { settings } = useSettings();
-
-  const kibbutzGroupId = groups.find((g) => g.name === "קיבוץ")?.id;
-  const visibleStudents =
-    settings.hideKibbutz && kibbutzGroupId
-      ? students.filter((s) => s.group_id !== kibbutzGroupId)
-      : students;
+  const { settings, isStudentVisible } = useSettings();
+  const visibleStudents = students.filter(isStudentVisible);
+  const visibleCoordinators = coordinators.filter(
+    (c) => !settings.hiddenCoordinators.includes(c.id)
+  );
 
   function openEdit(student: Student) {
     setEditing(student);
@@ -347,7 +345,7 @@ export default function StudentsTable({ students, coordinators, groups, scoreMap
                 className="text-sm border border-gray-200 rounded-lg px-3 py-2 bg-white focus:outline-none focus:ring-2 focus:ring-blue-300"
               >
                 <option value="">ללא משפיע</option>
-                {coordinators.map((c) => (
+                {visibleCoordinators.map((c) => (
                   <option key={c.id} value={c.id}>
                     {c.name}
                   </option>

@@ -23,15 +23,13 @@ type Score = {
 export default function OverviewClient({
   exams,
   scores,
-  kibbutzGroupId,
 }: {
   exams: Exam[];
   scores: Score[];
-  kibbutzGroupId: string | null;
 }) {
   const [nameSearch, setNameSearch] = useState("");
   const [coordinatorFilter, setCoordinatorFilter] = useState("");
-  const { settings } = useSettings();
+  const { settings, isStudentVisible } = useSettings();
 
   // Exams ordered oldest→newest; displayed newest→right (RTL: columns flow left, name is rightmost)
   const orderedExams = exams; // already ascending from server
@@ -58,14 +56,16 @@ export default function OverviewClient({
     return Array.from(seen.values()).filter(Boolean) as NonNullable<Score["student"]>[];
   }, [scores]);
 
-  // Unique coordinators for filter
+  // Unique coordinators for filter — excluding hidden ones
   const coordinators = useMemo(() => {
     const names = new Set<string>();
     students.forEach((s) => {
-      if (s.coordinator?.name) names.add(s.coordinator.name);
+      if (s.coordinator?.name && !settings.hiddenCoordinators.includes(s.coordinator.id)) {
+        names.add(s.coordinator.name);
+      }
     });
     return Array.from(names).sort((a, b) => a.localeCompare(b, "he"));
-  }, [students]);
+  }, [students, settings.hiddenCoordinators]);
 
   // Filtered + grouped by coordinator
   const grouped = useMemo(() => {
@@ -73,7 +73,7 @@ export default function OverviewClient({
       const fullName = `${s.first_name} ${s.last_name}`;
       if (nameSearch && !fullName.includes(nameSearch)) return false;
       if (coordinatorFilter && s.coordinator?.name !== coordinatorFilter) return false;
-      if (settings.hideKibbutz && kibbutzGroupId && s.group_id === kibbutzGroupId) return false;
+      if (!isStudentVisible({ coordinator_id: s.coordinator?.id, group_id: s.group_id })) return false;
       return true;
     });
 
@@ -93,7 +93,7 @@ export default function OverviewClient({
           `${a.last_name} ${a.first_name}`.localeCompare(`${b.last_name} ${b.first_name}`, "he")
         ),
       }));
-  }, [students, nameSearch, coordinatorFilter]);
+  }, [students, nameSearch, coordinatorFilter, isStudentVisible, settings.hiddenCoordinators, settings.hiddenGroups]);
 
   const totalStudents = grouped.reduce((sum, g) => sum + g.students.length, 0);
 

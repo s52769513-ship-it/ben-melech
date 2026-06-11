@@ -1,20 +1,18 @@
 import { TableProperties } from "lucide-react";
 import OverviewClient from "./OverviewClient";
-import { getExams, getAllScores, getGroups, getStudents, getCoordinators } from "@/lib/airtable/db";
+import { getExams, getAllScores, getStudents, getCoordinators } from "@/lib/airtable/db";
 import { getSession } from "@/lib/auth";
 import type { Student, Coordinator } from "@/lib/types";
 
+
 export default async function OverviewPage() {
-  const [exams, allScores, groups, students, coordinators, coordinatorId] = await Promise.all([
+  const [exams, allScores, students, coordinators, coordinatorId] = await Promise.all([
     getExams(),
     getAllScores(),
-    getGroups(),
     getStudents(),
     getCoordinators(),
     getSession(),
   ]);
-
-  const kibbutzGroupId = groups.find((g) => g.name === "קיבוץ")?.id ?? null;
 
   const coordinatorMap = new Map<string, Coordinator>(coordinators.map((c) => [c.id, c]));
   const studentMap = new Map<string, Student>(students.map((s) => [s.id, s]));
@@ -56,7 +54,6 @@ export default async function OverviewPage() {
       <OverviewClient
         exams={sortedExams}
         scores={scoresWithRelations as any[]}
-        kibbutzGroupId={kibbutzGroupId}
       />
     </div>
   );

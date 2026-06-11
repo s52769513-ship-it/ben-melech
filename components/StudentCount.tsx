@@ -2,23 +2,16 @@
 
 import { useSettings } from "@/lib/settings-context";
 
-type Student = { group_id?: string | null };
+type Student = { group_id?: string | null; coordinator_id?: string | null };
 
 export default function StudentCount({
   students,
-  kibbutzGroupId,
   suffix = "בחורים",
 }: {
   students: Student[];
-  kibbutzGroupId?: string | null;
   suffix?: string;
 }) {
-  const { settings } = useSettings();
-
-  const count =
-    settings.hideKibbutz && kibbutzGroupId
-      ? students.filter((s) => s.group_id !== kibbutzGroupId).length
-      : students.length;
-
+  const { isStudentVisible } = useSettings();
+  const count = students.filter(isStudentVisible).length;
   return <>{count} {suffix}</>;
 }
