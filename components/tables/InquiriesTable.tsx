@@ -45,10 +45,9 @@ interface Props {
 }
 
 const statusColors: Record<string, { badge: string; row: string }> = {
-  חדש:   { badge: "bg-red-100 text-red-700",    row: "border-r-4 border-red-400" },
-  פתוח:  { badge: "bg-red-100 text-red-700",    row: "border-r-4 border-red-400" },
+  חדש:   { badge: "bg-red-100 text-red-700",       row: "border-r-4 border-red-400" },
   בטיפול:{ badge: "bg-yellow-100 text-yellow-700", row: "border-r-4 border-yellow-400" },
-  סגור:  { badge: "bg-green-100 text-green-700", row: "" },
+  סגור:  { badge: "bg-green-100 text-green-700",   row: "" },
 };
 
 function getDaysOpen(createdAt: string, status: string) {
@@ -356,7 +355,6 @@ export default function InquiriesTable({ inquiries, coordinators, students, isAd
               <label className="text-xs font-medium text-gray-500">סטטוס</label>
               <select value={editForm.status} onChange={(e) => setE("status", e.target.value)} className={inputCls}>
                 <option value="חדש">חדש</option>
-                <option value="פתוח">פתוח</option>
                 <option value="בטיפול">בטיפול</option>
                 <option value="סגור">סגור</option>
               </select>

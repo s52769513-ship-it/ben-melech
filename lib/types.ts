@@ -92,7 +92,7 @@ export interface Inquiry {
   title: string;
   coordinator_id: string | null;
   student_id: string | null;
-  status: "פתוח" | "בטיפול" | "סגור";
+  status: "חדש" | "בטיפול" | "סגור";
   inquiry_date: string | null;
   description: string | null;
   target_date: string | null;

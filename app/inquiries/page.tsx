@@ -34,7 +34,7 @@ export default async function InquiriesPage({
     {} as Record<string, number>
   );
 
-  const statuses = ["חדש", "פתוח", "בטיפול", "סגור"];
+  const statuses = ["חדש", "בטיפול", "סגור"];
 
   return (
     <div className="p-8">

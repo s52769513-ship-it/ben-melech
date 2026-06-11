@@ -144,7 +144,7 @@ function toInquiry(
     title: str(f["שם"]) ?? "",
     coordinator_id: coordinatorId,
     student_id: studentId,
-    status: (str(f["סטטוס"]) ?? "פתוח") as Inquiry["status"],
+    status: (str(f["סטטוס"]) ?? "חדש") as Inquiry["status"],
     inquiry_date: str(f["תאריך"]),
     description: str(f["תיאור"]),
     target_date: str(f["תאריך יעד"]),
