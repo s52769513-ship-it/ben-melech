@@ -22,8 +22,6 @@ type Inquiry = {
   target_date: string | null;
   close_date: string | null;
   cancel_reminder: boolean;
-  summary: string | null;
-  category: string | null;
   coordinator?: { id: string; name: string } | null;
   student?: { id: string; first_name: string; last_name: string } | null;
 };
@@ -31,7 +29,7 @@ type Inquiry = {
 type EditForm = {
   title: string; status: string; coordinator_id: string; student_id: string;
   inquiry_date: string; description: string; target_date: string;
-  close_date: string; cancel_reminder: boolean; summary: string; category: string;
+  close_date: string; cancel_reminder: boolean;
 };
 
 type CreateForm = {
@@ -84,7 +82,6 @@ export default function InquiriesTable({ inquiries, coordinators, students, isAd
       inquiry_date: inq.inquiry_date?.slice(0, 10) ?? "",
       description: inq.description ?? "", target_date: inq.target_date?.slice(0, 10) ?? "",
       close_date: inq.close_date?.slice(0, 10) ?? "", cancel_reminder: inq.cancel_reminder ?? false,
-      summary: inq.summary ?? "", category: inq.category ?? "",
     });
   }
 
@@ -155,7 +152,6 @@ export default function InquiriesTable({ inquiries, coordinators, students, isAd
               <th className="text-right px-6 py-4 font-semibold text-gray-600">כותרת</th>
               <th className="text-right px-6 py-4 font-semibold text-gray-600">בחור</th>
               <th className="text-right px-6 py-4 font-semibold text-gray-600">משפיע</th>
-              <th className="text-right px-6 py-4 font-semibold text-gray-600">קטגוריה</th>
               <th className="text-right px-6 py-4 font-semibold text-gray-600">תאריך פתיחה</th>
               <th className="text-right px-6 py-4 font-semibold text-gray-600">ימים פתוח</th>
               <th className="text-right px-6 py-4 font-semibold text-gray-600">סטטוס</th>
@@ -194,11 +190,6 @@ export default function InquiriesTable({ inquiries, coordinators, students, isAd
                         <Link href={`/coordinators/${coordinator.id}`} className="text-blue-600 hover:underline">
                           {coordinator.name}
                         </Link>
-                      ) : <span className="text-gray-300">—</span>}
-                    </td>
-                    <td className="px-6 py-4 text-gray-600">
-                      {inq.category ? (
-                        <span className="bg-gray-100 text-gray-600 text-xs px-2 py-0.5 rounded-full">{inq.category}</span>
                       ) : <span className="text-gray-300">—</span>}
                     </td>
                     <td className="px-6 py-4 text-gray-500">
@@ -415,18 +406,6 @@ export default function InquiriesTable({ inquiries, coordinators, students, isAd
               <label className="text-xs font-medium text-gray-500">תיאור</label>
               <textarea value={editForm.description} onChange={(e) => setE("description", e.target.value)} rows={2} className={`${inputCls} resize-none`} />
             </div>
-            {editForm.summary && (
-              <div className="flex flex-col gap-1 col-span-2">
-                <label className="text-xs font-medium text-gray-500">סיכום (נוצר אוטומטית)</label>
-                <p className="text-sm text-gray-600 bg-gray-50 border border-gray-200 rounded-lg px-3 py-2">{editForm.summary}</p>
-              </div>
-            )}
-            {editForm.category && (
-              <div className="flex flex-col gap-1">
-                <label className="text-xs font-medium text-gray-500">קטגוריה (נוצר אוטומטית)</label>
-                <p className="text-sm text-gray-600 bg-gray-50 border border-gray-200 rounded-lg px-3 py-2">{editForm.category}</p>
-              </div>
-            )}
           </div>
         </EditModal>
       )}

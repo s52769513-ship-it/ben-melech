@@ -150,8 +150,6 @@ function toInquiry(
     target_date: str(f["תאריך יעד"]),
     close_date: str(f["תאריך סיום"]),
     cancel_reminder: bool(f["ביטול תזכורת"]),
-    summary: str(f["סיכום"]),
-    category: str(f["קטגוריה"]),
     student: studentId && studentMap ? studentMap.get(studentId) : undefined,
     coordinator: coordinatorId && coordinatorMap ? coordinatorMap.get(coordinatorId) : undefined,
   };
@@ -628,7 +626,7 @@ export async function updateInquiry(
     target_date: "תאריך יעד",
     close_date: "תאריך סיום",
     cancel_reminder: "ביטול תזכורת",
-  }; // "סיכום" and "קטגוריה" are aiText (AI-generated) — read-only, cannot be patched
+  };
   const linkFields: Record<string, string> = {
     coordinator_id: "רכז",
     student_id: "בחור",

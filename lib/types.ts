@@ -98,8 +98,6 @@ export interface Inquiry {
   target_date: string | null;
   close_date: string | null;
   cancel_reminder: boolean;
-  summary: string | null;
-  category: string | null;
   coordinator?: Coordinator;
   student?: Student;
 }
