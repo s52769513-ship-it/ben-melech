@@ -106,13 +106,15 @@ export default function Sidebar({ coordinatorName, isAdmin }: Props) {
 
         {/* Bottom bar */}
         <div className="border-t border-[#2d4f7f]">
-          <button
-            onClick={() => setSettingsOpen(true)}
-            className="w-full flex items-center gap-3 px-6 py-3.5 text-sm text-blue-200 hover:bg-[#2d4f7f] hover:text-white transition-colors"
-          >
-            <Settings size={16} />
-            <span>הגדרות</span>
-          </button>
+          {isAdmin && (
+            <button
+              onClick={() => setSettingsOpen(true)}
+              className="w-full flex items-center gap-3 px-6 py-3.5 text-sm text-blue-200 hover:bg-[#2d4f7f] hover:text-white transition-colors"
+            >
+              <Settings size={16} />
+              <span>הגדרות</span>
+            </button>
+          )}
           <form action={logout}>
             <button
               type="submit"
@@ -126,7 +128,7 @@ export default function Sidebar({ coordinatorName, isAdmin }: Props) {
         </div>
       </aside>
 
-      {settingsOpen && <SettingsPanel onClose={() => setSettingsOpen(false)} />}
+      {isAdmin && settingsOpen && <SettingsPanel onClose={() => setSettingsOpen(false)} />}
     </>
   );
 }
