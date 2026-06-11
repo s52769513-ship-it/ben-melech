@@ -21,7 +21,7 @@ export default function LoginLogo({ envLogoUrl, large }: Props) {
     } catch { /* ignore */ }
   }, [envLogoUrl]);
 
-  const logoUrl = envLogoUrl || localUrl;
+  const logoUrl = envLogoUrl || localUrl || "/לוגו חתוך בן מלך.png";
 
   if (logoUrl) {
     return (

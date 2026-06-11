@@ -49,19 +49,12 @@ export default function Sidebar({ coordinatorName, isAdmin }: Props) {
 
         {/* Header */}
         <div className="border-b border-[#2d4f7f] flex items-center justify-center min-h-[80px] px-4 py-4">
-          {(process.env.NEXT_PUBLIC_LOGO_URL || settings.logoUrl) ? (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img
-              src={process.env.NEXT_PUBLIC_LOGO_URL || settings.logoUrl}
-              alt="לוגו"
-              className="max-h-16 max-w-full object-contain"
-            />
-          ) : (
-            <div className="text-right w-full px-2">
-              <h1 className="text-white text-xl font-bold tracking-wide">בן מלך</h1>
-              <p className="text-blue-300 text-xs mt-1">מערכת ניהול</p>
-            </div>
-          )}
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src={process.env.NEXT_PUBLIC_LOGO_URL || settings.logoUrl || "/לוגו חתוך בן מלך.png"}
+            alt="לוגו"
+            className="max-h-16 max-w-full object-contain"
+          />
         </div>
 
         {/* Coordinator info */}
