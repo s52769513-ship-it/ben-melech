@@ -20,6 +20,7 @@ import type {
   Finance,
   CoordinatorInstruction,
   Group,
+  Zman,
 } from "@/lib/types";
 
 // ─── Mappers ────────────────────────────────────────────────────────────────
@@ -80,6 +81,17 @@ function toExam(r: AirtableRecord): Exam {
     exam_date: str(f["תאריך"]),
     results: str(f["Results"]),
     participation_rate: num(f["Participation Rate (%)"]),
+    zman_id: linkedId(f["זמן ושנה"]),
+  };
+}
+
+function toZman(r: AirtableRecord): Zman {
+  const f = r.fields;
+  return {
+    id: r.id,
+    name: str(f["זמן"]) ?? "",
+    season: str(f["שם זמן"]),
+    exam_ids: (f["פרשה"] as string[] | undefined) ?? [],
   };
 }
 
@@ -109,6 +121,8 @@ function toScore(
     arrived_on_time_old: bool(f['הגעה ב-5 דקות ראשונות {ישן}']),
     paid: bool(f["שולם"]),
     payment_amount: num(f["סכום לתשלום"]) ?? 0,
+    points: num(f["נקודות"]),
+    points_kaitz: num(f["נקודות זמן קיץ תשפו"]),
     personal_note: str(f['פניה אישית (לכה"פ ל-2 בחורים בשבוע)']),
     rabbi_note: str(f["שמתי לב.... (הערות להרב חיים מרדכי ישיר)"]),
     student: studentId && studentMap ? studentMap.get(studentId) : undefined,
@@ -388,6 +402,13 @@ export async function getExam(id: string): Promise<Exam | null> {
   return r ? toExam(r) : null;
 }
 
+export async function getZmanim(): Promise<Zman[]> {
+  const recs = await fetchAll(TABLES.ZMANIM);
+  return recs
+    .map(toZman)
+    .filter((z) => z.name.trim() !== "");
+}
+
 export async function updateExam(
   id: string,
   data: Record<string, unknown>
@@ -516,6 +537,8 @@ export async function updateScore(
     arrived_on_time: "הגעה 5 דקות ראשונות",
     attended_class: "השתתף בשיעור",
     weekly_summary: "סיכום שבועי",
+    attended_seder_old: 'השתתף בסדר {ישן}',
+    arrived_on_time_old: 'הגעה ב-5 דקות ראשונות {ישן}',
     paid: "שולם",
     personal_note: 'פניה אישית (לכה"פ ל-2 בחורים בשבוע)',
     rabbi_note: "שמתי לב.... (הערות להרב חיים מרדכי ישיר)",

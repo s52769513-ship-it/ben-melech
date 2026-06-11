@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { ArrowRight, BookOpen, Users } from "lucide-react";
 import { notFound } from "next/navigation";
-import { getExam, getScoresByExam, getScoresByExamForCoordinator } from "@/lib/airtable/db";
+import { getExam, getScoresByExam, getScoresByExamForCoordinator, getZmanim } from "@/lib/airtable/db";
 import { getSession } from "@/lib/auth";
 import ExamScoresClient from "./ExamScoresClient";
 
@@ -15,10 +15,13 @@ export default async function ExamDetailPage({
   const coordinatorId = await getSession();
   const isAdmin = coordinatorId === "ADMIN";
   const loggedIn = isAdmin ? null : coordinatorId;
-  const [exam, scores] = await Promise.all([
+  const [exam, scores, zmanim] = await Promise.all([
     getExam(id),
     loggedIn ? getScoresByExamForCoordinator(id, loggedIn) : getScoresByExam(id),
+    getZmanim(),
   ]);
+  const zman = exam?.zman_id ? zmanim.find((z) => z.id === exam.zman_id) ?? null : null;
+  const season = zman?.season ?? null;
 
   if (!exam) notFound();
   const safeExam = exam as NonNullable<typeof exam>;
@@ -43,11 +46,11 @@ export default async function ExamDetailPage({
     <div className="p-8">
       <div className="mb-6">
         <Link
-          href="/exams"
+          href={zman ? `/exams?zman=${zman.id}` : "/exams"}
           className="flex items-center gap-1 text-blue-600 hover:underline text-sm mb-4"
         >
           <ArrowRight size={14} />
-          חזרה למבחנים
+          {zman ? `חזרה ל${zman.name}` : "חזרה למבחנים"}
         </Link>
         <div className="flex items-start justify-between">
           <div>
@@ -88,7 +91,7 @@ export default async function ExamDetailPage({
           </h2>
           <p className="text-xs text-gray-400">לחץ על ציון לעריכה • לחץ על ✓/✗ לשינוי</p>
         </div>
-        <ExamScoresClient scores={scores as any} examId={id} />
+        <ExamScoresClient scores={scores as any} examId={id} season={season} />
       </div>
     </div>
   );

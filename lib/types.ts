@@ -1,3 +1,10 @@
+export interface Zman {
+  id: string;
+  name: string;
+  season: string | null;
+  exam_ids: string[];
+}
+
 export interface Coordinator {
   id: string;
   created_at: string;
@@ -50,6 +57,7 @@ export interface Exam {
   exam_date: string | null;
   results: string | null;
   participation_rate: number | null;
+  zman_id: string | null;
 }
 
 export interface Score {
@@ -70,6 +78,8 @@ export interface Score {
   arrived_on_time_old: boolean;
   paid: boolean;
   payment_amount: number;
+  points: number | null;
+  points_kaitz: number | null;
   personal_note: string | null;
   rabbi_note: string | null;
   student?: Student;

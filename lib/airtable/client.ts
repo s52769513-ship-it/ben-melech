@@ -90,6 +90,7 @@ export const TABLES = {
   INSTRUCTIONS: "tblDIiuNxgFqMTXQ0",
   GROUPS: "tblHoD5ExTHeeR7EM",
   EXAM_NOTES: "tbl2w1Xbzpi2FXEtR",
+  ZMANIM: "tblrLUJBm4PqYt8rg",
 } as const;
 
 export function linkedId(field: unknown): string | null {
