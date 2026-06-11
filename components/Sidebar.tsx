@@ -48,10 +48,10 @@ export default function Sidebar({ coordinatorName }: Props) {
 
         {/* Header */}
         <div className="border-b border-[#2d4f7f] flex items-center justify-center min-h-[80px] px-4 py-4">
-          {settings.logoUrl ? (
+          {(process.env.NEXT_PUBLIC_LOGO_URL || settings.logoUrl) ? (
             // eslint-disable-next-line @next/next/no-img-element
             <img
-              src={settings.logoUrl}
+              src={process.env.NEXT_PUBLIC_LOGO_URL || settings.logoUrl}
               alt="לוגו"
               className="max-h-16 max-w-full object-contain"
             />

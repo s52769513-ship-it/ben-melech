@@ -2,12 +2,14 @@ import LoginForm from "./LoginForm";
 import LoginLogo from "./LoginLogo";
 
 export default function LoginPage() {
+  const envLogoUrl = process.env.NEXT_PUBLIC_LOGO_URL ?? "";
+
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-[#1e3a5f] via-[#162d4a] to-[#0d1f33] p-4">
       <div className="w-full max-w-sm animate-fade-in">
         {/* Brand */}
         <div className="text-center mb-8">
-          <LoginLogo />
+          <LoginLogo envLogoUrl={envLogoUrl} />
           <h1 className="text-4xl font-bold text-white tracking-wide mt-3">בן מלך</h1>
           <p className="text-blue-300 text-sm mt-1.5 tracking-widest">מערכת ניהול</p>
         </div>
