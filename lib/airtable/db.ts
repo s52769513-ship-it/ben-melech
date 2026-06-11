@@ -628,9 +628,7 @@ export async function updateInquiry(
     target_date: "תאריך יעד",
     close_date: "תאריך סיום",
     cancel_reminder: "ביטול תזכורת",
-    summary: "סיכום",
-    category: "קטגוריה",
-  };
+  }; // "סיכום" and "קטגוריה" are aiText (AI-generated) — read-only, cannot be patched
   const linkFields: Record<string, string> = {
     coordinator_id: "רכז",
     student_id: "בחור",

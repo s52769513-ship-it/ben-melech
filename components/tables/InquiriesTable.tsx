@@ -102,8 +102,7 @@ export default function InquiriesTable({ inquiries, coordinators, students, isAd
         coordinator_id: editForm.coordinator_id || null, student_id: editForm.student_id || null,
         inquiry_date: editForm.inquiry_date || null, description: editForm.description || null,
         target_date: editForm.target_date || null, close_date: editForm.close_date || null,
-        cancel_reminder: editForm.cancel_reminder, summary: editForm.summary || null,
-        category: editForm.category || null,
+        cancel_reminder: editForm.cancel_reminder,
       });
       closeEdit();
       router.refresh();
@@ -372,10 +371,6 @@ export default function InquiriesTable({ inquiries, coordinators, students, isAd
               </select>
             </div>
             <div className="flex flex-col gap-1">
-              <label className="text-xs font-medium text-gray-500">קטגוריה</label>
-              <input value={editForm.category} onChange={(e) => setE("category", e.target.value)} className={inputCls} />
-            </div>
-            <div className="flex flex-col gap-1">
               <label className="text-xs font-medium text-gray-500">בחור</label>
               <select value={editForm.student_id} onChange={(e) => setE("student_id", e.target.value)} className={inputCls}>
                 <option value="">ללא בחור</option>
@@ -420,10 +415,18 @@ export default function InquiriesTable({ inquiries, coordinators, students, isAd
               <label className="text-xs font-medium text-gray-500">תיאור</label>
               <textarea value={editForm.description} onChange={(e) => setE("description", e.target.value)} rows={2} className={`${inputCls} resize-none`} />
             </div>
-            <div className="flex flex-col gap-1 col-span-2">
-              <label className="text-xs font-medium text-gray-500">סיכום</label>
-              <textarea value={editForm.summary} onChange={(e) => setE("summary", e.target.value)} rows={2} className={`${inputCls} resize-none`} />
-            </div>
+            {editForm.summary && (
+              <div className="flex flex-col gap-1 col-span-2">
+                <label className="text-xs font-medium text-gray-500">סיכום (נוצר אוטומטית)</label>
+                <p className="text-sm text-gray-600 bg-gray-50 border border-gray-200 rounded-lg px-3 py-2">{editForm.summary}</p>
+              </div>
+            )}
+            {editForm.category && (
+              <div className="flex flex-col gap-1">
+                <label className="text-xs font-medium text-gray-500">קטגוריה (נוצר אוטומטית)</label>
+                <p className="text-sm text-gray-600 bg-gray-50 border border-gray-200 rounded-lg px-3 py-2">{editForm.category}</p>
+              </div>
+            )}
           </div>
         </EditModal>
       )}
