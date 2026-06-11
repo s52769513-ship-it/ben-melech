@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { ArrowRight, BookOpen, Users } from "lucide-react";
 import { notFound } from "next/navigation";
-import { getExam, getScoresByExam } from "@/lib/airtable/db";
+import { getExam, getScoresByExam, getScoresByExamForCoordinator } from "@/lib/airtable/db";
 import { getSession } from "@/lib/auth";
 import ExamScoresClient from "./ExamScoresClient";
 
@@ -13,15 +13,15 @@ export default async function ExamDetailPage({
   const { id } = await params;
 
   const coordinatorId = await getSession();
-  const [exam, allScores] = await Promise.all([getExam(id), getScoresByExam(id)]);
+  const [exam, scores] = await Promise.all([
+    getExam(id),
+    coordinatorId
+      ? getScoresByExamForCoordinator(id, coordinatorId)
+      : getScoresByExam(id),
+  ]);
 
   if (!exam) notFound();
-  // exam is Exam from here
   const safeExam = exam as NonNullable<typeof exam>;
-
-  const scores = coordinatorId
-    ? allScores.filter((s) => s.student?.coordinator_id === coordinatorId)
-    : allScores;
 
   const scoredCount = scores.filter(
     (s) => s.chassidut_score !== null || s.halacha_score !== null || s.tefila_score !== null

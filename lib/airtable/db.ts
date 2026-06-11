@@ -403,6 +403,29 @@ export async function getScoresByExam(
   return recs.map((r) => toScore(r, studentMap, examMap));
 }
 
+export async function getScoresByExamForCoordinator(
+  examId: string,
+  coordinatorId: string
+): Promise<Score[]> {
+  const [recs, coordinatorMap] = await Promise.all([
+    fetchAll(TABLES.SCORES, {
+      filterByFormula: `AND(FIND("${examId}",ARRAYJOIN({מבחן}))>0,FIND("${coordinatorId}",ARRAYJOIN({ID רכז}))>0)`,
+    }),
+    getCoordinatorMap(),
+  ]);
+  const studentMap = await getStudentMap(coordinatorMap);
+  const exam: Exam | null = await getExam(examId);
+  const examMap = exam ? new Map([[exam.id, exam]]) : new Map<string, Exam>();
+  return recs.map((r) => toScore(r, studentMap, examMap));
+}
+
+export async function getAllScoresForCoordinator(coordinatorId: string): Promise<Score[]> {
+  const recs = await fetchAll(TABLES.SCORES, {
+    filterByFormula: `FIND("${coordinatorId}",ARRAYJOIN({ID רכז}))>0`,
+  });
+  return recs.map((r) => toScore(r));
+}
+
 export async function getScoresByStudent(studentId: string): Promise<Score[]> {
   const recs = await fetchAll(TABLES.SCORES, {
     filterByFormula: `FIND("${studentId}", ARRAYJOIN({בחור}))>0`,

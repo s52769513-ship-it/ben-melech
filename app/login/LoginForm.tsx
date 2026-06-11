@@ -10,7 +10,7 @@ type LoginResult =
 
 function WelcomeModal({ name }: { name: string }) {
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm animate-fade-in">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm animate-fade-in">
       <div className="bg-white rounded-3xl shadow-2xl px-10 py-12 max-w-sm w-full mx-4 text-center animate-scale-in">
         <div className="w-24 h-24 bg-green-50 rounded-full flex items-center justify-center mx-auto mb-6 border-4 border-green-100">
           <svg
@@ -63,15 +63,22 @@ export default function LoginForm() {
     }
   }, [state, router]);
 
+  const inputClass =
+    "w-full rounded-xl px-4 py-3 pr-11 text-sm text-white placeholder:text-white/30 focus:outline-none focus:ring-2 focus:ring-blue-400/60 transition-all";
+  const inputStyle = {
+    background: "rgba(255,255,255,0.08)",
+    border: "1px solid rgba(255,255,255,0.15)",
+  };
+
   return (
     <>
       <form action={action} className="space-y-5">
         <div className="space-y-1.5">
-          <label className="block text-sm font-medium text-gray-600">
+          <label className="block text-sm font-medium text-blue-100/80">
             מספר טלפון
           </label>
           <div className="relative">
-            <span className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 text-lg select-none">
+            <span className="absolute right-3 top-1/2 -translate-y-1/2 text-white/40 text-lg select-none">
               📱
             </span>
             <input
@@ -80,17 +87,18 @@ export default function LoginForm() {
               dir="ltr"
               placeholder="050-0000000"
               required
-              className="w-full border border-gray-200 rounded-xl px-4 py-3 pr-10 text-sm focus:outline-none focus:ring-2 focus:ring-[#1e3a5f]/40 focus:border-[#1e3a5f] transition-all placeholder:text-gray-300"
+              className={inputClass}
+              style={inputStyle}
             />
           </div>
         </div>
 
         <div className="space-y-1.5">
-          <label className="block text-sm font-medium text-gray-600">
+          <label className="block text-sm font-medium text-blue-100/80">
             תעודת זהות
           </label>
           <div className="relative">
-            <span className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 text-lg select-none">
+            <span className="absolute right-3 top-1/2 -translate-y-1/2 text-white/40 text-lg select-none">
               🪪
             </span>
             <input
@@ -100,13 +108,14 @@ export default function LoginForm() {
               dir="ltr"
               placeholder="000000000"
               required
-              className="w-full border border-gray-200 rounded-xl px-4 py-3 pr-10 text-sm focus:outline-none focus:ring-2 focus:ring-[#1e3a5f]/40 focus:border-[#1e3a5f] transition-all placeholder:text-gray-300"
+              className={inputClass}
+              style={inputStyle}
             />
           </div>
         </div>
 
         {state && !state.success && (
-          <div className="bg-red-50 border border-red-200 text-red-600 text-sm rounded-xl px-4 py-3 text-center animate-fade-in">
+          <div className="bg-red-500/20 border border-red-400/30 text-red-200 text-sm rounded-xl px-4 py-3 text-center animate-fade-in">
             {state.error}
           </div>
         )}
@@ -114,7 +123,12 @@ export default function LoginForm() {
         <button
           type="submit"
           disabled={pending}
-          className="w-full bg-[#1e3a5f] text-white font-semibold py-3.5 rounded-xl hover:bg-[#2d4f7f] active:scale-[0.98] transition-all disabled:opacity-60 disabled:cursor-not-allowed flex items-center justify-center gap-2 text-sm mt-2"
+          className="w-full font-semibold py-3.5 rounded-xl active:scale-[0.98] transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 text-sm mt-2"
+          style={{
+            background: "linear-gradient(135deg, #3b82f6 0%, #1e3a5f 100%)",
+            boxShadow: "0 4px 20px rgba(59,130,246,0.35)",
+            color: "white",
+          }}
         >
           {pending ? (
             <>
