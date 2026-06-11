@@ -106,8 +106,9 @@ export default function SettingsPanel({ onClose }: Props) {
                             {c.name}
                           </span>
                           <button
+                            dir="ltr"
                             onClick={() => toggleCoordinator(c.id)}
-                            className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none ${
+                            className={`relative inline-flex h-6 w-11 shrink-0 items-center rounded-full transition-colors focus:outline-none ${
                               hidden ? "bg-red-400" : "bg-green-500"
                             }`}
                           >
@@ -141,8 +142,9 @@ export default function SettingsPanel({ onClose }: Props) {
                             {g.name}
                           </span>
                           <button
+                            dir="ltr"
                             onClick={() => toggleGroup(g.id)}
-                            className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none ${
+                            className={`relative inline-flex h-6 w-11 shrink-0 items-center rounded-full transition-colors focus:outline-none ${
                               hidden ? "bg-red-400" : "bg-green-500"
                             }`}
                           >
