@@ -4,6 +4,7 @@ import { useRouter } from "next/navigation";
 import { useOptimistic, useTransition, useState, useMemo } from "react";
 import { updateScoreBoolean } from "./actions";
 import { AlertTriangle, Download, FileText, X, Search, Filter } from "lucide-react";
+import { useSettings } from "@/lib/settings-context";
 
 type Exam = { id: string; parasha: string; exam_date: string | null };
 
@@ -24,6 +25,8 @@ type Score = {
     first_name: string;
     last_name: string;
     city: string | null;
+    coordinator_id?: string | null;
+    group_id?: string | null;
     coordinator: { id: string; name: string } | null;
   } | null;
 };
@@ -75,6 +78,7 @@ export default function AttendanceClient({
   attendanceRates: Record<string, number>;
 }) {
   const router = useRouter();
+  const { isStudentVisible, settings } = useSettings();
   const [, startTransition] = useTransition();
   const [optimisticScores, updateOptimistic] = useOptimistic(
     initialScores,
@@ -101,26 +105,33 @@ export default function AttendanceClient({
     });
   }
 
-  // Unique coordinators and cities for filters
+  // Scores visible per control-panel settings (hidden coordinators / groups)
+  const visibleScores = useMemo(() => {
+    return optimisticScores.filter((s) =>
+      isStudentVisible({ coordinator_id: s.student?.coordinator_id, group_id: s.student?.group_id })
+    );
+  }, [optimisticScores, isStudentVisible, settings.hiddenCoordinators, settings.hiddenGroups]);
+
+  // Unique coordinators and cities for filters — only from visible students
   const coordinators = useMemo(() => {
     const set = new Set<string>();
-    optimisticScores.forEach((s) => {
+    visibleScores.forEach((s) => {
       if (s.student?.coordinator?.name) set.add(s.student.coordinator.name);
     });
     return Array.from(set).sort((a, b) => a.localeCompare(b, "he"));
-  }, [optimisticScores]);
+  }, [visibleScores]);
 
   const cities = useMemo(() => {
     const set = new Set<string>();
-    optimisticScores.forEach((s) => {
+    visibleScores.forEach((s) => {
       if (s.student?.city) set.add(s.student.city);
     });
     return Array.from(set).sort((a, b) => a.localeCompare(b, "he"));
-  }, [optimisticScores]);
+  }, [visibleScores]);
 
   // Filtered scores
   const filteredScores = useMemo(() => {
-    return optimisticScores.filter((s) => {
+    return visibleScores.filter((s) => {
       const coord = s.student?.coordinator?.name ?? "";
       const city = s.student?.city ?? "";
       const name = `${s.student?.first_name ?? ""} ${s.student?.last_name ?? ""}`;
@@ -136,7 +147,7 @@ export default function AttendanceClient({
       if (showZeroOnly && points !== 0) return false;
       return true;
     });
-  }, [optimisticScores, coordinatorFilter, cityFilter, nameSearch, showZeroOnly]);
+  }, [visibleScores, coordinatorFilter, cityFilter, nameSearch, showZeroOnly]);
 
   // Grouped by coordinator
   const grouped = useMemo(() => {
