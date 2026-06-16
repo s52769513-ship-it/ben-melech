@@ -3,7 +3,7 @@
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { ChevronLeft } from "lucide-react";
+import { ChevronLeft, ChevronUp, ChevronDown } from "lucide-react";
 import EditModal from "@/components/EditModal";
 import { updateStudent } from "@/app/students/actions";
 import { useSettings } from "@/lib/settings-context";
@@ -58,6 +58,9 @@ type FormState = {
   notes: string;
 };
 
+type SortCol = "name" | "coordinator" | "city" | "yeshiva" | "track" | "attendance" | "avg";
+type SortDir = "asc" | "desc";
+
 function toForm(s: Student): FormState {
   return {
     first_name: s.first_name ?? "",
@@ -78,16 +81,75 @@ function toForm(s: Student): FormState {
   };
 }
 
+function SortIcon({ col, sortCol, sortDir }: { col: SortCol; sortCol: SortCol; sortDir: SortDir }) {
+  if (sortCol !== col) return <ChevronUp size={13} className="text-gray-300 inline ms-1" />;
+  return sortDir === "asc"
+    ? <ChevronUp size={13} className="text-blue-500 inline ms-1" />
+    : <ChevronDown size={13} className="text-blue-500 inline ms-1" />;
+}
+
 export default function StudentsTable({ students, coordinators, groups, scoreMap }: Props) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
   const [editing, setEditing] = useState<Student | null>(null);
   const [form, setForm] = useState<FormState | null>(null);
+  const [sortCol, setSortCol] = useState<SortCol>("name");
+  const [sortDir, setSortDir] = useState<SortDir>("asc");
   const { settings, isStudentVisible } = useSettings();
   const visibleStudents = students.filter(isStudentVisible);
   const visibleCoordinators = coordinators.filter(
     (c) => !settings.hiddenCoordinators.includes(c.id)
   );
+
+  function toggleSort(col: SortCol) {
+    if (sortCol === col) {
+      setSortDir((d) => (d === "asc" ? "desc" : "asc"));
+    } else {
+      setSortCol(col);
+      setSortDir("asc");
+    }
+  }
+
+  const sortedStudents = [...visibleStudents].sort((a, b) => {
+    const sa = scoreMap[a.id];
+    const sb = scoreMap[b.id];
+    let cmp = 0;
+    switch (sortCol) {
+      case "name":
+        cmp =
+          (a.last_name ?? "").localeCompare(b.last_name ?? "", "he") ||
+          (a.first_name ?? "").localeCompare(b.first_name ?? "", "he");
+        break;
+      case "coordinator": {
+        const ca = (a.coordinator as { name: string } | null)?.name ?? "";
+        const cb = (b.coordinator as { name: string } | null)?.name ?? "";
+        cmp = ca.localeCompare(cb, "he");
+        break;
+      }
+      case "city":
+        cmp = (a.city ?? "").localeCompare(b.city ?? "", "he");
+        break;
+      case "yeshiva":
+        cmp = (a.yeshiva ?? "").localeCompare(b.yeshiva ?? "", "he");
+        break;
+      case "track":
+        cmp = (a.track ?? "").localeCompare(b.track ?? "", "he");
+        break;
+      case "attendance": {
+        const ra = sa && sa.sessions > 0 ? sa.attended / sa.sessions : -1;
+        const rb = sb && sb.sessions > 0 ? sb.attended / sb.sessions : -1;
+        cmp = ra - rb;
+        break;
+      }
+      case "avg": {
+        const ra = sa && sa.count > 0 ? sa.total / sa.count : -1;
+        const rb = sb && sb.count > 0 ? sb.total / sb.count : -1;
+        cmp = ra - rb;
+        break;
+      }
+    }
+    return sortDir === "asc" ? cmp : -cmp;
+  });
 
   function openEdit(student: Student) {
     setEditing(student);
@@ -128,25 +190,40 @@ export default function StudentsTable({ students, coordinators, groups, scoreMap
     });
   }
 
+  function thBtn(col: SortCol, label: string, extraClass = "") {
+    return (
+      <th className={`text-right px-6 py-4 font-semibold text-gray-600 ${extraClass}`}>
+        <button
+          type="button"
+          onClick={() => toggleSort(col)}
+          className="flex items-center gap-0.5 hover:text-blue-600 transition-colors"
+        >
+          {label}
+          <SortIcon col={col} sortCol={sortCol} sortDir={sortDir} />
+        </button>
+      </th>
+    );
+  }
+
   return (
     <>
       <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
         <table className="w-full text-sm">
           <thead className="bg-gray-50 border-b border-gray-200">
             <tr>
-              <th className="text-right px-6 py-4 font-semibold text-gray-600">שם</th>
-              <th className="text-right px-6 py-4 font-semibold text-gray-600">משפיע</th>
-              <th className="text-right px-6 py-4 font-semibold text-gray-600">עיר</th>
-              <th className="text-right px-6 py-4 font-semibold text-gray-600">ישיבה</th>
-              <th className="text-right px-6 py-4 font-semibold text-gray-600">מסלול</th>
-              <th className="text-right px-6 py-4 font-semibold text-gray-600">נוכחות</th>
-              <th className="text-right px-6 py-4 font-semibold text-gray-600">ציון ממוצע</th>
+              {thBtn("name", "שם")}
+              {thBtn("coordinator", "משפיע")}
+              {thBtn("city", "עיר")}
+              {thBtn("yeshiva", "ישיבה")}
+              {thBtn("track", "מסלול")}
+              {thBtn("attendance", "נוכחות")}
+              {thBtn("avg", "ציון ממוצע")}
               <th className="px-6 py-4"></th>
             </tr>
           </thead>
           <tbody className="divide-y divide-gray-100">
-            {visibleStudents.length > 0 ? (
-              visibleStudents.map((student) => {
+            {sortedStudents.length > 0 ? (
+              sortedStudents.map((student) => {
                 const stats = scoreMap[student.id];
                 const avgScore =
                   stats && stats.count > 0
@@ -164,7 +241,7 @@ export default function StudentsTable({ students, coordinators, groups, scoreMap
                     onClick={() => openEdit(student)}
                   >
                     <td className="px-6 py-4 font-medium text-gray-900">
-                      {student.first_name} {student.last_name}
+                      {student.last_name} {student.first_name}
                     </td>
                     <td className="px-6 py-4 text-gray-600" onClick={(e) => e.stopPropagation()}>
                       {coordinator ? (
@@ -216,7 +293,7 @@ export default function StudentsTable({ students, coordinators, groups, scoreMap
 
       {editing && form && (
         <EditModal
-          title={`עריכת ${editing.first_name} ${editing.last_name}`}
+          title={`עריכת ${editing.last_name} ${editing.first_name}`}
           onClose={closeEdit}
           onSave={handleSave}
           isSaving={isPending}

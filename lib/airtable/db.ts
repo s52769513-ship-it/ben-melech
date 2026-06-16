@@ -538,6 +538,7 @@ export async function updateScore(
     attended_seder_old: 'השתתף בסדר {ישן}',
     arrived_on_time_old: 'הגעה ב-5 דקות ראשונות {ישן}',
     paid: "שולם",
+    points: "נקודות",
     personal_note: 'פניה אישית (לכה"פ ל-2 בחורים בשבוע)',
     rabbi_note: "שמתי לב.... (הערות להרב חיים מרדכי ישיר)",
   };

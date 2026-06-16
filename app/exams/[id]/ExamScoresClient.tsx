@@ -103,6 +103,7 @@ function SummerTable({
             <th className="text-center px-3 py-3.5 font-semibold text-gray-600">בסדר</th>
             <th className="text-center px-3 py-3.5 font-semibold text-gray-600">שיעור</th>
             <th className="text-center px-3 py-3.5 font-semibold text-gray-600">סיכום שבועי</th>
+            <th className="text-center px-3 py-3.5 font-semibold text-orange-500">נקודות ידני</th>
             <th className="text-center px-4 py-3.5 font-semibold text-orange-600">נקודות קיץ</th>
           </tr>
         </thead>
@@ -110,20 +111,21 @@ function SummerTable({
           {scores.map((score) => (
             <tr key={score.id} className="hover:bg-orange-50/30 transition-colors">
               <td className="px-4 py-3 font-medium text-gray-900">
-                {score.student ? `${score.student.first_name} ${score.student.last_name}` : "—"}
+                {score.student ? `${score.student.last_name} ${score.student.first_name}` : "—"}
               </td>
               <td className="px-3 py-3"><div className="flex justify-center"><BoolCell value={score.arrived_on_time} onToggle={() => toggle(score.id, "arrived_on_time", score.arrived_on_time)} /></div></td>
               <td className="px-3 py-3"><div className="flex justify-center"><BoolCell value={score.attended_seder} onToggle={() => toggle(score.id, "attended_seder", score.attended_seder)} /></div></td>
               <td className="px-3 py-3"><div className="flex justify-center"><BoolCell value={score.attended_class} onToggle={() => toggle(score.id, "attended_class", score.attended_class)} /></div></td>
               <td className="px-3 py-3"><div className="flex justify-center"><BoolCell value={score.weekly_summary} onToggle={() => toggle(score.id, "weekly_summary", score.weekly_summary)} /></div></td>
+              <td className="px-3 py-3 text-center">
+                <NumCell scoreId={score.id} field="points" value={score.points} editing={editing} onEdit={onEdit} onSave={save} />
+              </td>
               <td className="px-4 py-3 text-center">
                 {score.points_kaitz != null ? (
                   <span className="bg-orange-100 text-orange-700 font-bold text-base px-3 py-1 rounded-full">
                     {score.points_kaitz}
                   </span>
-                ) : (
-                  <span className="text-gray-300">—</span>
-                )}
+                ) : <span className="text-gray-300">—</span>}
               </td>
             </tr>
           ))}
@@ -161,7 +163,7 @@ function WinterTable({
           {scores.map((score) => (
             <tr key={score.id} className="hover:bg-blue-50/30 transition-colors">
               <td className="px-4 py-3 font-medium text-gray-900">
-                {score.student ? `${score.student.first_name} ${score.student.last_name}` : "—"}
+                {score.student ? `${score.student.last_name} ${score.student.first_name}` : "—"}
               </td>
               <td className="px-3 py-3 text-center">
                 <NumCell scoreId={score.id} field="chassidut_score" value={score.chassidut_score} editing={editing} onEdit={onEdit} onSave={save} />
@@ -228,7 +230,7 @@ function DefaultTable({
             return (
               <tr key={score.id} className="hover:bg-blue-50/30 transition-colors">
                 <td className="px-4 py-3 font-medium text-gray-900">
-                  {score.student ? `${score.student.first_name} ${score.student.last_name}` : "—"}
+                  {score.student ? `${score.student.last_name} ${score.student.first_name}` : "—"}
                 </td>
                 <td className="px-3 py-3 text-center"><NumCell scoreId={score.id} field="chassidut_score" value={score.chassidut_score} editing={editing} onEdit={onEdit} onSave={save} /></td>
                 <td className="px-3 py-3 text-center"><NumCell scoreId={score.id} field="halacha_score" value={score.halacha_score} editing={editing} onEdit={onEdit} onSave={save} /></td>
