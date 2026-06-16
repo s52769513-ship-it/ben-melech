@@ -123,6 +123,7 @@ function toScore(
     payment_amount: num(f["סכום לתשלום"]) ?? 0,
     points: num(f["נקודות"]),
     points_kaitz: num(f["נקודות זמן קיץ תשפו"]),
+    points_manual: num(f["הוספת נקודות ידני"]),
     personal_note: str(f['פניה אישית (לכה"פ ל-2 בחורים בשבוע)']),
     rabbi_note: str(f["שמתי לב.... (הערות להרב חיים מרדכי ישיר)"]),
     student: studentId && studentMap ? studentMap.get(studentId) : undefined,
@@ -538,7 +539,7 @@ export async function updateScore(
     attended_seder_old: 'השתתף בסדר {ישן}',
     arrived_on_time_old: 'הגעה ב-5 דקות ראשונות {ישן}',
     paid: "שולם",
-    points: "נקודות",
+    points_manual: "הוספת נקודות ידני",
     personal_note: 'פניה אישית (לכה"פ ל-2 בחורים בשבוע)',
     rabbi_note: "שמתי לב.... (הערות להרב חיים מרדכי ישיר)",
   };

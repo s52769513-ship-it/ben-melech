@@ -20,6 +20,7 @@ type Score = {
   payment_amount: number;
   points: number | null;
   points_kaitz: number | null;
+  points_manual: number | null;
   personal_note: string | null;
   student: {
     id: string;
@@ -118,7 +119,7 @@ function SummerTable({
               <td className="px-3 py-3"><div className="flex justify-center"><BoolCell value={score.attended_class} onToggle={() => toggle(score.id, "attended_class", score.attended_class)} /></div></td>
               <td className="px-3 py-3"><div className="flex justify-center"><BoolCell value={score.weekly_summary} onToggle={() => toggle(score.id, "weekly_summary", score.weekly_summary)} /></div></td>
               <td className="px-3 py-3 text-center">
-                <NumCell scoreId={score.id} field="points" value={score.points} editing={editing} onEdit={onEdit} onSave={save} />
+                <NumCell scoreId={score.id} field="points_manual" value={score.points_manual} editing={editing} onEdit={onEdit} onSave={save} />
               </td>
               <td className="px-4 py-3 text-center">
                 {score.points_kaitz != null ? (

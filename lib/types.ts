@@ -80,6 +80,7 @@ export interface Score {
   payment_amount: number;
   points: number | null;
   points_kaitz: number | null;
+  points_manual: number | null;
   personal_note: string | null;
   rabbi_note: string | null;
   student?: Student;
