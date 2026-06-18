@@ -201,7 +201,7 @@ export default function AttendanceClient({
     });
   }, [visibleScores, coordinatorFilter, cityFilter, nameSearch, showZeroOnly]);
 
-  // Grouped by coordinator
+  // Grouped by coordinator, students sorted alphabetically within each group
   const grouped = useMemo(() => {
     const map = new Map<string, Score[]>();
     filteredScores.forEach((s) => {
@@ -209,7 +209,16 @@ export default function AttendanceClient({
       if (!map.has(key)) map.set(key, []);
       map.get(key)!.push(s);
     });
-    return Array.from(map.entries()).sort((a, b) => a[0].localeCompare(b[0], "he"));
+    return Array.from(map.entries())
+      .sort((a, b) => a[0].localeCompare(b[0], "he"))
+      .map(([coord, records]) => [
+        coord,
+        [...records].sort(
+          (a, b) =>
+            (a.student?.last_name ?? "").localeCompare(b.student?.last_name ?? "", "he") ||
+            (a.student?.first_name ?? "").localeCompare(b.student?.first_name ?? "", "he")
+        ),
+      ] as [string, Score[]]);
   }, [filteredScores]);
 
   // "כל הפרשיות" aggregate — total points per student across all parshiyot, grouped by coordinator
