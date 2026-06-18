@@ -6,6 +6,8 @@ import {
   getScoresByExamForCoordinator,
   getAllScores,
   getAllScoresForCoordinator,
+  getScoresWithRelations,
+  getScoresWithRelationsForCoordinator,
 } from "@/lib/airtable/db";
 import { getSession } from "@/lib/auth";
 
@@ -23,14 +25,19 @@ export default async function AttendancePage({
   const loggedIn = isAdmin ? null : coordinatorId;
 
   const exams = await getExams();
-  const selectedExamId = examId ?? exams[0]?.id ?? null;
+  const isAll = examId === "all";
+  const selectedExamId = isAll ? "all" : examId ?? exams[0]?.id ?? null;
 
   const [scores, allAttendance] = await Promise.all([
-    selectedExamId
+    isAll
       ? loggedIn
-        ? getScoresByExamForCoordinator(selectedExamId, loggedIn)
-        : getScoresByExam(selectedExamId)
-      : Promise.resolve([]),
+        ? getScoresWithRelationsForCoordinator(loggedIn)
+        : getScoresWithRelations()
+      : selectedExamId
+        ? loggedIn
+          ? getScoresByExamForCoordinator(selectedExamId, loggedIn)
+          : getScoresByExam(selectedExamId)
+        : Promise.resolve([]),
     loggedIn ? getAllScoresForCoordinator(loggedIn) : getAllScores(),
   ]);
 

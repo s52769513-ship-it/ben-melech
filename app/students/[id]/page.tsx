@@ -67,6 +67,41 @@ export default async function StudentDetailPage({
             <p className="text-4xl font-bold text-[#1e3a5f]">{totalPoints}</p>
             <p className="text-gray-400 text-xs mt-1">נקודות שנצברו</p>
           </div>
+
+          <div className="bg-white rounded-xl border border-gray-200 p-6">
+            <h2 className="text-lg font-semibold text-[#1e3a5f] mb-4 flex items-center gap-2">
+              <Star size={18} />
+              נקודות והטענה
+            </h2>
+            <dl className="divide-y divide-gray-100 text-sm">
+              <div className="flex items-center justify-between py-2">
+                <dt className="text-gray-500">נקודות זמן קיץ תשפו</dt>
+                <dd className="font-semibold text-gray-800">{student.summer_points ?? "—"}</dd>
+              </div>
+              <div className="flex items-center justify-between py-2">
+                <dt className="text-gray-500">נקודות זמן קיץ תשפו (מעל 500)</dt>
+                <dd className="font-semibold text-gray-800">{student.summer_points_over_500 ?? "—"}</dd>
+              </div>
+              <div className="flex items-center justify-between py-2">
+                <dt className="text-gray-500">כסף להטענה</dt>
+                <dd className="font-semibold text-gray-800">
+                  {student.nedarim_amount != null ? `₪${student.nedarim_amount}` : "—"}
+                </dd>
+              </div>
+              <div className="flex items-center justify-between py-2">
+                <dt className="text-gray-500">הוטען</dt>
+                <dd className="font-semibold text-gray-800">
+                  {student.nedarim_charged != null ? `₪${student.nedarim_charged}` : "—"}
+                </dd>
+              </div>
+              <div className="flex items-center justify-between py-2">
+                <dt className="text-gray-500">נשאר להטענה</dt>
+                <dd className="font-semibold text-gray-800">
+                  {student.remaining_to_load != null ? `₪${student.remaining_to_load}` : "—"}
+                </dd>
+              </div>
+            </dl>
+          </div>
         </div>
 
         <div className="lg:col-span-2 space-y-6">

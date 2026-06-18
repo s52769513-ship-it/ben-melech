@@ -1,6 +1,6 @@
 "use client";
 
-import { useOptimistic, useTransition, useState, useCallback } from "react";
+import { useOptimistic, useTransition, useState, useCallback, useMemo } from "react";
 import { updateScoreAction } from "./actions";
 
 type Score = {
@@ -260,8 +260,19 @@ export default function ExamScoresClient({ scores: initialScores, examId, season
   const [, startTransition] = useTransition();
   const [editing, setEditing] = useState<EditingCell>(null);
 
+  // Sort by name (א-ב) — Airtable returns scores in record-link order, not alphabetical.
+  const sortedInitial = useMemo(
+    () =>
+      [...initialScores].sort(
+        (a, b) =>
+          (a.student?.last_name ?? "").localeCompare(b.student?.last_name ?? "", "he") ||
+          (a.student?.first_name ?? "").localeCompare(b.student?.first_name ?? "", "he")
+      ),
+    [initialScores]
+  );
+
   const [scores, updateOptimistic] = useOptimistic(
-    initialScores,
+    sortedInitial,
     (state: Score[], update: { id: string; patch: Partial<Score> }) =>
       state.map((s) => (s.id === update.id ? { ...s, ...update.patch } : s))
   );

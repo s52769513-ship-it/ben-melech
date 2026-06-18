@@ -1,8 +1,8 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useOptimistic, useTransition, useState, useMemo } from "react";
-import { updateScoreBoolean } from "./actions";
+import { useOptimistic, useTransition, useState, useMemo, Fragment } from "react";
+import { updateScoreBoolean, updateScoreNumber } from "./actions";
 import { AlertTriangle, Download, FileText, X, Search, Filter } from "lucide-react";
 import { useSettings } from "@/lib/settings-context";
 
@@ -20,6 +20,7 @@ type Score = {
   chassidut_score: number | null;
   halacha_score: number | null;
   tefila_score: number | null;
+  points_kaitz: number | null;
   student: {
     id: string;
     first_name: string;
@@ -66,6 +67,48 @@ function CheckboxCell({
   );
 }
 
+// Editable manual points cell (נקודות ידני) — same field as summer-exam points (points_kaitz)
+function ManualPointsCell({
+  scoreId,
+  value,
+  onSave,
+}: {
+  scoreId: string;
+  value: number | null;
+  onSave: (scoreId: string, value: number | null) => void;
+}) {
+  const [editing, setEditing] = useState(false);
+  if (editing) {
+    return (
+      <input
+        type="number"
+        min="0"
+        defaultValue={value ?? ""}
+        autoFocus
+        className="w-16 text-center text-sm border border-blue-300 rounded px-1 py-0.5 focus:outline-none focus:ring-1 focus:ring-blue-400"
+        onBlur={(e) => {
+          setEditing(false);
+          const v = e.target.value === "" ? null : Number(e.target.value);
+          if (v !== value) onSave(scoreId, v);
+        }}
+        onKeyDown={(e) => {
+          if (e.key === "Enter") (e.target as HTMLInputElement).blur();
+          if (e.key === "Escape") setEditing(false);
+        }}
+      />
+    );
+  }
+  return (
+    <span
+      onClick={() => setEditing(true)}
+      className="cursor-pointer hover:bg-blue-50 rounded px-2 py-0.5 min-w-[2.5rem] inline-block text-center transition-colors"
+      title="לחץ לעריכה"
+    >
+      {value ?? <span className="text-gray-300">—</span>}
+    </span>
+  );
+}
+
 export default function AttendanceClient({
   exams,
   scores: initialScores,
@@ -82,9 +125,11 @@ export default function AttendanceClient({
   const [, startTransition] = useTransition();
   const [optimisticScores, updateOptimistic] = useOptimistic(
     initialScores,
-    (state, { id, field, value }: { id: string; field: string; value: boolean }) =>
+    (state, { id, field, value }: { id: string; field: string; value: boolean | number | null }) =>
       state.map((s) => (s.id === id ? { ...s, [field]: value } : s))
   );
+
+  const isAll = selectedExamId === "all";
 
   const [coordinatorFilter, setCoordinatorFilter] = useState("");
   const [cityFilter, setCityFilter] = useState("");
@@ -102,6 +147,13 @@ export default function AttendanceClient({
     startTransition(async () => {
       updateOptimistic({ id: scoreId, field, value });
       await updateScoreBoolean(scoreId, field, value);
+    });
+  }
+
+  function handleManualPoints(scoreId: string, value: number | null) {
+    startTransition(async () => {
+      updateOptimistic({ id: scoreId, field: "points_kaitz", value });
+      await updateScoreNumber(scoreId, "points_kaitz", value);
     });
   }
 
@@ -159,6 +211,43 @@ export default function AttendanceClient({
     });
     return Array.from(map.entries()).sort((a, b) => a[0].localeCompare(b[0], "he"));
   }, [filteredScores]);
+
+  // "כל הפרשיות" aggregate — total points per student across all parshiyot, grouped by coordinator
+  const aggregateGroups = useMemo(() => {
+    if (!isAll) return [];
+    type Agg = { id: string; name: string; coordName: string; totalPoints: number; count: number };
+    const byStudent = new Map<string, Agg>();
+    filteredScores.forEach((s) => {
+      if (!s.student) return;
+      const id = s.student_id;
+      if (!byStudent.has(id)) {
+        byStudent.set(id, {
+          id,
+          name: `${s.student.first_name ?? ""} ${s.student.last_name ?? ""}`.trim(),
+          coordName: s.student.coordinator?.name ?? "ללא משפיע",
+          totalPoints: 0,
+          count: 0,
+        });
+      }
+      const agg = byStudent.get(id)!;
+      agg.totalPoints +=
+        (s.arrived_on_time ? 1 : 0) +
+        (s.attended_seder ? 1 : 0) +
+        (s.attended_class ? 1 : 0) +
+        (s.weekly_summary ? 1 : 0);
+      agg.count += 1;
+    });
+    const byCoord = new Map<string, Agg[]>();
+    byStudent.forEach((agg) => {
+      if (!byCoord.has(agg.coordName)) byCoord.set(agg.coordName, []);
+      byCoord.get(agg.coordName)!.push(agg);
+    });
+    return Array.from(byCoord.entries())
+      .map(([coord, list]) =>
+        [coord, list.sort((a, b) => a.name.localeCompare(b.name, "he"))] as const
+      )
+      .sort((a, b) => a[0].localeCompare(b[0], "he"));
+  }, [isAll, filteredScores]);
 
   // Progress stats
   const progressStats = useMemo(() => {
@@ -259,6 +348,7 @@ export default function AttendanceClient({
             onChange={(e) => handleExamChange(e.target.value)}
             className="text-sm border border-gray-200 rounded-lg px-3 py-2 bg-white focus:outline-none focus:ring-2 focus:ring-blue-300 min-w-[160px]"
           >
+            <option value="all">כל הפרשיות</option>
             {exams.map((e) => (
               <option key={e.id} value={e.id}>
                 {e.parasha}
@@ -411,7 +501,63 @@ export default function AttendanceClient({
         </div>
       )}
 
-      {/* Table */}
+      {/* Aggregate table — "כל הפרשיות" */}
+      {isAll ? (
+        <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead className="bg-gray-50 border-b border-gray-200">
+                <tr>
+                  <th className="text-right px-5 py-3.5 font-semibold text-gray-600">שם</th>
+                  <th className="text-center px-4 py-3.5 font-semibold text-gray-600 whitespace-nowrap">מס׳ פרשיות</th>
+                  <th className="text-center px-4 py-3.5 font-semibold text-gray-600">סה"כ נקודות</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-gray-100">
+                {aggregateGroups.length === 0 ? (
+                  <tr>
+                    <td colSpan={3} className="px-6 py-16 text-center text-gray-400">
+                      אין רשומות להצגה
+                    </td>
+                  </tr>
+                ) : (
+                  aggregateGroups.map(([coordName, rows]) => (
+                    <Fragment key={`agg-${coordName}`}>
+                      <tr className="bg-blue-50 border-y border-blue-100">
+                        <td colSpan={3} className="px-5 py-2 text-sm font-semibold text-[#1e3a5f]">
+                          {coordName}
+                          <span className="font-normal text-gray-500 mr-2">({rows.length} בחורים)</span>
+                        </td>
+                      </tr>
+                      {rows.map((row, idx) => (
+                        <tr
+                          key={row.id}
+                          className={`hover:bg-gray-50 transition-colors ${idx % 2 === 1 ? "bg-gray-50/50" : ""}`}
+                        >
+                          <td className="px-5 py-3 font-medium text-gray-900">{row.name || "—"}</td>
+                          <td className="px-4 py-3 text-center text-gray-600">{row.count}</td>
+                          <td className="px-4 py-3 text-center">
+                            <span className="inline-flex items-center justify-center min-w-8 h-8 px-2 rounded-full text-sm font-bold bg-blue-100 text-blue-700">
+                              {row.totalPoints}
+                            </span>
+                          </td>
+                        </tr>
+                      ))}
+                    </Fragment>
+                  ))
+                )}
+              </tbody>
+            </table>
+          </div>
+
+          <div className="px-5 py-3 bg-gray-50 border-t border-gray-200 text-xs text-gray-500 flex gap-4">
+            <span>סה"כ: {aggregateGroups.reduce((acc, [, rows]) => acc + rows.length, 0)} בחורים</span>
+            <span>{aggregateGroups.length} משפיעים</span>
+            <span className="text-gray-400">סיכום נקודות על פני כל הפרשיות</span>
+          </div>
+        </div>
+      ) : (
+      /* Table */
       <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
@@ -423,21 +569,22 @@ export default function AttendanceClient({
                 <th className="text-center px-4 py-3.5 font-semibold text-gray-600 whitespace-nowrap">השתתף בשיעור</th>
                 <th className="text-center px-4 py-3.5 font-semibold text-gray-600 whitespace-nowrap">סיכום שבועי</th>
                 <th className="text-center px-4 py-3.5 font-semibold text-gray-600">נקודות</th>
+                <th className="text-center px-4 py-3.5 font-semibold text-orange-600 whitespace-nowrap">נקודות ידני</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-100">
               {filteredScores.length === 0 ? (
                 <tr>
-                  <td colSpan={6} className="px-6 py-16 text-center text-gray-400">
+                  <td colSpan={7} className="px-6 py-16 text-center text-gray-400">
                     אין רשומות להצגה
                   </td>
                 </tr>
               ) : (
                 grouped.map(([coordName, records]) => (
-                  <>
+                  <Fragment key={`header-${coordName}`}>
                     {/* Coordinator group header */}
-                    <tr key={`header-${coordName}`} className="bg-blue-50 border-y border-blue-100">
-                      <td colSpan={6} className="px-5 py-2 text-sm font-semibold text-[#1e3a5f]">
+                    <tr className="bg-blue-50 border-y border-blue-100">
+                      <td colSpan={7} className="px-5 py-2 text-sm font-semibold text-[#1e3a5f]">
                         {coordName}
                         <span className="font-normal text-gray-500 mr-2">({records.length} בחורים)</span>
                       </td>
@@ -489,10 +636,13 @@ export default function AttendanceClient({
                               {points}
                             </span>
                           </td>
+                          <td className="px-4 py-3 text-center">
+                            <ManualPointsCell scoreId={score.id} value={score.points_kaitz} onSave={handleManualPoints} />
+                          </td>
                         </tr>
                       );
                     })}
-                  </>
+                  </Fragment>
                 ))
               )}
             </tbody>
@@ -509,6 +659,7 @@ export default function AttendanceClient({
           </span>
         </div>
       </div>
+      )}
     </div>
   );
 }

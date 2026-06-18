@@ -47,6 +47,9 @@ export interface Student {
   notes: string | null;
   nedarim_amount: number | null;
   nedarim_charged: number | null;
+  remaining_to_load: number | null;
+  summer_points: number | null;
+  summer_points_over_500: number | null;
   coordinator?: Coordinator;
 }
 

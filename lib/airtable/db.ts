@@ -68,6 +68,9 @@ function toStudent(r: AirtableRecord, coordinatorMap?: Map<string, Coordinator>)
     notes: null,
     nedarim_amount: num(f["כסף להטענה"]) ?? 0,
     nedarim_charged: num(f["הוטען"]) ?? 0,
+    remaining_to_load: num(f["נשאר להטענה"]),
+    summer_points: num(f["נקודות זמן קיץ תשפו"]),
+    summer_points_over_500: num(f["נקודות זמן קיץ תשפו (מעל 500)"]),
     coordinator: coordinatorId && coordinatorMap ? coordinatorMap.get(coordinatorId) : undefined,
   };
 }
@@ -204,21 +207,32 @@ function toGroup(r: AirtableRecord): Group {
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
+// Cached base lists. unstable_cache serializes return values as JSON, so we
+// cache plain arrays here and build the lookup Maps below (Maps don't survive
+// JSON serialization). This avoids re-fetching all records on every navigation.
+const getStudentList = unstable_cache(
+  async (): Promise<Student[]> => {
+    const coordinatorMap = await getCoordinatorMap();
+    const recs = await fetchAll(TABLES.STUDENTS);
+    return recs.map((r) => toStudent(r, coordinatorMap));
+  },
+  ["student-list"],
+  { revalidate: 120, tags: ["students"] }
+);
+
 async function getCoordinatorMap(): Promise<Map<string, Coordinator>> {
-  const recs = await fetchAll(TABLES.COORDINATORS);
-  return new Map(recs.map((r) => [r.id, toCoordinator(r)]));
+  const coords = await getCoordinators();
+  return new Map(coords.map((c) => [c.id, c]));
 }
 
-async function getStudentMap(
-  coordinatorMap?: Map<string, Coordinator>
-): Promise<Map<string, Student>> {
-  const recs = await fetchAll(TABLES.STUDENTS);
-  return new Map(recs.map((r) => [r.id, toStudent(r, coordinatorMap)]));
+async function getStudentMap(): Promise<Map<string, Student>> {
+  const students = await getStudentList();
+  return new Map(students.map((s) => [s.id, s]));
 }
 
 async function getExamMap(): Promise<Map<string, Exam>> {
-  const recs = await fetchAll(TABLES.EXAMS);
-  return new Map(recs.map((r) => [r.id, toExam(r)]));
+  const exams = await getExams();
+  return new Map(exams.map((e) => [e.id, e]));
 }
 
 // ─── Coordinators ────────────────────────────────────────────────────────────
@@ -285,14 +299,10 @@ export async function getStudents(filters?: {
   city?: string;
   yeshiva?: string;
 }): Promise<Student[]> {
-  const coordinatorMap = await getCoordinatorMap();
-  // {ID רכז} is a multipleLookupValues field containing the coordinator record ID — ARRAYJOIN works on it
-  const airtableParams: Record<string, string> | undefined = filters?.coordinator
-    ? { filterByFormula: `FIND("${filters.coordinator}",ARRAYJOIN({ID רכז}))>0` }
-    : undefined;
-  const recs = await fetchAll(TABLES.STUDENTS, airtableParams);
-  let students = recs.map((r) => toStudent(r, coordinatorMap));
+  let students = await getStudentList();
 
+  if (filters?.coordinator)
+    students = students.filter((s) => s.coordinator_id === filters.coordinator);
   if (filters?.city)
     students = students.filter((s) => s.city === filters.city);
   if (filters?.yeshiva) {
@@ -300,7 +310,7 @@ export async function getStudents(filters?: {
     students = students.filter((s) => s.yeshiva?.toLowerCase().includes(term));
   }
 
-  return students.sort((a, b) =>
+  return [...students].sort((a, b) =>
     a.last_name.localeCompare(b.last_name, "he") ||
     a.first_name.localeCompare(b.first_name, "he")
   );
@@ -429,50 +439,57 @@ export async function updateExam(
 // Fetch scores for a specific exam using the exam's reverse-linked score IDs.
 // Note: ARRAYJOIN on linked record fields returns display names not IDs, so we
 // can't use filterByFormula with record IDs on multipleRecordLinks fields.
-export async function getScoresByExam(examId: string): Promise<Score[]> {
-  const examRec = await fetchOne(TABLES.EXAMS, examId);
-  if (!examRec) return [];
-  const scoreIds = (examRec.fields["ציונים"] as string[] | undefined) ?? [];
-  if (scoreIds.length === 0) return [];
-  const [coordinatorMap, recs] = await Promise.all([
-    getCoordinatorMap(),
-    fetchByIds(TABLES.SCORES, scoreIds),
-  ]);
-  const studentMap = await getStudentMap(coordinatorMap);
-  const exam = toExam(examRec);
-  const examMap = new Map<string, Exam>([[examId, exam]]);
-  return recs.map((r) => toScore(r, studentMap, examMap));
-}
+export const getScoresByExam = unstable_cache(
+  async (examId: string): Promise<Score[]> => {
+    const examRec = await fetchOne(TABLES.EXAMS, examId);
+    if (!examRec) return [];
+    const scoreIds = (examRec.fields["ציונים"] as string[] | undefined) ?? [];
+    if (scoreIds.length === 0) return [];
+    const [studentMap, recs] = await Promise.all([
+      getStudentMap(),
+      fetchByIds(TABLES.SCORES, scoreIds),
+    ]);
+    const exam = toExam(examRec);
+    const examMap = new Map<string, Exam>([[examId, exam]]);
+    return recs.map((r) => toScore(r, studentMap, examMap));
+  },
+  ["scores-by-exam"],
+  { revalidate: 60, tags: ["scores"] }
+);
 
 // {ID רכז} is a multipleLookupValues field → ARRAYJOIN works correctly.
 // Then filter by exam in memory using raw fields["מבחן"] array (contains record IDs).
-export async function getScoresByExamForCoordinator(
-  examId: string,
-  coordinatorId: string
-): Promise<Score[]> {
-  const [recs, coordinatorMap] = await Promise.all([
-    fetchAll(TABLES.SCORES, {
-      filterByFormula: `FIND("${coordinatorId}",ARRAYJOIN({ID רכז}))>0`,
-    }),
-    getCoordinatorMap(),
-  ]);
-  const studentMap = await getStudentMap(coordinatorMap);
-  const exam: Exam | null = await getExam(examId);
-  const examMap = exam ? new Map([[exam.id, exam]]) : new Map<string, Exam>();
-  return recs
-    .filter((r) => {
-      const linked = r.fields["מבחן"] as string[] | null;
-      return Array.isArray(linked) && linked.includes(examId);
-    })
-    .map((r) => toScore(r, studentMap, examMap));
-}
+export const getScoresByExamForCoordinator = unstable_cache(
+  async (examId: string, coordinatorId: string): Promise<Score[]> => {
+    const [recs, studentMap] = await Promise.all([
+      fetchAll(TABLES.SCORES, {
+        filterByFormula: `FIND("${coordinatorId}",ARRAYJOIN({ID רכז}))>0`,
+      }),
+      getStudentMap(),
+    ]);
+    const exam: Exam | null = await getExam(examId);
+    const examMap = exam ? new Map([[exam.id, exam]]) : new Map<string, Exam>();
+    return recs
+      .filter((r) => {
+        const linked = r.fields["מבחן"] as string[] | null;
+        return Array.isArray(linked) && linked.includes(examId);
+      })
+      .map((r) => toScore(r, studentMap, examMap));
+  },
+  ["scores-by-exam-coordinator"],
+  { revalidate: 60, tags: ["scores"] }
+);
 
-export async function getAllScoresForCoordinator(coordinatorId: string): Promise<Score[]> {
-  const recs = await fetchAll(TABLES.SCORES, {
-    filterByFormula: `FIND("${coordinatorId}",ARRAYJOIN({ID רכז}))>0`,
-  });
-  return recs.map((r) => toScore(r));
-}
+export const getAllScoresForCoordinator = unstable_cache(
+  async (coordinatorId: string): Promise<Score[]> => {
+    const recs = await fetchAll(TABLES.SCORES, {
+      filterByFormula: `FIND("${coordinatorId}",ARRAYJOIN({ID רכז}))>0`,
+    });
+    return recs.map((r) => toScore(r));
+  },
+  ["all-scores-coordinator"],
+  { revalidate: 60, tags: ["scores"] }
+);
 
 // Use STUDENTS.{ציונים} reverse-link to get score IDs for this student.
 export async function getScoresByStudent(studentId: string): Promise<Score[]> {
@@ -489,37 +506,47 @@ export async function getScoresByStudent(studentId: string): Promise<Score[]> {
     .sort((a, b) => (b.exam?.exam_date ?? "").localeCompare(a.exam?.exam_date ?? ""));
 }
 
-export async function getAllScores(): Promise<Score[]> {
-  const recs = await fetchAll(TABLES.SCORES);
-  return recs.map((r) => toScore(r));
-}
+export const getAllScores = unstable_cache(
+  async (): Promise<Score[]> => {
+    const recs = await fetchAll(TABLES.SCORES);
+    return recs.map((r) => toScore(r));
+  },
+  ["all-scores"],
+  { revalidate: 60, tags: ["scores"] }
+);
 
 // Fetch all scores with relations — no exam filtering (caller filters in memory).
-export async function getScoresWithRelations(): Promise<Score[]> {
-  const [coordinatorMap, examMap] = await Promise.all([
-    getCoordinatorMap(),
-    getExamMap(),
-  ]);
-  const studentMap = await getStudentMap(coordinatorMap);
-  const recs = await fetchAll(TABLES.SCORES);
-  return recs
-    .map((r) => toScore(r, studentMap, examMap))
-    .sort((a, b) => (b.created_at ?? "").localeCompare(a.created_at ?? ""));
-}
+export const getScoresWithRelations = unstable_cache(
+  async (): Promise<Score[]> => {
+    const [studentMap, examMap, recs] = await Promise.all([
+      getStudentMap(),
+      getExamMap(),
+      fetchAll(TABLES.SCORES),
+    ]);
+    return recs
+      .map((r) => toScore(r, studentMap, examMap))
+      .sort((a, b) => (b.created_at ?? "").localeCompare(a.created_at ?? ""));
+  },
+  ["scores-with-relations"],
+  { revalidate: 60, tags: ["scores"] }
+);
 
-export async function getScoresWithRelationsForCoordinator(coordinatorId: string): Promise<Score[]> {
-  const [recs, coordinatorMap, examMap] = await Promise.all([
-    fetchAll(TABLES.SCORES, {
-      filterByFormula: `FIND("${coordinatorId}",ARRAYJOIN({ID רכז}))>0`,
-    }),
-    getCoordinatorMap(),
-    getExamMap(),
-  ]);
-  const studentMap = await getStudentMap(coordinatorMap);
-  return recs
-    .map((r) => toScore(r, studentMap, examMap))
-    .sort((a, b) => (b.created_at ?? "").localeCompare(a.created_at ?? ""));
-}
+export const getScoresWithRelationsForCoordinator = unstable_cache(
+  async (coordinatorId: string): Promise<Score[]> => {
+    const [recs, studentMap, examMap] = await Promise.all([
+      fetchAll(TABLES.SCORES, {
+        filterByFormula: `FIND("${coordinatorId}",ARRAYJOIN({ID רכז}))>0`,
+      }),
+      getStudentMap(),
+      getExamMap(),
+    ]);
+    return recs
+      .map((r) => toScore(r, studentMap, examMap))
+      .sort((a, b) => (b.created_at ?? "").localeCompare(a.created_at ?? ""));
+  },
+  ["scores-with-relations-coordinator"],
+  { revalidate: 60, tags: ["scores"] }
+);
 
 export async function updateScore(
   id: string,
@@ -538,6 +565,7 @@ export async function updateScore(
     attended_seder_old: 'השתתף בסדר {ישן}',
     arrived_on_time_old: 'הגעה ב-5 דקות ראשונות {ישן}',
     paid: "שולם",
+    points_kaitz: "נקודות זמן קיץ תשפו",
     personal_note: 'פניה אישית (לכה"פ ל-2 בחורים בשבוע)',
     rabbi_note: "שמתי לב.... (הערות להרב חיים מרדכי ישיר)",
   };
