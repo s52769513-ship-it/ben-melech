@@ -11,6 +11,7 @@ import {
   ClipboardList,
   Settings,
   TableProperties,
+  CreditCard,
   LogOut,
   UserCircle,
 } from "lucide-react";
@@ -31,6 +32,7 @@ const navItems = [
 
 const managementItems = [
   { href: "/management", label: "ניהול", icon: Settings },
+  { href: "/nedarim-card", label: "נדרים קארד", icon: CreditCard },
 ];
 
 interface Props {
