@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { Loader2, Plus, Trash2, RefreshCw, Save, X } from "lucide-react";
-import { callCard, isOk } from "./api";
+import { callCard, isOk, asList } from "./api";
 
 type Store = { StoreId?: string; StoreName?: string; Enabled?: string };
 type GroupStore = { StoreId?: string; StoreName?: string };
@@ -24,9 +24,11 @@ export default function StoreGroups() {
       callCard("GetLimitedStoresList"),
       callCard("GetStoresList"),
     ]);
-    if (isOk(g)) setGroups((g.data as Group[]) ?? []);
-    else setError(g.Message || "שגיאה בטעינת קבוצות החנויות");
-    if (isOk(s)) setStores((s.data as Store[]) ?? (Array.isArray(s) ? (s as Store[]) : []));
+    const groupList = asList<Group>(g);
+    if (groupList) setGroups(groupList);
+    else if (g.Result === "Error") setError(g.Message || "שגיאה בטעינת קבוצות החנויות");
+    else setGroups([]);
+    setStores(asList<Store>(s) ?? []);
     setLoading(false);
   }, []);
 

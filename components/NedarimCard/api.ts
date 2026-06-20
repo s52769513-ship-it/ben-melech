@@ -26,6 +26,15 @@ export function isOk(r: CardResult): boolean {
   return r.Result === "OK";
 }
 
+// חלק מהפעולות (רשימת חנויות / קבוצות חנויות) מחזירות מערך בשורש או תחת מפתח
+// אחר ולא תמיד עם Result==="OK". מחלצים את הרשימה מכל מבנה אפשרי.
+export function asList<T>(res: CardResult | T[]): T[] | null {
+  if (Array.isArray(res)) return res as T[];
+  const data = (res as CardResult).data;
+  if (Array.isArray(data)) return data as T[];
+  return null;
+}
+
 // נדרים מחזיר סכומים כמחרוזות שעשויות לכלול פסיקים (למשל "1,234.5").
 // Number() נכשל על מחרוזות כאלה ומחזיר NaN — לכן מנקים קודם.
 export function parseAmount(v: unknown): number {

@@ -13,7 +13,7 @@ import {
   User,
   Save,
 } from "lucide-react";
-import { callCard, isOk, parseAmount, type CardResult } from "./api";
+import { callCard, isOk, parseAmount, asList, type CardResult } from "./api";
 
 type Tlush = {
   TlushId?: string;
@@ -137,11 +137,8 @@ export default function BochurPanel({
   useEffect(() => {
     load();
     callCard("GetLimitedStoresList").then((res) => {
-      if (isOk(res) && Array.isArray((res as { data?: LimitedGroup[] }).data)) {
-        setGroups((res as { data: LimitedGroup[] }).data);
-      } else if (Array.isArray(res.data as LimitedGroup[])) {
-        setGroups(res.data as LimitedGroup[]);
-      }
+      const list = asList<LimitedGroup>(res);
+      if (list) setGroups(list);
     });
   }, [load]);
 
