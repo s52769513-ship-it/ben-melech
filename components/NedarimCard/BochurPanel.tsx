@@ -13,7 +13,7 @@ import {
   User,
   Save,
 } from "lucide-react";
-import { callCard, isOk, type CardResult } from "./api";
+import { callCard, isOk, parseAmount, type CardResult } from "./api";
 
 type Tlush = {
   TlushId?: string;
@@ -127,8 +127,7 @@ export default function BochurPanel({
     if (isOk(res)) {
       const d = res as CardData;
       setData(d);
-      const bal = parseFloat(d.TotalFreeAmount ?? "0");
-      if (!Number.isNaN(bal)) onBalanceChangeRef.current?.(bal);
+      onBalanceChangeRef.current?.(parseAmount(d.TotalFreeAmount));
     } else {
       setError(res.Message || "שגיאה בטעינת נתוני הבחור");
     }
@@ -277,7 +276,7 @@ export default function BochurPanel({
         <div className="flex items-center gap-3">
           <div className="text-left">
             <p className="text-xs text-gray-400">יתרה בכרטיס</p>
-            <p className="text-lg font-bold text-green-600">₪{Number(balance).toLocaleString()}</p>
+            <p className="text-lg font-bold text-green-600">₪{parseAmount(balance).toLocaleString()}</p>
           </div>
           <button
             onClick={load}

@@ -25,3 +25,12 @@ export async function callCard(
 export function isOk(r: CardResult): boolean {
   return r.Result === "OK";
 }
+
+// נדרים מחזיר סכומים כמחרוזות שעשויות לכלול פסיקים (למשל "1,234.5").
+// Number() נכשל על מחרוזות כאלה ומחזיר NaN — לכן מנקים קודם.
+export function parseAmount(v: unknown): number {
+  if (typeof v === "number") return v;
+  if (typeof v !== "string") return 0;
+  const n = parseFloat(v.replace(/[^0-9.-]/g, ""));
+  return Number.isNaN(n) ? 0 : n;
+}

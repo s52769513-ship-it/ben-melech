@@ -11,7 +11,7 @@ import {
   Store,
   Users,
 } from "lucide-react";
-import { callCard, isOk } from "@/components/NedarimCard/api";
+import { callCard, isOk, parseAmount } from "@/components/NedarimCard/api";
 import BochurPanel from "@/components/NedarimCard/BochurPanel";
 import StoreGroups from "@/components/NedarimCard/StoreGroups";
 
@@ -97,7 +97,7 @@ export default function NedarimCardClient() {
               <h2 className="font-semibold text-gray-700">רשימת בחורים</h2>
               {total != null && (
                 <span className="text-xs text-gray-400 bg-gray-100 rounded-full px-2 py-0.5">
-                  סה״כ טעון בכרטיסים: ₪{Number(total).toLocaleString()}
+                  סה״כ טעון בכרטיסים: ₪{parseAmount(total).toLocaleString()}
                 </span>
               )}
             </div>
@@ -168,7 +168,7 @@ export default function NedarimCardClient() {
                         </div>
                         <span className="text-xs text-gray-500">{b.Groupe || "—"}</span>
                         <span className="text-sm text-center font-medium text-green-600">
-                          ₪{Number(b.Ytra ?? 0).toLocaleString()}
+                          ₪{parseAmount(b.Ytra).toLocaleString()}
                         </span>
                         <span className="flex justify-center text-gray-400">
                           {isOpen ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
