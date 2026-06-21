@@ -3,8 +3,9 @@
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { ChevronLeft } from "lucide-react";
+import { ChevronLeft, FileSpreadsheet, FileText } from "lucide-react";
 import EditModal from "@/components/EditModal";
+import ExportDialog from "@/components/ExportDialog";
 import { updateStudent } from "@/app/students/actions";
 import { useSettings } from "@/lib/settings-context";
 
@@ -83,6 +84,7 @@ export default function StudentsTable({ students, coordinators, groups, scoreMap
   const [isPending, startTransition] = useTransition();
   const [editing, setEditing] = useState<Student | null>(null);
   const [form, setForm] = useState<FormState | null>(null);
+  const [exportFormat, setExportFormat] = useState<"excel" | "pdf" | null>(null);
   const { settings, isStudentVisible } = useSettings();
   const visibleStudents = students.filter(isStudentVisible);
   const visibleCoordinators = coordinators.filter(
@@ -130,6 +132,22 @@ export default function StudentsTable({ students, coordinators, groups, scoreMap
 
   return (
     <>
+      <div className="flex justify-end gap-2 mb-3">
+        <button
+          onClick={() => setExportFormat("excel")}
+          className="flex items-center gap-1.5 text-sm px-4 py-2 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors text-gray-700"
+        >
+          <FileSpreadsheet size={15} />
+          הורדת Excel
+        </button>
+        <button
+          onClick={() => setExportFormat("pdf")}
+          className="flex items-center gap-1.5 text-sm px-4 py-2 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors text-gray-700"
+        >
+          <FileText size={15} />
+          הורדת PDF
+        </button>
+      </div>
       <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
         <table className="w-full text-sm">
           <thead className="bg-gray-50 border-b border-gray-200">
@@ -213,6 +231,15 @@ export default function StudentsTable({ students, coordinators, groups, scoreMap
           </tbody>
         </table>
       </div>
+
+      {exportFormat && (
+        <ExportDialog
+          students={visibleStudents}
+          scoreMap={scoreMap}
+          format={exportFormat}
+          onClose={() => setExportFormat(null)}
+        />
+      )}
 
       {editing && form && (
         <EditModal
