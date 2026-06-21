@@ -65,9 +65,9 @@ function toStudent(r: AirtableRecord, coordinatorMap?: Map<string, Coordinator>)
     coordinator_id: coordinatorId,
     nedarim_id: num(f["מזהה נדרים"]),
     group_id: groupId,
-    notes: null,
-    nedarim_amount: num(f["כסף להטענה"]) ?? 0,
-    nedarim_charged: num(f["הוטען"]) ?? 0,
+    notes: str(f["הערות"]),
+    nedarim_amount: num(f["כסף להטענה"]),
+    nedarim_charged: num(f["הוטען"]),
     remaining_to_load: (num(f["כסף להטענה"]) ?? 0) - (num(f["הוטען"]) ?? 0),
     summer_points: num(f["נקודות זמן קיץ תשפו"]),
     summer_points_over_500: num(f["נקודות זמן קיץ תשפו (מעל 500)"]),
@@ -342,6 +342,7 @@ export async function updateStudent(
     enrollment_date: "Enrollment Date",
     nedarim_id: "מזהה נדרים",
     nedarim_charged: "הוטען",
+    notes: "הערות",
   };
   const linkFields: Record<string, string> = {
     coordinator_id: "רכז",
@@ -374,8 +375,8 @@ export async function getStudentsForNedarim(coordinatorId?: string): Promise<
         first_name: str(f["שם"]) ?? "",
         last_name: str(f["משפחה"]) ?? "",
         nedarim_id: num(f["מזהה נדרים"]),
-        nedarim_amount: num(f["כסף להטענה"]) ?? 0,
-        nedarim_charged: num(f["הוטען"]) ?? 0,
+        nedarim_amount: num(f["כסף להטענה"]),
+        nedarim_charged: num(f["הוטען"]),
       };
     })
     .sort((a, b) => a.last_name.localeCompare(b.last_name, "he"));

@@ -1,8 +1,9 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { Search } from "lucide-react";
+import { Search, Printer, FileSpreadsheet, FileText } from "lucide-react";
 import { useSettings } from "@/lib/settings-context";
+import * as XLSX from "xlsx";
 
 type Exam = { id: string; parasha: string; exam_date: string | null };
 
@@ -97,8 +98,98 @@ export default function OverviewClient({
 
   const totalStudents = grouped.reduce((sum, g) => sum + g.students.length, 0);
 
+  function downloadExcel() {
+    const headers = ["שם בחור", "משפיע", ...orderedExams.map((e) => e.parasha)];
+    const rows: (string | number)[][] = [];
+    grouped.forEach(({ coordName, students: gs }) => {
+      gs.forEach((s) => {
+        const examMap = attendanceMap.get(s.id);
+        rows.push([
+          `${s.first_name} ${s.last_name}`,
+          coordName,
+          ...orderedExams.map((e) => (examMap?.get(e.id) ? 1 : 0)),
+        ]);
+      });
+    });
+    const ws = XLSX.utils.aoa_to_sheet([headers, ...rows]);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "סקירת נוכחות");
+    XLSX.writeFile(wb, "סקירת-נוכחות.xlsx");
+  }
+
+  function handlePrint() {
+    window.print();
+  }
+
+  function downloadPDF() {
+    const headers = ["שם בחור", "משפיע", ...orderedExams.map((e) => e.parasha)];
+    const rows: string[][] = [];
+    grouped.forEach(({ coordName, students: gs }) => {
+      gs.forEach((s) => {
+        const examMap = attendanceMap.get(s.id);
+        rows.push([
+          `${s.first_name} ${s.last_name}`,
+          coordName,
+          ...orderedExams.map((e) => (examMap?.get(e.id) ? "✓" : "—")),
+        ]);
+      });
+    });
+    const html = `<!DOCTYPE html>
+<html dir="rtl" lang="he">
+<head>
+  <meta charset="UTF-8">
+  <title>סקירת נוכחות</title>
+  <style>
+    body { font-family: Arial, Helvetica, sans-serif; direction: rtl; margin: 20px; }
+    h2 { color: #1e3a5f; margin-bottom: 16px; }
+    table { width: 100%; border-collapse: collapse; font-size: 11px; }
+    th { background: #1e3a5f; color: white; padding: 6px 8px; text-align: right; }
+    td { border: 1px solid #ddd; padding: 4px 8px; text-align: center; }
+    td:first-child, td:nth-child(2) { text-align: right; }
+    tr:nth-child(even) td { background: #f5f7fa; }
+    @media print { body { margin: 0; } }
+  </style>
+</head>
+<body>
+  <h2>סקירת נוכחות</h2>
+  <table>
+    <thead><tr>${headers.map((h) => `<th>${h}</th>`).join("")}</tr></thead>
+    <tbody>${rows.map((r) => `<tr>${r.map((c) => `<td>${c}</td>`).join("")}</tr>`).join("")}</tbody>
+  </table>
+  <script>window.onload = function() { window.print(); }<\/script>
+</body>
+</html>`;
+    const w = window.open("", "_blank");
+    if (w) { w.document.write(html); w.document.close(); }
+  }
+
   return (
     <div dir="rtl">
+      {/* Export buttons */}
+      <div className="flex justify-end gap-2 mb-3">
+        <button
+          onClick={handlePrint}
+          className="flex items-center gap-1.5 text-sm px-4 py-2 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors text-gray-700"
+        >
+          <Printer size={15} />
+          הדפסה
+        </button>
+        <button
+          onClick={downloadExcel}
+          className="flex items-center gap-1.5 text-sm px-4 py-2 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors text-gray-700"
+        >
+          <FileSpreadsheet size={15} />
+          הורדת Excel
+        </button>
+        <button
+          onClick={downloadPDF}
+          className="flex items-center gap-1.5 text-sm px-4 py-2 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors text-gray-700"
+        >
+          <FileText size={15} />
+          הורדת PDF
+        </button>
+      </div>
+
       {/* Filters */}
       <div className="bg-white rounded-xl border border-gray-200 p-4 mb-5 flex flex-wrap gap-3 items-end">
         <div className="flex flex-col gap-1">
