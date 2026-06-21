@@ -68,7 +68,7 @@ function toStudent(r: AirtableRecord, coordinatorMap?: Map<string, Coordinator>)
     notes: null,
     nedarim_amount: num(f["כסף להטענה"]) ?? 0,
     nedarim_charged: num(f["הוטען"]) ?? 0,
-    remaining_to_load: num(f["נשאר להטענה"]),
+    remaining_to_load: (num(f["כסף להטענה"]) ?? 0) - (num(f["הוטען"]) ?? 0),
     summer_points: num(f["נקודות זמן קיץ תשפו"]),
     summer_points_over_500: num(f["נקודות זמן קיץ תשפו (מעל 500)"]),
     coordinator: coordinatorId && coordinatorMap ? coordinatorMap.get(coordinatorId) : undefined,
