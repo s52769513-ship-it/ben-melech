@@ -16,6 +16,11 @@ type Student = {
   yeshiva: string | null;
   track: string | null;
   enrollment_date: string | null;
+  nedarim_amount: number | null;
+  nedarim_charged: number | null;
+  remaining_to_load: number | null;
+  summer_points: number | null;
+  summer_points_over_500: number | null;
   notes: string | null;
   coordinator?: { id: string; name: string } | null;
 };
@@ -36,6 +41,11 @@ const ALL_COLUMNS = [
   { key: "coordinator", label: "משפיע" },
   { key: "attendance", label: "נוכחות" },
   { key: "avg_score", label: "ציון ממוצע" },
+  { key: "nedarim_amount", label: "כסף להטענה" },
+  { key: "nedarim_charged", label: "הוטען" },
+  { key: "remaining_to_load", label: "נשאר להטעין" },
+  { key: "summer_points", label: "נקודות זמן קיץ תשפו" },
+  { key: "summer_points_over_500", label: 'נקודות זמן קיץ תשפו (מעל 500)' },
   { key: "notes", label: "הערות" },
 ];
 
@@ -61,6 +71,11 @@ function getValue(student: Student, key: string, scoreMap: Record<string, ScoreS
       return stats && stats.count > 0
         ? (stats.total / stats.count).toFixed(1)
         : "";
+    case "nedarim_amount": return student.nedarim_amount != null ? String(student.nedarim_amount) : "";
+    case "nedarim_charged": return student.nedarim_charged != null ? String(student.nedarim_charged) : "";
+    case "remaining_to_load": return student.remaining_to_load != null ? String(student.remaining_to_load) : "";
+    case "summer_points": return student.summer_points != null ? String(student.summer_points) : "";
+    case "summer_points_over_500": return student.summer_points_over_500 != null ? String(student.summer_points_over_500) : "";
     case "notes": return student.notes ?? "";
     default: return "";
   }
