@@ -28,7 +28,7 @@ const navItems = [
   { href: "/overview", label: "סקירת נוכחות", icon: TableProperties },
   { href: "/inquiries", label: "פניות", icon: MessageSquare },
   { href: "/finances", label: "כספים", icon: Wallet },
-  { href: "/nedarim", label: "נדרים קארד", icon: CreditCard },
+  { href: "/nedarim-card", label: "נדרים קארד", icon: CreditCard },
 ];
 
 const managementItems = [

@@ -1,7 +1,8 @@
 import Link from "next/link";
-import { ArrowRight, Star } from "lucide-react";
+import { ArrowRight, Star, CreditCard } from "lucide-react";
 import { notFound } from "next/navigation";
 import StudentDetailsCard from "@/components/StudentDetailsCard";
+import BochurPanel from "@/components/NedarimCard/BochurPanel";
 import { getStudent, getScoresByStudent, getInquiriesByStudent, getCoordinators } from "@/lib/airtable/db";
 
 export default async function StudentDetailPage({
@@ -67,6 +68,19 @@ export default async function StudentDetailPage({
             <p className="text-4xl font-bold text-[#1e3a5f]">{totalPoints}</p>
             <p className="text-gray-400 text-xs mt-1">נקודות שנצברו</p>
           </div>
+
+          {student.nedarim_id && (
+            <div className="bg-white rounded-xl border border-gray-200 p-6">
+              <h2 className="text-lg font-semibold text-[#1e3a5f] mb-4 flex items-center gap-2">
+                <CreditCard size={18} />
+                נדרים קארד
+              </h2>
+              <BochurPanel
+                clientId={student.nedarim_id}
+                name={`${student.first_name} ${student.last_name}`}
+              />
+            </div>
+          )}
 
           <div className="bg-white rounded-xl border border-gray-200 p-6">
             <h2 className="text-lg font-semibold text-[#1e3a5f] mb-4 flex items-center gap-2">
