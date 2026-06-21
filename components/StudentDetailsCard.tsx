@@ -330,42 +330,40 @@ export default function StudentDetailsCard({ student, coordinator, coordinators 
         </div>
       )}
 
-      {(student.nedarim_id || student.nedarim_amount || student.nedarim_charged) && (
-        <div className="mt-5 pt-5 border-t border-gray-100">
-          <h3 className="text-sm font-semibold text-gray-700 mb-3 flex items-center gap-2">
-            <CreditCard size={14} />
-            נדרים
-          </h3>
-          <dl className="space-y-2 text-sm">
-            {student.nedarim_id && (
-              <div className="flex justify-between">
-                <dt className="text-gray-400 text-xs">מזהה נדרים</dt>
-                <dd className="text-gray-700">{student.nedarim_id}</dd>
-              </div>
-            )}
+      <div className="mt-5 pt-5 border-t border-gray-100">
+        <h3 className="text-sm font-semibold text-gray-700 mb-3 flex items-center gap-2">
+          <CreditCard size={14} />
+          נדרים
+        </h3>
+        <dl className="space-y-2 text-sm">
+          {student.nedarim_id && (
             <div className="flex justify-between">
-              <dt className="text-gray-400 text-xs">כסף להטענה</dt>
-              <dd className="font-medium text-gray-800">
-                {student.nedarim_amount != null ? `₪${student.nedarim_amount.toLocaleString()}` : "—"}
-              </dd>
+              <dt className="text-gray-400 text-xs">מזהה נדרים</dt>
+              <dd className="text-gray-700">{student.nedarim_id}</dd>
             </div>
-            <div className="flex justify-between">
-              <dt className="text-gray-400 text-xs">הוטען</dt>
-              <dd className="font-medium text-gray-800">
-                {student.nedarim_charged != null ? `₪${student.nedarim_charged.toLocaleString()}` : "—"}
-              </dd>
-            </div>
-            <div className="flex justify-between">
-              <dt className="text-gray-400 text-xs">נשאר להטעין</dt>
-              <dd className={`font-semibold ${(student.remaining_to_load ?? 0) > 0 ? "text-orange-600" : "text-green-600"}`}>
-                {student.remaining_to_load != null
-                  ? (student.remaining_to_load > 0 ? `₪${student.remaining_to_load.toLocaleString()}` : "הושלם ✓")
-                  : "—"}
-              </dd>
-            </div>
-          </dl>
-        </div>
-      )}
+          )}
+          <div className="flex justify-between">
+            <dt className="text-gray-400 text-xs">כסף להטענה</dt>
+            <dd className="font-medium text-gray-800">
+              {student.nedarim_amount != null ? `₪${student.nedarim_amount.toLocaleString()}` : "—"}
+            </dd>
+          </div>
+          <div className="flex justify-between">
+            <dt className="text-gray-400 text-xs">הוטען</dt>
+            <dd className="font-medium text-gray-800">
+              {student.nedarim_charged != null ? `₪${student.nedarim_charged.toLocaleString()}` : "—"}
+            </dd>
+          </div>
+          <div className="flex justify-between">
+            <dt className="text-gray-400 text-xs">נשאר להטעין</dt>
+            <dd className={`font-semibold ${(student.remaining_to_load ?? 0) > 0 ? "text-orange-600" : "text-green-600"}`}>
+              {student.remaining_to_load != null
+                ? (student.remaining_to_load > 0 ? `₪${student.remaining_to_load.toLocaleString()}` : "הושלם ✓")
+                : "—"}
+            </dd>
+          </div>
+        </dl>
+      </div>
 
       {student.notes && (
         <div className="mt-5 pt-5 border-t border-gray-100">
