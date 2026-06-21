@@ -13,6 +13,7 @@ import {
   TableProperties,
   LogOut,
   UserCircle,
+  CreditCard,
 } from "lucide-react";
 import { useState } from "react";
 import { useSettings } from "@/lib/settings-context";
@@ -27,6 +28,7 @@ const navItems = [
   { href: "/overview", label: "סקירת נוכחות", icon: TableProperties },
   { href: "/inquiries", label: "פניות", icon: MessageSquare },
   { href: "/finances", label: "כספים", icon: Wallet },
+  { href: "/nedarim", label: "נדרים", icon: CreditCard },
 ];
 
 const managementItems = [
