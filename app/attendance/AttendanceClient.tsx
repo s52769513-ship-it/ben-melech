@@ -3,8 +3,9 @@
 import { useRouter } from "next/navigation";
 import { useOptimistic, useTransition, useState, useMemo, Fragment } from "react";
 import { updateScoreBoolean, updateScoreNumber } from "./actions";
-import { AlertTriangle, Download, FileText, X, Search, Filter } from "lucide-react";
+import { AlertTriangle, Download, FileText, Printer, X, Search, Filter } from "lucide-react";
 import { useSettings } from "@/lib/settings-context";
+import * as XLSX from "xlsx";
 
 type Exam = { id: string; parasha: string; exam_date: string | null };
 
@@ -278,13 +279,12 @@ export default function AttendanceClient({
     return coordinators.filter((c) => !withActivity.has(c));
   }, [optimisticScores, coordinators]);
 
-  // Export CSV
-  function downloadCSV() {
-    if (!selectedExam) return;
-    const headers = ["שם", "הגעה 5 דקות", "השתתף בסדר", "השתתף בשיעור", "סיכום שבועי", "נקודות"];
-    let csv = "﻿" + headers.join(",") + "\n";
+  // Export Excel
+  function downloadExcel() {
+    const title = isAll ? "כל הפרשיות" : (selectedExam?.parasha ?? "נוכחות");
+    const headers = ["משפיע", "שם", "הגעה 5 דקות", "השתתף בסדר", "השתתף בשיעור", "סיכום שבועי", "נקודות"];
+    const rows: string[][] = [];
     grouped.forEach(([coordName, records]) => {
-      csv += `\n"${coordName} (${records.length} בחורים)"\n`;
       records.forEach((s) => {
         const name = `${s.student?.first_name ?? ""} ${s.student?.last_name ?? ""}`.trim();
         const points =
@@ -292,14 +292,18 @@ export default function AttendanceClient({
           (s.attended_seder ? 1 : 0) +
           (s.attended_class ? 1 : 0) +
           (s.weekly_summary ? 1 : 0);
-        csv += `"${name}",${s.arrived_on_time ? "כן" : "לא"},${s.attended_seder ? "כן" : "לא"},${s.attended_class ? "כן" : "לא"},${s.weekly_summary ? "כן" : "לא"},${points}\n`;
+        rows.push([coordName, name, s.arrived_on_time ? "כן" : "לא", s.attended_seder ? "כן" : "לא", s.attended_class ? "כן" : "לא", s.weekly_summary ? "כן" : "לא", String(points)]);
       });
     });
-    const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
-    const a = document.createElement("a");
-    a.href = URL.createObjectURL(blob);
-    a.download = `${selectedExam.parasha}_נוכחות.csv`;
-    a.click();
+    const ws = XLSX.utils.aoa_to_sheet([headers, ...rows]);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "נוכחות");
+    XLSX.writeFile(wb, `${title}_נוכחות.xlsx`);
+  }
+
+  // Print
+  function handlePrint() {
+    window.print();
   }
 
   // Export PDF
@@ -420,7 +424,7 @@ export default function AttendanceClient({
 
         <div className="flex gap-2 self-end mr-auto">
           <button
-            onClick={downloadCSV}
+            onClick={downloadExcel}
             className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-medium bg-green-50 text-green-700 border border-green-200 hover:bg-green-100 transition-colors"
           >
             <Download size={15} /> Excel
@@ -430,6 +434,12 @@ export default function AttendanceClient({
             className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-medium bg-red-50 text-red-700 border border-red-200 hover:bg-red-100 transition-colors"
           >
             <FileText size={15} /> PDF
+          </button>
+          <button
+            onClick={handlePrint}
+            className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-medium bg-gray-50 text-gray-700 border border-gray-200 hover:bg-gray-100 transition-colors"
+          >
+            <Printer size={15} /> הדפסה
           </button>
         </div>
       </div>
