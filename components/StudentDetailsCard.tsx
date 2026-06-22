@@ -26,6 +26,7 @@ type Student = {
   remaining_to_load: number | null;
   group_id: string | null;
   notes: string | null;
+  serial_number: number | null;
 };
 
 type CoordinatorOption = { id: string; name: string };
@@ -45,6 +46,7 @@ type FormState = {
   coordinator_id: string;
   nedarim_id: string;
   notes: string;
+  serial_number: string;
 };
 
 function toForm(s: Student): FormState {
@@ -63,6 +65,7 @@ function toForm(s: Student): FormState {
     coordinator_id: s.coordinator_id ?? "",
     nedarim_id: s.nedarim_id?.toString() ?? "",
     notes: s.notes ?? "",
+    serial_number: s.serial_number?.toString() ?? "",
   };
 }
 
@@ -107,6 +110,7 @@ export default function StudentDetailsCard({ student, coordinator, coordinators 
         coordinator_id: form.coordinator_id || null,
         nedarim_id: form.nedarim_id ? Number(form.nedarim_id) : null,
         notes: form.notes || null,
+        serial_number: form.serial_number ? Number(form.serial_number) : null,
       });
       setEditing(false);
       router.refresh();
@@ -177,6 +181,11 @@ export default function StudentDetailsCard({ student, coordinator, coordinators 
               <label className={labelCls}>ת.ז</label>
               <input type="number" className={inputCls} value={form.id_number} onChange={(e) => set("id_number", e.target.value)} />
             </div>
+          </div>
+
+          <div>
+            <label className={labelCls}>מספר סידורי</label>
+            <input type="number" className={inputCls} value={form.serial_number} onChange={(e) => set("serial_number", e.target.value)} />
           </div>
 
           <div>

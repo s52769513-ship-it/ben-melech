@@ -50,6 +50,7 @@ export interface Student {
   remaining_to_load: number | null;
   summer_points: number | null;
   summer_points_over_500: number | null;
+  serial_number: number | null;
   coordinator?: Coordinator;
 }
 

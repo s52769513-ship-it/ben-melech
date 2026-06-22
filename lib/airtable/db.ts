@@ -71,6 +71,7 @@ function toStudent(r: AirtableRecord, coordinatorMap?: Map<string, Coordinator>)
     remaining_to_load: (num(f["כסף להטענה"]) ?? 0) - (num(f["הוטען"]) ?? 0),
     summer_points: num(f["נקודות זמן קיץ תשפו"]),
     summer_points_over_500: num(f["נקודות זמן קיץ תשפו (מעל 500)"]),
+    serial_number: num(f["מספר סידורי"]),
     coordinator: coordinatorId && coordinatorMap ? coordinatorMap.get(coordinatorId) : undefined,
   };
 }
@@ -343,6 +344,7 @@ export async function updateStudent(
     nedarim_id: "מזהה נדרים",
     nedarim_charged: "הוטען",
     notes: "הערות",
+    serial_number: "מספר סידורי",
   };
   const linkFields: Record<string, string> = {
     coordinator_id: "רכז",

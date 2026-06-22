@@ -22,6 +22,7 @@ type Student = {
   summer_points: number | null;
   summer_points_over_500: number | null;
   notes: string | null;
+  serial_number: number | null;
   coordinator?: { id: string; name: string } | null;
 };
 
@@ -29,6 +30,7 @@ type ScoreStats = { total: number; count: number; attended: number; sessions: nu
 
 const ALL_COLUMNS = [
   { key: "name", label: "שם" },
+  { key: "serial_number", label: "מספר סידורי" },
   { key: "phone", label: "טלפון" },
   { key: "id_number", label: "ת.ז" },
   { key: "city", label: "עיר" },
@@ -53,6 +55,7 @@ function getValue(student: Student, key: string, scoreMap: Record<string, ScoreS
   const stats = scoreMap[student.id];
   switch (key) {
     case "name": return `${student.first_name} ${student.last_name}`;
+    case "serial_number": return student.serial_number != null ? String(student.serial_number) : "";
     case "phone": return student.phone ?? "";
     case "id_number": return student.id_number?.toString() ?? "";
     case "city": return student.city ?? "";

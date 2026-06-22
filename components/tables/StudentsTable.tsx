@@ -35,6 +35,7 @@ type Student = {
   summer_points_over_500: number | null;
   group_id: string | null;
   notes: string | null;
+  serial_number: number | null;
   coordinator?: { id: string; name: string } | null;
 };
 
@@ -63,6 +64,7 @@ type FormState = {
   nedarim_id: string;
   group_id: string;
   notes: string;
+  serial_number: string;
 };
 
 function toForm(s: Student): FormState {
@@ -82,6 +84,7 @@ function toForm(s: Student): FormState {
     nedarim_id: s.nedarim_id?.toString() ?? "",
     group_id: s.group_id ?? "",
     notes: s.notes ?? "",
+    serial_number: s.serial_number?.toString() ?? "",
   };
 }
 
@@ -91,6 +94,8 @@ function renderCellValue(fieldId: FieldKey, student: Student, scoreMap: Record<s
   switch (fieldId) {
     case "name":
       return `${student.first_name} ${student.last_name}`;
+    case "serial_number":
+      return student.serial_number ?? "—";
     case "phone":
       return student.phone ?? "—";
     case "id_number":
@@ -150,6 +155,7 @@ function renderCellValue(fieldId: FieldKey, student: Student, scoreMap: Record<s
 
 const AVAILABLE_FIELDS = [
   { id: "name", label: "שם" },
+  { id: "serial_number", label: "מספר סידורי" },
   { id: "phone", label: "טלפון" },
   { id: "id_number", label: "ת.ז" },
   { id: "city", label: "עיר" },
@@ -229,6 +235,7 @@ export default function StudentsTable({ students, coordinators, groups, scoreMap
         nedarim_id: form.nedarim_id ? Number(form.nedarim_id) : null,
         group_id: form.group_id || null,
         notes: form.notes || null,
+        serial_number: form.serial_number ? Number(form.serial_number) : null,
       });
       closeEdit();
       router.refresh();
@@ -398,6 +405,15 @@ export default function StudentsTable({ students, coordinators, groups, scoreMap
                 type="number"
                 value={form.id_number}
                 onChange={(e) => set("id_number", e.target.value)}
+                className="text-sm border border-gray-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-300"
+              />
+            </div>
+            <div className="flex flex-col gap-1">
+              <label className="text-xs font-medium text-gray-500">מספר סידורי</label>
+              <input
+                type="number"
+                value={form.serial_number}
+                onChange={(e) => set("serial_number", e.target.value)}
                 className="text-sm border border-gray-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-300"
               />
             </div>
