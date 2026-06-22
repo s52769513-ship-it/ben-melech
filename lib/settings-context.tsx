@@ -15,7 +15,7 @@ const DEFAULT: Settings = {
   airtableToken: "",
   hiddenCoordinators: [],
   hiddenGroups: [],
-  visibleStudentFields: ["name", "coordinator", "city", "yeshiva", "track", "attendance", "score"],
+  visibleStudentFields: ["name", "coordinator", "city", "yeshiva", "track", "attendance", "score", "nedarim_amount", "summer_points"],
 };
 
 const SettingsContext = createContext<{

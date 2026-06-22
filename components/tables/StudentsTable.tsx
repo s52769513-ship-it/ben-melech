@@ -85,14 +85,91 @@ function toForm(s: Student): FormState {
   };
 }
 
+type FieldKey = typeof AVAILABLE_FIELDS[number]["id"];
+
+function renderCellValue(fieldId: FieldKey, student: Student, scoreMap: Record<string, ScoreStats>, coordinators: CoordinatorOption[], groups: GroupOption[]): React.ReactNode {
+  switch (fieldId) {
+    case "name":
+      return `${student.first_name} ${student.last_name}`;
+    case "phone":
+      return student.phone ?? "—";
+    case "id_number":
+      return student.id_number ?? "—";
+    case "city":
+      return student.city ?? "—";
+    case "street":
+      return student.street ?? "—";
+    case "birth_date":
+      return student.birth_date ? student.birth_date.slice(0, 10) : "—";
+    case "father_name":
+      return student.father_name ?? "—";
+    case "yeshiva":
+      return student.yeshiva ?? "—";
+    case "track":
+      return student.track ?? "—";
+    case "enrollment_date":
+      return student.enrollment_date ? student.enrollment_date.slice(0, 10) : "—";
+    case "coordinator": {
+      const coordinator = student.coordinator as { name: string } | null;
+      return coordinator?.name ?? "—";
+    }
+    case "group": {
+      const group = groups.find((g) => g.id === student.group_id);
+      return group?.name ?? "—";
+    }
+    case "nedarim_id":
+      return student.nedarim_id ?? "—";
+    case "nedarim_amount":
+      return student.nedarim_amount ?? "—";
+    case "nedarim_charged":
+      return student.nedarim_charged ?? "—";
+    case "remaining_to_load":
+      return student.remaining_to_load ?? "—";
+    case "summer_points":
+      return student.summer_points ?? "—";
+    case "summer_points_over_500":
+      return student.summer_points_over_500 ?? "—";
+    case "attendance": {
+      const stats = scoreMap[student.id];
+      return stats && stats.sessions > 0
+        ? Math.round((stats.attended / stats.sessions) * 100) + "%"
+        : "—";
+    }
+    case "score": {
+      const stats = scoreMap[student.id];
+      return stats && stats.count > 0
+        ? (stats.total / stats.count).toFixed(1)
+        : "—";
+    }
+    case "notes":
+      return student.notes ?? "—";
+    default:
+      return "—";
+  }
+}
+
 const AVAILABLE_FIELDS = [
   { id: "name", label: "שם" },
-  { id: "coordinator", label: "משפיע" },
+  { id: "phone", label: "טלפון" },
+  { id: "id_number", label: "ת.ז" },
   { id: "city", label: "עיר" },
+  { id: "street", label: "רחוב" },
+  { id: "birth_date", label: "תאריך לידה" },
+  { id: "father_name", label: "שם האב" },
   { id: "yeshiva", label: "ישיבה" },
   { id: "track", label: "מסלול" },
+  { id: "enrollment_date", label: "תאריך הצטרפות" },
+  { id: "coordinator", label: "משפיע" },
+  { id: "group", label: "קבוצה" },
+  { id: "nedarim_id", label: "נדרים ID" },
+  { id: "nedarim_amount", label: "סכום נדרים" },
+  { id: "nedarim_charged", label: "נדרים חויבו" },
+  { id: "remaining_to_load", label: "נותר להעמסה" },
+  { id: "summer_points", label: "נקודות קיץ" },
+  { id: "summer_points_over_500", label: "נקודות קיץ מעל 500" },
   { id: "attendance", label: "נוכחות" },
   { id: "score", label: "ציון ממוצע" },
+  { id: "notes", label: "הערות" },
 ];
 
 export default function StudentsTable({ students, coordinators, groups, scoreMap }: Props) {
@@ -181,103 +258,72 @@ export default function StudentsTable({ students, coordinators, groups, scoreMap
         <table className="w-full text-sm">
           <thead className="bg-gray-50 border-b border-gray-200">
             <tr>
-              {settings.visibleStudentFields.includes("name") && (
-                <th className="text-right px-6 py-4 font-semibold text-gray-600">שם</th>
-              )}
-              {settings.visibleStudentFields.includes("coordinator") && (
-                <th className="text-right px-6 py-4 font-semibold text-gray-600">משפיע</th>
-              )}
-              {settings.visibleStudentFields.includes("city") && (
-                <th className="text-right px-6 py-4 font-semibold text-gray-600">עיר</th>
-              )}
-              {settings.visibleStudentFields.includes("yeshiva") && (
-                <th className="text-right px-6 py-4 font-semibold text-gray-600">ישיבה</th>
-              )}
-              {settings.visibleStudentFields.includes("track") && (
-                <th className="text-right px-6 py-4 font-semibold text-gray-600">מסלול</th>
-              )}
-              {settings.visibleStudentFields.includes("attendance") && (
-                <th className="text-right px-6 py-4 font-semibold text-gray-600">נוכחות</th>
-              )}
-              {settings.visibleStudentFields.includes("score") && (
-                <th className="text-right px-6 py-4 font-semibold text-gray-600">ציון ממוצע</th>
-              )}
+              {AVAILABLE_FIELDS.map((field) => (
+                settings.visibleStudentFields.includes(field.id) && (
+                  <th key={field.id} className="text-right px-6 py-4 font-semibold text-gray-600">
+                    {field.label}
+                  </th>
+                )
+              ))}
               <th className="px-6 py-4"></th>
             </tr>
           </thead>
           <tbody className="divide-y divide-gray-100">
             {visibleStudents.length > 0 ? (
-              visibleStudents.map((student) => {
-                const stats = scoreMap[student.id];
-                const avgScore =
-                  stats && stats.count > 0
-                    ? (stats.total / stats.count).toFixed(1)
-                    : "—";
-                const attendance =
-                  stats && stats.sessions > 0
-                    ? Math.round((stats.attended / stats.sessions) * 100) + "%"
-                    : "—";
-                const coordinator = student.coordinator as { name: string } | null;
-                return (
-                  <tr
-                    key={student.id}
-                    className="hover:bg-blue-50/40 transition-colors cursor-pointer"
-                    onClick={() => openEdit(student)}
-                  >
-                    {settings.visibleStudentFields.includes("name") && (
-                      <td className="px-6 py-4 font-medium text-gray-900">
-                        {student.first_name} {student.last_name}
-                      </td>
-                    )}
-                    {settings.visibleStudentFields.includes("coordinator") && (
-                      <td className="px-6 py-4 text-gray-600" onClick={(e) => e.stopPropagation()}>
-                        {coordinator ? (
-                          <Link
-                            href={`/coordinators/${student.coordinator_id}`}
-                            className="text-blue-600 hover:underline"
-                          >
-                            {coordinator.name}
-                          </Link>
-                        ) : (
-                          <span className="text-gray-300">—</span>
-                        )}
-                      </td>
-                    )}
-                    {settings.visibleStudentFields.includes("city") && (
-                      <td className="px-6 py-4 text-gray-600">{student.city ?? "—"}</td>
-                    )}
-                    {settings.visibleStudentFields.includes("yeshiva") && (
-                      <td className="px-6 py-4 text-gray-600">{student.yeshiva ?? "—"}</td>
-                    )}
-                    {settings.visibleStudentFields.includes("track") && (
-                      <td className="px-6 py-4 text-gray-600">{student.track ?? "—"}</td>
-                    )}
-                    {settings.visibleStudentFields.includes("attendance") && (
-                      <td className="px-6 py-4 text-gray-600">{attendance}</td>
-                    )}
-                    {settings.visibleStudentFields.includes("score") && (
-                      <td className="px-6 py-4">
-                        {avgScore !== "—" ? (
-                          <span className="bg-blue-50 text-blue-700 font-semibold text-xs px-2.5 py-1 rounded-full">
-                            {avgScore}
-                          </span>
-                        ) : (
-                          <span className="text-gray-300">—</span>
-                        )}
-                      </td>
-                    )}
-                    <td className="px-6 py-4" onClick={(e) => e.stopPropagation()}>
-                      <Link
-                        href={`/students/${student.id}`}
-                        className="flex items-center gap-1 text-blue-600 hover:text-blue-800 font-medium text-xs"
+              visibleStudents.map((student) => (
+                <tr
+                  key={student.id}
+                  className="hover:bg-blue-50/40 transition-colors cursor-pointer"
+                  onClick={() => openEdit(student)}
+                >
+                  {AVAILABLE_FIELDS.map((field) => (
+                    settings.visibleStudentFields.includes(field.id) && (
+                      <td
+                        key={field.id}
+                        className={`px-6 py-4 ${
+                          field.id === "name" ? "font-medium text-gray-900" : "text-gray-600"
+                        } ${field.id === "score" ? "text-center" : ""}`}
+                        onClick={(e) => {
+                          if (field.id === "coordinator") e.stopPropagation();
+                        }}
                       >
-                        פרופיל
-                        <ChevronLeft size={14} />
-                      </Link>
-                    </td>
-                  </tr>
-                );
-              })
+                        {field.id === "coordinator" ? (
+                          student.coordinator_id ? (
+                            <Link
+                              href={`/coordinators/${student.coordinator_id}`}
+                              className="text-blue-600 hover:underline"
+                              onClick={(e) => e.stopPropagation()}
+                            >
+                              {renderCellValue(field.id as FieldKey, student, scoreMap, visibleCoordinators, groups)}
+                            </Link>
+                          ) : (
+                            <span className="text-gray-300">—</span>
+                          )
+                        ) : field.id === "score" ? (
+                          renderCellValue(field.id as FieldKey, student, scoreMap, visibleCoordinators, groups) !== "—" ? (
+                            <span className="bg-blue-50 text-blue-700 font-semibold text-xs px-2.5 py-1 rounded-full">
+                              {renderCellValue(field.id as FieldKey, student, scoreMap, visibleCoordinators, groups)}
+                            </span>
+                          ) : (
+                            <span className="text-gray-300">—</span>
+                          )
+                        ) : (
+                          renderCellValue(field.id as FieldKey, student, scoreMap, visibleCoordinators, groups)
+                        )}
+                      </td>
+                    )
+                  ))}
+                  <td className="px-6 py-4" onClick={(e) => e.stopPropagation()}>
+                    <Link
+                      href={`/students/${student.id}`}
+                      className="flex items-center gap-1 text-blue-600 hover:text-blue-800 font-medium text-xs"
+                    >
+                      פרופיל
+                      <ChevronLeft size={14} />
+                    </Link>
+                  </td>
+                </tr>
+              ))
             ) : (
               <tr>
                 <td colSpan={settings.visibleStudentFields.length + 1} className="px-6 py-16 text-center text-gray-400">
