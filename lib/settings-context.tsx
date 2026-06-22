@@ -8,6 +8,7 @@ type Settings = {
   hiddenCoordinators: string[];
   hiddenGroups: string[];
   visibleStudentFields: string[];
+  studentFieldOrder: string[];
 };
 
 const DEFAULT: Settings = {
@@ -16,6 +17,7 @@ const DEFAULT: Settings = {
   hiddenCoordinators: [],
   hiddenGroups: [],
   visibleStudentFields: ["name", "coordinator", "city", "yeshiva", "track", "attendance", "score", "nedarim_amount", "summer_points"],
+  studentFieldOrder: ["name", "phone", "id_number", "city", "street", "birth_date", "father_name", "yeshiva", "track", "enrollment_date", "coordinator", "group", "nedarim_id", "nedarim_amount", "nedarim_charged", "remaining_to_load", "summer_points", "summer_points_over_500", "attendance", "score", "notes"],
 };
 
 const SettingsContext = createContext<{
@@ -25,6 +27,7 @@ const SettingsContext = createContext<{
   toggleCoordinator: (id: string) => void;
   toggleGroup: (id: string) => void;
   toggleStudentField: (field: string) => void;
+  setStudentFieldOrder: (order: string[]) => void;
   isStudentVisible: (s: { coordinator_id?: string | null; group_id?: string | null }) => boolean;
 }>({
   settings: DEFAULT,
@@ -33,6 +36,7 @@ const SettingsContext = createContext<{
   toggleCoordinator: () => {},
   toggleGroup: () => {},
   toggleStudentField: () => {},
+  setStudentFieldOrder: () => {},
   isStudentVisible: () => true,
 });
 
@@ -50,6 +54,7 @@ export function SettingsProvider({ children }: { children: React.ReactNode }) {
           hiddenCoordinators: parsed.hiddenCoordinators ?? [],
           hiddenGroups: parsed.hiddenGroups ?? [],
           visibleStudentFields: parsed.visibleStudentFields ?? DEFAULT.visibleStudentFields,
+          studentFieldOrder: parsed.studentFieldOrder ?? DEFAULT.studentFieldOrder,
         });
       } catch { /* ignore */ }
     }
@@ -84,6 +89,10 @@ export function SettingsProvider({ children }: { children: React.ReactNode }) {
     save({ ...settings, visibleStudentFields: visible });
   };
 
+  const setStudentFieldOrder = (order: string[]) => {
+    save({ ...settings, studentFieldOrder: order });
+  };
+
   const isStudentVisible = (s: { coordinator_id?: string | null; group_id?: string | null }) => {
     if (s.coordinator_id && settings.hiddenCoordinators.includes(s.coordinator_id)) return false;
     if (s.group_id && settings.hiddenGroups.includes(s.group_id)) return false;
@@ -91,7 +100,7 @@ export function SettingsProvider({ children }: { children: React.ReactNode }) {
   };
 
   return (
-    <SettingsContext.Provider value={{ settings, setLogo, setAirtableToken, toggleCoordinator, toggleGroup, toggleStudentField, isStudentVisible }}>
+    <SettingsContext.Provider value={{ settings, setLogo, setAirtableToken, toggleCoordinator, toggleGroup, toggleStudentField, setStudentFieldOrder, isStudentVisible }}>
       {children}
     </SettingsContext.Provider>
   );

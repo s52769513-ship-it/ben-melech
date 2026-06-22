@@ -179,13 +179,19 @@ export default function StudentsTable({ students, coordinators, groups, scoreMap
   const [form, setForm] = useState<FormState | null>(null);
   const [exportFormat, setExportFormat] = useState<"excel" | "pdf" | null>(null);
   const [showFieldSettings, setShowFieldSettings] = useState(false);
-  const { settings, isStudentVisible, toggleStudentField } = useSettings();
+  const { settings, isStudentVisible, toggleStudentField, setStudentFieldOrder } = useSettings();
   const visibleStudents = students.filter(isStudentVisible);
   const visibleCoordinators = coordinators.filter(
     (c) => !settings.hiddenCoordinators.includes(c.id)
   );
 
-  const fieldOptions = AVAILABLE_FIELDS.map((f) => ({
+  const orderedFields = [...AVAILABLE_FIELDS].sort((a, b) => {
+    const aIndex = settings.studentFieldOrder.indexOf(a.id);
+    const bIndex = settings.studentFieldOrder.indexOf(b.id);
+    return aIndex - bIndex;
+  });
+
+  const fieldOptions = orderedFields.map((f) => ({
     ...f,
     isChecked: settings.visibleStudentFields.includes(f.id),
   }));
@@ -258,7 +264,7 @@ export default function StudentsTable({ students, coordinators, groups, scoreMap
         <table className="w-full text-sm">
           <thead className="bg-gray-50 border-b border-gray-200">
             <tr>
-              {AVAILABLE_FIELDS.map((field) => (
+              {orderedFields.map((field) => (
                 settings.visibleStudentFields.includes(field.id) && (
                   <th key={field.id} className="text-right px-6 py-4 font-semibold text-gray-600">
                     {field.label}
@@ -276,7 +282,7 @@ export default function StudentsTable({ students, coordinators, groups, scoreMap
                   className="hover:bg-blue-50/40 transition-colors cursor-pointer"
                   onClick={() => openEdit(student)}
                 >
-                  {AVAILABLE_FIELDS.map((field) => (
+                  {orderedFields.map((field) => (
                     settings.visibleStudentFields.includes(field.id) && (
                       <td
                         key={field.id}
@@ -339,11 +345,8 @@ export default function StudentsTable({ students, coordinators, groups, scoreMap
         visible={showFieldSettings}
         onClose={() => setShowFieldSettings(false)}
         onToggleField={toggleStudentField}
-        fields={AVAILABLE_FIELDS.map((f) => ({
-          id: f.id,
-          label: f.label,
-          isChecked: settings.visibleStudentFields.includes(f.id),
-        }))}
+        onReorderFields={setStudentFieldOrder}
+        fields={fieldOptions}
       />
 
       {exportFormat && (
@@ -352,6 +355,8 @@ export default function StudentsTable({ students, coordinators, groups, scoreMap
           scoreMap={scoreMap}
           format={exportFormat}
           onClose={() => setExportFormat(null)}
+          visibleFields={settings.visibleStudentFields}
+          fieldOrder={settings.studentFieldOrder}
         />
       )}
 

@@ -86,12 +86,16 @@ interface Props {
   scoreMap: Record<string, ScoreStats>;
   format: "excel" | "pdf";
   onClose: () => void;
+  visibleFields?: string[];
+  fieldOrder?: string[];
 }
 
-export default function ExportDialog({ students, scoreMap, format, onClose }: Props) {
-  const [selected, setSelected] = useState<Set<string>>(
-    new Set(["name", "phone", "city", "yeshiva", "track", "coordinator", "attendance", "avg_score"])
-  );
+export default function ExportDialog({ students, scoreMap, format, onClose, visibleFields, fieldOrder }: Props) {
+  const defaultSelected = visibleFields && visibleFields.length > 0
+    ? new Set(visibleFields.filter((f) => ALL_COLUMNS.some((c) => c.key === f)))
+    : new Set(["name", "phone", "city", "yeshiva", "track", "coordinator", "attendance", "avg_score"]);
+
+  const [selected, setSelected] = useState<Set<string>>(defaultSelected);
 
   function toggle(key: string) {
     setSelected((prev) => {
@@ -103,7 +107,16 @@ export default function ExportDialog({ students, scoreMap, format, onClose }: Pr
   }
 
   function doExport() {
-    const cols = ALL_COLUMNS.filter((c) => selected.has(c.key));
+    let cols = ALL_COLUMNS.filter((c) => selected.has(c.key));
+
+    if (fieldOrder && fieldOrder.length > 0) {
+      cols = cols.sort((a, b) => {
+        const aIndex = fieldOrder.indexOf(a.key);
+        const bIndex = fieldOrder.indexOf(b.key);
+        return (aIndex === -1 ? 999 : aIndex) - (bIndex === -1 ? 999 : bIndex);
+      });
+    }
+
     const headers = cols.map((c) => c.label);
     const rows = students.map((s) => cols.map((c) => getValue(s, c.key, scoreMap)));
 
@@ -164,17 +177,27 @@ export default function ExportDialog({ students, scoreMap, format, onClose }: Pr
         </div>
         <div className="overflow-y-auto p-6 flex-1">
           <div className="grid grid-cols-2 gap-3">
-            {ALL_COLUMNS.map((col) => (
-              <label key={col.key} className="flex items-center gap-2 cursor-pointer select-none">
-                <input
-                  type="checkbox"
-                  checked={selected.has(col.key)}
-                  onChange={() => toggle(col.key)}
-                  className="w-4 h-4 rounded accent-blue-600"
-                />
-                <span className="text-sm text-gray-700">{col.label}</span>
-              </label>
-            ))}
+            {(() => {
+              let cols = [...ALL_COLUMNS];
+              if (fieldOrder && fieldOrder.length > 0) {
+                cols = cols.sort((a, b) => {
+                  const aIndex = fieldOrder.indexOf(a.key);
+                  const bIndex = fieldOrder.indexOf(b.key);
+                  return (aIndex === -1 ? 999 : aIndex) - (bIndex === -1 ? 999 : bIndex);
+                });
+              }
+              return cols.map((col) => (
+                <label key={col.key} className="flex items-center gap-2 cursor-pointer select-none">
+                  <input
+                    type="checkbox"
+                    checked={selected.has(col.key)}
+                    onChange={() => toggle(col.key)}
+                    className="w-4 h-4 rounded accent-blue-600"
+                  />
+                  <span className="text-sm text-gray-700">{col.label}</span>
+                </label>
+              ));
+            })()}
           </div>
         </div>
         <div className="p-6 border-t border-gray-100 flex gap-3 justify-start">
