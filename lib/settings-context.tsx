@@ -7,6 +7,7 @@ type Settings = {
   airtableToken: string;
   hiddenCoordinators: string[];
   hiddenGroups: string[];
+  visibleStudentFields: string[];
 };
 
 const DEFAULT: Settings = {
@@ -14,6 +15,7 @@ const DEFAULT: Settings = {
   airtableToken: "",
   hiddenCoordinators: [],
   hiddenGroups: [],
+  visibleStudentFields: ["name", "coordinator", "city", "yeshiva", "track", "attendance", "score"],
 };
 
 const SettingsContext = createContext<{
@@ -22,6 +24,7 @@ const SettingsContext = createContext<{
   setAirtableToken: (token: string) => void;
   toggleCoordinator: (id: string) => void;
   toggleGroup: (id: string) => void;
+  toggleStudentField: (field: string) => void;
   isStudentVisible: (s: { coordinator_id?: string | null; group_id?: string | null }) => boolean;
 }>({
   settings: DEFAULT,
@@ -29,6 +32,7 @@ const SettingsContext = createContext<{
   setAirtableToken: () => {},
   toggleCoordinator: () => {},
   toggleGroup: () => {},
+  toggleStudentField: () => {},
   isStudentVisible: () => true,
 });
 
@@ -45,6 +49,7 @@ export function SettingsProvider({ children }: { children: React.ReactNode }) {
           ...parsed,
           hiddenCoordinators: parsed.hiddenCoordinators ?? [],
           hiddenGroups: parsed.hiddenGroups ?? [],
+          visibleStudentFields: parsed.visibleStudentFields ?? DEFAULT.visibleStudentFields,
         });
       } catch { /* ignore */ }
     }
@@ -72,6 +77,13 @@ export function SettingsProvider({ children }: { children: React.ReactNode }) {
     save({ ...settings, hiddenGroups: hidden });
   };
 
+  const toggleStudentField = (field: string) => {
+    const visible = settings.visibleStudentFields.includes(field)
+      ? settings.visibleStudentFields.filter((x) => x !== field)
+      : [...settings.visibleStudentFields, field];
+    save({ ...settings, visibleStudentFields: visible });
+  };
+
   const isStudentVisible = (s: { coordinator_id?: string | null; group_id?: string | null }) => {
     if (s.coordinator_id && settings.hiddenCoordinators.includes(s.coordinator_id)) return false;
     if (s.group_id && settings.hiddenGroups.includes(s.group_id)) return false;
@@ -79,7 +91,7 @@ export function SettingsProvider({ children }: { children: React.ReactNode }) {
   };
 
   return (
-    <SettingsContext.Provider value={{ settings, setLogo, setAirtableToken, toggleCoordinator, toggleGroup, isStudentVisible }}>
+    <SettingsContext.Provider value={{ settings, setLogo, setAirtableToken, toggleCoordinator, toggleGroup, toggleStudentField, isStudentVisible }}>
       {children}
     </SettingsContext.Provider>
   );

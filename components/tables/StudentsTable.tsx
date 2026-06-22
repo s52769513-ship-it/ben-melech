@@ -3,9 +3,10 @@
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { ChevronLeft, FileSpreadsheet, FileText } from "lucide-react";
+import { ChevronLeft, FileSpreadsheet, FileText, Settings } from "lucide-react";
 import EditModal from "@/components/EditModal";
 import ExportDialog from "@/components/ExportDialog";
+import FieldSettingsModal from "@/components/FieldSettingsModal";
 import { updateStudent } from "@/app/students/actions";
 import { useSettings } from "@/lib/settings-context";
 
@@ -84,17 +85,33 @@ function toForm(s: Student): FormState {
   };
 }
 
+const AVAILABLE_FIELDS = [
+  { id: "name", label: "שם" },
+  { id: "coordinator", label: "משפיע" },
+  { id: "city", label: "עיר" },
+  { id: "yeshiva", label: "ישיבה" },
+  { id: "track", label: "מסלול" },
+  { id: "attendance", label: "נוכחות" },
+  { id: "score", label: "ציון ממוצע" },
+];
+
 export default function StudentsTable({ students, coordinators, groups, scoreMap }: Props) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
   const [editing, setEditing] = useState<Student | null>(null);
   const [form, setForm] = useState<FormState | null>(null);
   const [exportFormat, setExportFormat] = useState<"excel" | "pdf" | null>(null);
-  const { settings, isStudentVisible } = useSettings();
+  const [showFieldSettings, setShowFieldSettings] = useState(false);
+  const { settings, isStudentVisible, toggleStudentField } = useSettings();
   const visibleStudents = students.filter(isStudentVisible);
   const visibleCoordinators = coordinators.filter(
     (c) => !settings.hiddenCoordinators.includes(c.id)
   );
+
+  const fieldOptions = AVAILABLE_FIELDS.map((f) => ({
+    ...f,
+    isChecked: settings.visibleStudentFields.includes(f.id),
+  }));
 
   function openEdit(student: Student) {
     setEditing(student);
@@ -139,6 +156,13 @@ export default function StudentsTable({ students, coordinators, groups, scoreMap
     <>
       <div className="flex justify-end gap-2 mb-3">
         <button
+          onClick={() => setShowFieldSettings(true)}
+          className="flex items-center gap-1.5 text-sm px-4 py-2 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors text-gray-700"
+          title="הגדרות עמודות"
+        >
+          <Settings size={15} />
+        </button>
+        <button
           onClick={() => setExportFormat("excel")}
           className="flex items-center gap-1.5 text-sm px-4 py-2 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors text-gray-700"
         >
@@ -157,13 +181,27 @@ export default function StudentsTable({ students, coordinators, groups, scoreMap
         <table className="w-full text-sm">
           <thead className="bg-gray-50 border-b border-gray-200">
             <tr>
-              <th className="text-right px-6 py-4 font-semibold text-gray-600">שם</th>
-              <th className="text-right px-6 py-4 font-semibold text-gray-600">משפיע</th>
-              <th className="text-right px-6 py-4 font-semibold text-gray-600">עיר</th>
-              <th className="text-right px-6 py-4 font-semibold text-gray-600">ישיבה</th>
-              <th className="text-right px-6 py-4 font-semibold text-gray-600">מסלול</th>
-              <th className="text-right px-6 py-4 font-semibold text-gray-600">נוכחות</th>
-              <th className="text-right px-6 py-4 font-semibold text-gray-600">ציון ממוצע</th>
+              {settings.visibleStudentFields.includes("name") && (
+                <th className="text-right px-6 py-4 font-semibold text-gray-600">שם</th>
+              )}
+              {settings.visibleStudentFields.includes("coordinator") && (
+                <th className="text-right px-6 py-4 font-semibold text-gray-600">משפיע</th>
+              )}
+              {settings.visibleStudentFields.includes("city") && (
+                <th className="text-right px-6 py-4 font-semibold text-gray-600">עיר</th>
+              )}
+              {settings.visibleStudentFields.includes("yeshiva") && (
+                <th className="text-right px-6 py-4 font-semibold text-gray-600">ישיבה</th>
+              )}
+              {settings.visibleStudentFields.includes("track") && (
+                <th className="text-right px-6 py-4 font-semibold text-gray-600">מסלול</th>
+              )}
+              {settings.visibleStudentFields.includes("attendance") && (
+                <th className="text-right px-6 py-4 font-semibold text-gray-600">נוכחות</th>
+              )}
+              {settings.visibleStudentFields.includes("score") && (
+                <th className="text-right px-6 py-4 font-semibold text-gray-600">ציון ממוצע</th>
+              )}
               <th className="px-6 py-4"></th>
             </tr>
           </thead>
@@ -186,34 +224,48 @@ export default function StudentsTable({ students, coordinators, groups, scoreMap
                     className="hover:bg-blue-50/40 transition-colors cursor-pointer"
                     onClick={() => openEdit(student)}
                   >
-                    <td className="px-6 py-4 font-medium text-gray-900">
-                      {student.first_name} {student.last_name}
-                    </td>
-                    <td className="px-6 py-4 text-gray-600" onClick={(e) => e.stopPropagation()}>
-                      {coordinator ? (
-                        <Link
-                          href={`/coordinators/${student.coordinator_id}`}
-                          className="text-blue-600 hover:underline"
-                        >
-                          {coordinator.name}
-                        </Link>
-                      ) : (
-                        <span className="text-gray-300">—</span>
-                      )}
-                    </td>
-                    <td className="px-6 py-4 text-gray-600">{student.city ?? "—"}</td>
-                    <td className="px-6 py-4 text-gray-600">{student.yeshiva ?? "—"}</td>
-                    <td className="px-6 py-4 text-gray-600">{student.track ?? "—"}</td>
-                    <td className="px-6 py-4 text-gray-600">{attendance}</td>
-                    <td className="px-6 py-4">
-                      {avgScore !== "—" ? (
-                        <span className="bg-blue-50 text-blue-700 font-semibold text-xs px-2.5 py-1 rounded-full">
-                          {avgScore}
-                        </span>
-                      ) : (
-                        <span className="text-gray-300">—</span>
-                      )}
-                    </td>
+                    {settings.visibleStudentFields.includes("name") && (
+                      <td className="px-6 py-4 font-medium text-gray-900">
+                        {student.first_name} {student.last_name}
+                      </td>
+                    )}
+                    {settings.visibleStudentFields.includes("coordinator") && (
+                      <td className="px-6 py-4 text-gray-600" onClick={(e) => e.stopPropagation()}>
+                        {coordinator ? (
+                          <Link
+                            href={`/coordinators/${student.coordinator_id}`}
+                            className="text-blue-600 hover:underline"
+                          >
+                            {coordinator.name}
+                          </Link>
+                        ) : (
+                          <span className="text-gray-300">—</span>
+                        )}
+                      </td>
+                    )}
+                    {settings.visibleStudentFields.includes("city") && (
+                      <td className="px-6 py-4 text-gray-600">{student.city ?? "—"}</td>
+                    )}
+                    {settings.visibleStudentFields.includes("yeshiva") && (
+                      <td className="px-6 py-4 text-gray-600">{student.yeshiva ?? "—"}</td>
+                    )}
+                    {settings.visibleStudentFields.includes("track") && (
+                      <td className="px-6 py-4 text-gray-600">{student.track ?? "—"}</td>
+                    )}
+                    {settings.visibleStudentFields.includes("attendance") && (
+                      <td className="px-6 py-4 text-gray-600">{attendance}</td>
+                    )}
+                    {settings.visibleStudentFields.includes("score") && (
+                      <td className="px-6 py-4">
+                        {avgScore !== "—" ? (
+                          <span className="bg-blue-50 text-blue-700 font-semibold text-xs px-2.5 py-1 rounded-full">
+                            {avgScore}
+                          </span>
+                        ) : (
+                          <span className="text-gray-300">—</span>
+                        )}
+                      </td>
+                    )}
                     <td className="px-6 py-4" onClick={(e) => e.stopPropagation()}>
                       <Link
                         href={`/students/${student.id}`}
@@ -228,7 +280,7 @@ export default function StudentsTable({ students, coordinators, groups, scoreMap
               })
             ) : (
               <tr>
-                <td colSpan={8} className="px-6 py-16 text-center text-gray-400">
+                <td colSpan={settings.visibleStudentFields.length + 1} className="px-6 py-16 text-center text-gray-400">
                   אין בחורים להצגה
                 </td>
               </tr>
@@ -236,6 +288,17 @@ export default function StudentsTable({ students, coordinators, groups, scoreMap
           </tbody>
         </table>
       </div>
+
+      <FieldSettingsModal
+        visible={showFieldSettings}
+        onClose={() => setShowFieldSettings(false)}
+        onToggleField={toggleStudentField}
+        fields={AVAILABLE_FIELDS.map((f) => ({
+          id: f.id,
+          label: f.label,
+          isChecked: settings.visibleStudentFields.includes(f.id),
+        }))}
+      />
 
       {exportFormat && (
         <ExportDialog
