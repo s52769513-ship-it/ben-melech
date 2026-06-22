@@ -16,6 +16,10 @@ const heebo = Heebo({
 export const metadata: Metadata = {
   title: "בן מלך - מערכת ניהול",
   description: "מערכת CRM לניהול תוכנית בן מלך",
+  icons: {
+    icon: "/לוגו חתוך בן מלך.png",
+    apple: "/לוגו חתוך בן מלך.png",
+  },
 };
 
 export default async function RootLayout({

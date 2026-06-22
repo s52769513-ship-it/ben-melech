@@ -8,17 +8,27 @@ export default function DynamicFavicon() {
   const logoUrl = process.env.NEXT_PUBLIC_LOGO_URL || settings.logoUrl;
 
   useEffect(() => {
-    if (!logoUrl) return;
+    const url = logoUrl || "/לוגו חתוך בן מלך.png";
 
-    document.querySelectorAll(
-      "link[rel='icon'], link[rel='shortcut icon'], link[rel='apple-touch-icon']"
-    ).forEach((el) => el.remove());
+    let link = document.querySelector("link[rel='icon']") as HTMLLinkElement;
+    if (!link) {
+      link = document.createElement("link");
+      link.rel = "icon";
+      document.head.appendChild(link);
+    }
 
-    const link = document.createElement("link");
-    link.rel = "icon";
+    link.href = url;
     link.type = "image/png";
-    link.href = logoUrl;
-    document.head.appendChild(link);
+
+    const appleLink = document.querySelector("link[rel='apple-touch-icon']") as HTMLLinkElement;
+    if (appleLink) {
+      appleLink.href = url;
+    } else {
+      const apple = document.createElement("link");
+      apple.rel = "apple-touch-icon";
+      apple.href = url;
+      document.head.appendChild(apple);
+    }
   }, [logoUrl]);
 
   return null;
