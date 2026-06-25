@@ -1,6 +1,6 @@
 "use server";
 
-import { getCoordinators, getGroups } from "@/lib/airtable/db";
+import { getCoordinators, getGroups } from "@/lib/db";
 
 export async function getCoordinatorsAndGroups() {
   const [coordinators, groups] = await Promise.all([getCoordinators(), getGroups()]);

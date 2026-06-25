@@ -1,6 +1,6 @@
 import { Users } from "lucide-react";
 import CoordinatorsTable from "@/components/tables/CoordinatorsTable";
-import { getCoordinators, getStudents, getInquiries } from "@/lib/airtable/db";
+import { getCoordinators, getStudents, getInquiries } from "@/lib/db";
 
 export default async function CoordinatorsPage() {
   const [coordinators, students, openInquiries] = await Promise.all([

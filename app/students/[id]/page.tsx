@@ -3,7 +3,7 @@ import { ArrowRight, Star, CreditCard } from "lucide-react";
 import { notFound } from "next/navigation";
 import StudentDetailsCard from "@/components/StudentDetailsCard";
 import BochurPanel from "@/components/NedarimCard/BochurPanel";
-import { getStudent, getScoresByStudent, getInquiriesByStudent, getCoordinators } from "@/lib/airtable/db";
+import { getStudent, getScoresByStudent, getInquiriesByStudent, getCoordinators } from "@/lib/db";
 
 export default async function StudentDetailPage({
   params,

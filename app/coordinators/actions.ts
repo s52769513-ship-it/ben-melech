@@ -1,7 +1,7 @@
 "use server";
 
 import { revalidatePath, updateTag } from "next/cache";
-import { updateCoordinator as updateCoordinatorDB } from "@/lib/airtable/db";
+import { updateCoordinator as updateCoordinatorDB } from "@/lib/db";
 
 export async function updateCoordinator(id: string, data: Record<string, unknown>) {
   await updateCoordinatorDB(id, data);

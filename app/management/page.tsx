@@ -1,6 +1,6 @@
 import ManagementClient from "./ManagementClient";
 import { Settings } from "lucide-react";
-import { getExams, getCoordinators, getScoresByExam, getExamNotesByExam } from "@/lib/airtable/db";
+import { getExams, getCoordinators, getScoresByExam, getExamNotesByExam } from "@/lib/db";
 
 export default async function ManagementPage({
   searchParams,

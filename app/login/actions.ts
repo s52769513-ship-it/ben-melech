@@ -1,7 +1,7 @@
 "use server";
 
 import { redirect } from "next/navigation";
-import { getCoordinators } from "@/lib/airtable/db";
+import { getCoordinators } from "@/lib/db";
 import { createSession, clearSession } from "@/lib/auth";
 
 type LoginResult =

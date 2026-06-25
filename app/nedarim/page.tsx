@@ -1,6 +1,6 @@
 import { CreditCard } from "lucide-react";
 import NedarimPanel from "@/components/NedarimPanel";
-import { getStudentsForNedarim } from "@/lib/airtable/db";
+import { getStudentsForNedarim } from "@/lib/db";
 import { getSession } from "@/lib/auth";
 
 export default async function NedarimPage() {

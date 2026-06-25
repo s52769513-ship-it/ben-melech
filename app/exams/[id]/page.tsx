@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { ArrowRight, BookOpen, Users } from "lucide-react";
 import { notFound } from "next/navigation";
-import { getExam, getScoresByExam, getScoresByExamForCoordinator, getZmanim } from "@/lib/airtable/db";
+import { getExam, getScoresByExam, getScoresByExamForCoordinator, getZmanim } from "@/lib/db";
 import { getSession } from "@/lib/auth";
 import ExamScoresClient from "./ExamScoresClient";
 

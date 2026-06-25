@@ -3,7 +3,7 @@ import { GraduationCap } from "lucide-react";
 import StudentsTable from "@/components/tables/StudentsTable";
 import StudentCount from "@/components/StudentCount";
 import CoordinatorSelect from "@/components/CoordinatorSelect";
-import { getStudents, getCoordinators, getGroups, getAllScores } from "@/lib/airtable/db";
+import { getStudents, getCoordinators, getGroups, getAllScores } from "@/lib/db";
 import { getSession } from "@/lib/auth";
 
 export default async function StudentsPage({

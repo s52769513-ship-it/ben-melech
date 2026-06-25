@@ -5,7 +5,7 @@ import ConditionalShell from "@/components/ConditionalShell";
 import DynamicFavicon from "@/components/DynamicFavicon";
 import { SettingsProvider } from "@/lib/settings-context";
 import { getSession } from "@/lib/auth";
-import { getCoordinator } from "@/lib/airtable/db";
+import { getCoordinator } from "@/lib/db";
 
 const heebo = Heebo({
   subsets: ["hebrew", "latin"],

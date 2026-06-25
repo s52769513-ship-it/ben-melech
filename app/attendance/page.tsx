@@ -8,7 +8,7 @@ import {
   getAllScoresForCoordinator,
   getScoresWithRelations,
   getScoresWithRelationsForCoordinator,
-} from "@/lib/airtable/db";
+} from "@/lib/db";
 import { getSession } from "@/lib/auth";
 
 export default async function AttendancePage({

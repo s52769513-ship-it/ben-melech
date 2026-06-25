@@ -4,7 +4,7 @@ import { revalidatePath } from "next/cache";
 import {
   updateInquiry as updateInquiryDB,
   createInquiry as createInquiryDB,
-} from "@/lib/airtable/db";
+} from "@/lib/db";
 import { getSession } from "@/lib/auth";
 
 export async function updateInquiry(id: string, data: Record<string, unknown>) {

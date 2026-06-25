@@ -1,6 +1,6 @@
 import { TableProperties } from "lucide-react";
 import OverviewClient from "./OverviewClient";
-import { getExams, getAllScores, getStudents, getCoordinators } from "@/lib/airtable/db";
+import { getExams, getAllScores, getStudents, getCoordinators } from "@/lib/db";
 import { getSession } from "@/lib/auth";
 import type { Student, Coordinator } from "@/lib/types";
 

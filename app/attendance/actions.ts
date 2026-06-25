@@ -1,7 +1,7 @@
 "use server";
 
 import { revalidatePath, updateTag } from "next/cache";
-import { updateScore } from "@/lib/airtable/db";
+import { updateScore } from "@/lib/db";
 
 type BooleanField = "arrived_on_time" | "attended_seder" | "attended_class" | "weekly_summary";
 

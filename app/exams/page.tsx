@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { BookOpen, ArrowRight, Calendar, Sun, Snowflake } from "lucide-react";
 import ExamsTable from "@/components/tables/ExamsTable";
-import { getExams, getZmanim, getAllScores, getAllScoresForCoordinator } from "@/lib/airtable/db";
+import { getExams, getZmanim, getAllScores, getAllScoresForCoordinator } from "@/lib/db";
 import { getSession } from "@/lib/auth";
 
 export default async function ExamsPage({

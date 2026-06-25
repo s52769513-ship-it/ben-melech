@@ -1,7 +1,7 @@
 "use server";
 
 import { revalidatePath, updateTag } from "next/cache";
-import { updateScore, upsertExamNote } from "@/lib/airtable/db";
+import { updateScore, upsertExamNote } from "@/lib/db";
 
 export async function updateExamNote(
   scoreId: string,

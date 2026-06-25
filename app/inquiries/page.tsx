@@ -1,7 +1,7 @@
 import { MessageSquare, Plus } from "lucide-react";
 import Link from "next/link";
 import InquiriesTable from "@/components/tables/InquiriesTable";
-import { getInquiries, getInquiriesByCoordinator, getCoordinators, getStudents } from "@/lib/airtable/db";
+import { getInquiries, getInquiriesByCoordinator, getCoordinators, getStudents } from "@/lib/db";
 import { getSession } from "@/lib/auth";
 
 export default async function InquiriesPage({

@@ -1,7 +1,7 @@
 "use server";
 
 import { revalidatePath, updateTag } from "next/cache";
-import { updateStudent as updateStudentDB, createStudent as createStudentDB } from "@/lib/airtable/db";
+import { updateStudent as updateStudentDB, createStudent as createStudentDB } from "@/lib/db";
 
 export async function updateStudent(id: string, data: Record<string, unknown>) {
   await updateStudentDB(id, data);

@@ -9,7 +9,7 @@ import {
   getStudents,
   getFinancesByCoordinator,
   getInquiriesByCoordinator,
-} from "@/lib/airtable/db";
+} from "@/lib/db";
 
 export default async function CoordinatorDetailPage({
   params,

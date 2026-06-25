@@ -2,7 +2,7 @@ import Link from "next/link";
 import { Wallet, TrendingUp } from "lucide-react";
 import FinancesTable from "@/components/tables/FinancesTable";
 import NedarimPanel from "@/components/NedarimPanel";
-import { getFinances, getFinancesByCoordinator, getCoordinators, getStudentsForNedarim } from "@/lib/airtable/db";
+import { getFinances, getFinancesByCoordinator, getCoordinators, getStudentsForNedarim } from "@/lib/db";
 import { getSession } from "@/lib/auth";
 
 export default async function FinancesPage() {

@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { Star } from "lucide-react";
-import { getScoresWithRelations, getScoresWithRelationsForCoordinator, getExams, getCoordinators } from "@/lib/airtable/db";
+import { getScoresWithRelations, getScoresWithRelationsForCoordinator, getExams, getCoordinators } from "@/lib/db";
 import { getSession } from "@/lib/auth";
 import ScoresTable from "./ScoresTable";
 import CoordinatorSelect from "@/components/CoordinatorSelect";

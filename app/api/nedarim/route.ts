@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getStudentsForNedarim, updateNedarimCharged } from "@/lib/airtable/db";
+import { getStudentsForNedarim, updateNedarimCharged } from "@/lib/db";
 
 const MOSAD_ID = "7009191";
 const API_PASSWORD = "kd987";
