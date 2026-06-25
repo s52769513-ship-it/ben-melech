@@ -324,6 +324,42 @@ export async function getStudent(id: string): Promise<Student | null> {
   return r ? toStudent(r, coordinatorMap) : null;
 }
 
+export async function createStudent(
+  data: Record<string, unknown>
+): Promise<string> {
+  const fieldMap: Record<string, string> = {
+    first_name: "שם",
+    last_name: "משפחה",
+    city: "עיר",
+    street: "רחוב",
+    birth_date: "תאריך לידה",
+    id_number: "מספר מזהה",
+    phone: "Phone Number",
+    father_name: "שם האב",
+    yeshiva: "ישיבה",
+    track: "מסלול",
+    enrollment_date: "Enrollment Date",
+    nedarim_id: "מזהה נדרים",
+    notes: "הערות",
+  };
+  const linkFields: Record<string, string> = {
+    coordinator_id: "רכז",
+    group_id: "קבוצה/ישיבה",
+  };
+
+  const fields: Record<string, unknown> = {};
+  for (const [k, v] of Object.entries(data)) {
+    if (v === null || v === undefined || v === "") continue;
+    if (fieldMap[k]) {
+      fields[fieldMap[k]] = v;
+    } else if (linkFields[k]) {
+      fields[linkFields[k]] = [v as string];
+    }
+  }
+  const record = await createRecord(TABLES.STUDENTS, fields);
+  return record.id;
+}
+
 export async function updateStudent(
   id: string,
   data: Record<string, unknown>

@@ -3,11 +3,11 @@
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { ChevronLeft, FileSpreadsheet, FileText, Settings } from "lucide-react";
+import { ChevronLeft, FileSpreadsheet, FileText, Settings, UserPlus } from "lucide-react";
 import EditModal from "@/components/EditModal";
 import ExportDialog from "@/components/ExportDialog";
 import FieldSettingsModal from "@/components/FieldSettingsModal";
-import { updateStudent } from "@/app/students/actions";
+import { updateStudent, createStudent } from "@/app/students/actions";
 import { useSettings } from "@/lib/settings-context";
 
 type CoordinatorOption = { id: string; name: string };
@@ -177,6 +177,8 @@ export default function StudentsTable({ students, coordinators, groups, scoreMap
   const [isPending, startTransition] = useTransition();
   const [editing, setEditing] = useState<Student | null>(null);
   const [form, setForm] = useState<FormState | null>(null);
+  const [showAddModal, setShowAddModal] = useState(false);
+  const [addForm, setAddForm] = useState<FormState | null>(null);
   const [exportFormat, setExportFormat] = useState<"excel" | "pdf" | null>(null);
   const [showFieldSettings, setShowFieldSettings] = useState(false);
   const { settings, isStudentVisible, toggleStudentField, setStudentFieldOrder } = useSettings();
@@ -195,6 +197,51 @@ export default function StudentsTable({ students, coordinators, groups, scoreMap
     ...f,
     isChecked: settings.visibleStudentFields.includes(f.id),
   }));
+
+  const emptyForm: FormState = {
+    first_name: "", last_name: "", phone: "", city: "", street: "",
+    birth_date: "", id_number: "", father_name: "", yeshiva: "", track: "",
+    enrollment_date: "", coordinator_id: "", nedarim_id: "", group_id: "", notes: "",
+  };
+
+  function openAdd() {
+    setAddForm(emptyForm);
+    setShowAddModal(true);
+  }
+
+  function closeAdd() {
+    setShowAddModal(false);
+    setAddForm(null);
+  }
+
+  function setAdd(field: keyof FormState, value: string) {
+    setAddForm((prev) => prev ? { ...prev, [field]: value } : prev);
+  }
+
+  function handleAddSave() {
+    if (!addForm) return;
+    startTransition(async () => {
+      await createStudent({
+        first_name: addForm.first_name || null,
+        last_name: addForm.last_name || null,
+        phone: addForm.phone || null,
+        city: addForm.city || null,
+        street: addForm.street || null,
+        birth_date: addForm.birth_date || null,
+        id_number: addForm.id_number ? Number(addForm.id_number) : null,
+        father_name: addForm.father_name || null,
+        yeshiva: addForm.yeshiva || null,
+        track: addForm.track || null,
+        enrollment_date: addForm.enrollment_date || null,
+        coordinator_id: addForm.coordinator_id || null,
+        nedarim_id: addForm.nedarim_id ? Number(addForm.nedarim_id) : null,
+        group_id: addForm.group_id || null,
+        notes: addForm.notes || null,
+      });
+      closeAdd();
+      router.refresh();
+    });
+  }
 
   function openEdit(student: Student) {
     setEditing(student);
@@ -238,6 +285,13 @@ export default function StudentsTable({ students, coordinators, groups, scoreMap
   return (
     <>
       <div className="flex justify-end gap-2 mb-3">
+        <button
+          onClick={openAdd}
+          className="flex items-center gap-1.5 text-sm px-4 py-2 bg-[#1e3a5f] text-white rounded-lg hover:bg-[#2d4f7f] transition-colors"
+        >
+          <UserPlus size={15} />
+          הוסף בחור
+        </button>
         <button
           onClick={() => setShowFieldSettings(true)}
           className="flex items-center gap-1.5 text-sm px-4 py-2 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors text-gray-700"
@@ -358,6 +412,153 @@ export default function StudentsTable({ students, coordinators, groups, scoreMap
           visibleFields={settings.visibleStudentFields}
           fieldOrder={settings.studentFieldOrder}
         />
+      )}
+
+      {showAddModal && addForm && (
+        <EditModal
+          title="הוספת בחור"
+          onClose={closeAdd}
+          onSave={handleAddSave}
+          isSaving={isPending}
+        >
+          <div className="grid grid-cols-2 gap-3">
+            <div className="flex flex-col gap-1">
+              <label className="text-xs font-medium text-gray-500">שם פרטי</label>
+              <input
+                value={addForm.first_name}
+                onChange={(e) => setAdd("first_name", e.target.value)}
+                className="text-sm border border-gray-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-300"
+              />
+            </div>
+            <div className="flex flex-col gap-1">
+              <label className="text-xs font-medium text-gray-500">שם משפחה</label>
+              <input
+                value={addForm.last_name}
+                onChange={(e) => setAdd("last_name", e.target.value)}
+                className="text-sm border border-gray-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-300"
+              />
+            </div>
+            <div className="flex flex-col gap-1">
+              <label className="text-xs font-medium text-gray-500">טלפון</label>
+              <input
+                value={addForm.phone}
+                onChange={(e) => setAdd("phone", e.target.value)}
+                className="text-sm border border-gray-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-300"
+              />
+            </div>
+            <div className="flex flex-col gap-1">
+              <label className="text-xs font-medium text-gray-500">ת.ז</label>
+              <input
+                type="number"
+                value={addForm.id_number}
+                onChange={(e) => setAdd("id_number", e.target.value)}
+                className="text-sm border border-gray-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-300"
+              />
+            </div>
+            <div className="flex flex-col gap-1">
+              <label className="text-xs font-medium text-gray-500">עיר</label>
+              <input
+                value={addForm.city}
+                onChange={(e) => setAdd("city", e.target.value)}
+                className="text-sm border border-gray-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-300"
+              />
+            </div>
+            <div className="flex flex-col gap-1">
+              <label className="text-xs font-medium text-gray-500">רחוב</label>
+              <input
+                value={addForm.street}
+                onChange={(e) => setAdd("street", e.target.value)}
+                className="text-sm border border-gray-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-300"
+              />
+            </div>
+            <div className="flex flex-col gap-1">
+              <label className="text-xs font-medium text-gray-500">תאריך לידה</label>
+              <input
+                type="date"
+                value={addForm.birth_date}
+                onChange={(e) => setAdd("birth_date", e.target.value)}
+                className="text-sm border border-gray-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-300"
+              />
+            </div>
+            <div className="flex flex-col gap-1">
+              <label className="text-xs font-medium text-gray-500">תאריך הצטרפות</label>
+              <input
+                type="date"
+                value={addForm.enrollment_date}
+                onChange={(e) => setAdd("enrollment_date", e.target.value)}
+                className="text-sm border border-gray-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-300"
+              />
+            </div>
+            <div className="flex flex-col gap-1">
+              <label className="text-xs font-medium text-gray-500">שם האב</label>
+              <input
+                value={addForm.father_name}
+                onChange={(e) => setAdd("father_name", e.target.value)}
+                className="text-sm border border-gray-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-300"
+              />
+            </div>
+            <div className="flex flex-col gap-1">
+              <label className="text-xs font-medium text-gray-500">נדרים ID</label>
+              <input
+                type="number"
+                value={addForm.nedarim_id}
+                onChange={(e) => setAdd("nedarim_id", e.target.value)}
+                className="text-sm border border-gray-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-300"
+              />
+            </div>
+            <div className="flex flex-col gap-1 col-span-2">
+              <label className="text-xs font-medium text-gray-500">ישיבה</label>
+              <input
+                value={addForm.yeshiva}
+                onChange={(e) => setAdd("yeshiva", e.target.value)}
+                className="text-sm border border-gray-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-300"
+              />
+            </div>
+            <div className="flex flex-col gap-1">
+              <label className="text-xs font-medium text-gray-500">מסלול</label>
+              <input
+                value={addForm.track}
+                onChange={(e) => setAdd("track", e.target.value)}
+                className="text-sm border border-gray-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-300"
+              />
+            </div>
+            <div className="flex flex-col gap-1">
+              <label className="text-xs font-medium text-gray-500">קבוצה</label>
+              <select
+                value={addForm.group_id}
+                onChange={(e) => setAdd("group_id", e.target.value)}
+                className="text-sm border border-gray-200 rounded-lg px-3 py-2 bg-white focus:outline-none focus:ring-2 focus:ring-blue-300"
+              >
+                <option value="">ללא קבוצה</option>
+                {groups.map((g) => (
+                  <option key={g.id} value={g.id}>{g.name}</option>
+                ))}
+              </select>
+            </div>
+            <div className="flex flex-col gap-1">
+              <label className="text-xs font-medium text-gray-500">משפיע</label>
+              <select
+                value={addForm.coordinator_id}
+                onChange={(e) => setAdd("coordinator_id", e.target.value)}
+                className="text-sm border border-gray-200 rounded-lg px-3 py-2 bg-white focus:outline-none focus:ring-2 focus:ring-blue-300"
+              >
+                <option value="">ללא משפיע</option>
+                {visibleCoordinators.map((c) => (
+                  <option key={c.id} value={c.id}>{c.name}</option>
+                ))}
+              </select>
+            </div>
+            <div className="flex flex-col gap-1 col-span-2">
+              <label className="text-xs font-medium text-gray-500">הערות</label>
+              <textarea
+                value={addForm.notes}
+                onChange={(e) => setAdd("notes", e.target.value)}
+                rows={3}
+                className="text-sm border border-gray-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-300 resize-none"
+              />
+            </div>
+          </div>
+        </EditModal>
       )}
 
       {editing && form && (
