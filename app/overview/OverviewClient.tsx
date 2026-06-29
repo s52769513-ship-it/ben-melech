@@ -117,11 +117,9 @@ export default function OverviewClient({
     XLSX.writeFile(wb, "סקירת-נוכחות.xlsx");
   }
 
-  function handlePrint() {
-    window.print();
-  }
-
-  function downloadPDF() {
+  // Build a clean, self-contained markup of just the table (no app chrome).
+  // Shared by print and PDF export so both show only the table.
+  function buildTableMarkup() {
     const headers = ["שם בחור", "משפיע", ...orderedExams.map((e) => e.parasha)];
     const rows: string[][] = [];
     grouped.forEach(({ coordName, students: gs }) => {
@@ -134,33 +132,61 @@ export default function OverviewClient({
         ]);
       });
     });
-    const html = `<!DOCTYPE html>
-<html dir="rtl" lang="he">
-<head>
-  <meta charset="UTF-8">
-  <title>סקירת נוכחות</title>
-  <style>
-    body { font-family: Arial, Helvetica, sans-serif; direction: rtl; margin: 20px; }
-    h2 { color: #1e3a5f; margin-bottom: 16px; }
-    table { width: 100%; border-collapse: collapse; font-size: 11px; }
-    th { background: #1e3a5f; color: white; padding: 6px 8px; text-align: right; }
-    td { border: 1px solid #ddd; padding: 4px 8px; text-align: center; }
-    td:first-child, td:nth-child(2) { text-align: right; }
-    tr:nth-child(even) td { background: #f5f7fa; }
-    @media print { body { margin: 0; } }
+    return `<style>
+    .att-print { font-family: Arial, Helvetica, sans-serif; direction: rtl; color: #111; }
+    .att-print h2 { color: #1e3a5f; margin: 0 0 16px; }
+    .att-print table { border-collapse: collapse; font-size: 11px; }
+    .att-print th { background: #1e3a5f; color: #fff; padding: 6px 8px; text-align: right; white-space: nowrap; }
+    .att-print td { border: 1px solid #ddd; padding: 4px 8px; text-align: center; white-space: nowrap; }
+    .att-print td:first-child, .att-print td:nth-child(2) { text-align: right; }
+    .att-print tr:nth-child(even) td { background: #f5f7fa; }
   </style>
-</head>
-<body>
-  <h2>סקירת נוכחות</h2>
-  <table>
-    <thead><tr>${headers.map((h) => `<th>${h}</th>`).join("")}</tr></thead>
-    <tbody>${rows.map((r) => `<tr>${r.map((c) => `<td>${c}</td>`).join("")}</tr>`).join("")}</tbody>
-  </table>
-  <script>window.onload = function() { window.print(); }<\/script>
-</body>
-</html>`;
+  <div class="att-print">
+    <h2>סקירת נוכחות</h2>
+    <table>
+      <thead><tr>${headers.map((h) => `<th>${h}</th>`).join("")}</tr></thead>
+      <tbody>${rows.map((r) => `<tr>${r.map((c) => `<td>${c}</td>`).join("")}</tr>`).join("")}</tbody>
+    </table>
+  </div>`;
+  }
+
+  // Print — only the table, not the surrounding app page.
+  function handlePrint() {
+    const html = `<!DOCTYPE html><html dir="rtl" lang="he"><head><meta charset="UTF-8"><title>סקירת נוכחות</title></head><body>${buildTableMarkup()}<script>window.onload=function(){window.print()}<\/script></body></html>`;
     const w = window.open("", "_blank");
     if (w) { w.document.write(html); w.document.close(); }
+  }
+
+  // Download a real PDF file. Render the DOM with jsPDF.html so Hebrew/RTL
+  // text comes out correct without embedding fonts.
+  async function downloadPDF() {
+    const { jsPDF } = await import("jspdf");
+    const container = document.createElement("div");
+    container.style.position = "fixed";
+    container.style.top = "0";
+    container.style.left = "-10000px";
+    container.style.width = "max-content";
+    container.style.background = "#fff";
+    container.innerHTML = buildTableMarkup();
+    document.body.appendChild(container);
+
+    try {
+      const naturalWidth = Math.max(container.scrollWidth, 800);
+      const doc = new jsPDF({ orientation: "landscape", unit: "pt", format: "a4" });
+      const margin = 20;
+      const pageWidth = doc.internal.pageSize.getWidth();
+      await doc.html(container, {
+        x: margin,
+        y: margin,
+        width: pageWidth - margin * 2,
+        windowWidth: naturalWidth,
+        autoPaging: "text",
+        html2canvas: { scale: 1, backgroundColor: "#ffffff" },
+      });
+      doc.save("סקירת-נוכחות.pdf");
+    } finally {
+      document.body.removeChild(container);
+    }
   }
 
   return (
