@@ -301,16 +301,12 @@ export default function AttendanceClient({
     XLSX.writeFile(wb, `${title}_נוכחות.xlsx`);
   }
 
-  // Print
-  function handlePrint() {
-    window.print();
-  }
-
-  // Export PDF
-  function downloadPDF() {
-    if (!selectedExam) return;
-    let html = `<!DOCTYPE html><html dir="rtl" lang="he"><head><meta charset="UTF-8">
-    <title>${selectedExam.parasha}</title>
+  // Build clean table-only HTML shared by print + PDF export
+  function buildTableHtml() {
+    if (!isAll && !selectedExam) return "";
+    const title = isAll ? "כל הפרשיות" : selectedExam!.parasha;
+    const head = `<!DOCTYPE html><html dir="rtl" lang="he"><head><meta charset="UTF-8">
+    <title>${title}</title>
     <style>
       body{font-family:Arial,sans-serif;padding:24px;direction:rtl}
       h1{text-align:center;color:#1e3a5f;margin-bottom:4px}
@@ -325,26 +321,54 @@ export default function AttendanceClient({
       .pts{background:#fefce8;font-weight:700;color:#854d0e}
       @media print{body{-webkit-print-color-adjust:exact;print-color-adjust:exact}}
     </style></head><body>
-    <h1>${selectedExam.parasha}</h1>
-    <div class="subtitle">סה"כ ${filteredScores.length} בחורים | ${grouped.length} משפיעים | ${progressStats.participated} השתתפו בסדר (${progressStats.pct}%)</div>`;
+    <h1>${title}</h1>`;
 
-    grouped.forEach(([coordName, records]) => {
-      html += `<h2>${coordName} — ${records.length} בחורים</h2>
-      <table><thead><tr><th>שם</th><th>הגעה 5 דקות</th><th>השתתף בסדר</th><th>השתתף בשיעור</th><th>סיכום שבועי</th><th>נקודות</th></tr></thead><tbody>`;
-      records.forEach((s) => {
-        const name = `${s.student?.first_name ?? ""} ${s.student?.last_name ?? ""}`.trim();
-        const pts =
-          (s.arrived_on_time ? 1 : 0) +
-          (s.attended_seder ? 1 : 0) +
-          (s.attended_class ? 1 : 0) +
-          (s.weekly_summary ? 1 : 0);
-        const c = (v: boolean) => `<span class="${v ? "yes" : "no"}">${v ? "✓" : "✗"}</span>`;
-        html += `<tr><td class="name">${name}</td><td>${c(s.arrived_on_time)}</td><td>${c(s.attended_seder)}</td><td>${c(s.attended_class)}</td><td>${c(s.weekly_summary)}</td><td class="pts">${pts}</td></tr>`;
+    let body = "";
+    if (isAll) {
+      const totalBoys = aggregateGroups.reduce((acc, [, rows]) => acc + rows.length, 0);
+      body += `<div class="subtitle">סה"כ ${totalBoys} בחורים | ${aggregateGroups.length} משפיעים | סיכום נקודות על פני כל הפרשיות</div>`;
+      aggregateGroups.forEach(([coordName, rows]) => {
+        body += `<h2>${coordName} — ${rows.length} בחורים</h2>
+        <table><thead><tr><th>שם</th><th>מס׳ פרשיות</th><th>סה"כ נקודות</th></tr></thead><tbody>`;
+        rows.forEach((row) => {
+          body += `<tr><td class="name">${row.name || "—"}</td><td>${row.count}</td><td class="pts">${row.totalPoints}</td></tr>`;
+        });
+        body += `</tbody></table>`;
       });
-      html += `</tbody></table>`;
-    });
+    } else {
+      body += `<div class="subtitle">סה"כ ${filteredScores.length} בחורים | ${grouped.length} משפיעים | ${progressStats.participated} השתתפו בסדר (${progressStats.pct}%)</div>`;
+      grouped.forEach(([coordName, records]) => {
+        body += `<h2>${coordName} — ${records.length} בחורים</h2>
+        <table><thead><tr><th>שם</th><th>הגעה 5 דקות</th><th>השתתף בסדר</th><th>השתתף בשיעור</th><th>סיכום שבועי</th><th>נקודות</th></tr></thead><tbody>`;
+        records.forEach((s) => {
+          const name = `${s.student?.first_name ?? ""} ${s.student?.last_name ?? ""}`.trim();
+          const pts =
+            (s.arrived_on_time ? 1 : 0) +
+            (s.attended_seder ? 1 : 0) +
+            (s.attended_class ? 1 : 0) +
+            (s.weekly_summary ? 1 : 0);
+          const c = (v: boolean) => `<span class="${v ? "yes" : "no"}">${v ? "✓" : "✗"}</span>`;
+          body += `<tr><td class="name">${name}</td><td>${c(s.arrived_on_time)}</td><td>${c(s.attended_seder)}</td><td>${c(s.attended_class)}</td><td>${c(s.weekly_summary)}</td><td class="pts">${pts}</td></tr>`;
+        });
+        body += `</tbody></table>`;
+      });
+    }
 
-    html += `</body></html>`;
+    return `${head}${body}</body></html>`;
+  }
+
+  // Print — only the table, not the whole page
+  function handlePrint() {
+    const html = buildTableHtml();
+    if (!html) return;
+    const w = window.open("", "_blank");
+    if (w) { w.document.write(html); w.document.close(); w.onload = () => w.print(); }
+  }
+
+  // Export PDF
+  function downloadPDF() {
+    const html = buildTableHtml();
+    if (!html) return;
     const w = window.open("", "_blank");
     if (w) { w.document.write(html); w.document.close(); w.onload = () => w.print(); }
   }
