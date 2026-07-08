@@ -2,7 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { useOptimistic, useTransition, useCallback, useState } from "react";
-import { ChevronRight, ChevronLeft, Download, Printer } from "lucide-react";
+import { ChevronRight, ChevronLeft, Download, Printer, ChevronUp, ChevronDown } from "lucide-react";
 import { updateExamNote, upsertCoordinatorNote } from "./actions";
 
 type Exam = { id: string; parasha: string; exam_date: string | null };
@@ -97,14 +97,20 @@ export default function ManagementClient({
     ) => state.map((s) => (s.id === id ? { ...s, [field]: value } : s))
   );
 
+  // Pagination state for "sichot" tab
+  const [currentPage, setCurrentPage] = useState(0);
+  const itemsPerPage = 25;
+
   const currentIndex = exams.findIndex((e) => e.id === selectedExamId);
   const currentExam = exams[currentIndex] ?? exams[0];
 
   function navigate(examId: string) {
+    setCurrentPage(0);
     router.push(`/management?exam=${examId}&tab=${activeTab}`);
   }
 
   function setTab(tab: string) {
+    setCurrentPage(0);
     router.push(`/management?${selectedExamId ? `exam=${selectedExamId}&` : ""}tab=${tab}`);
   }
 
@@ -153,9 +159,35 @@ export default function ManagementClient({
       groupedByCoord.get(noKey)!.rows.push(s);
     }
   });
-  const groupedArr = Array.from(groupedByCoord.values())
+
+  // All grouped coordinators for pagination (full dataset for summary)
+  const allGroupedArr = Array.from(groupedByCoord.values())
     .filter((g) => g.rows.length > 0)
     .sort((a, b) => a.coord.name.localeCompare(b.coord.name, "he"));
+
+  // Paginate through all scores (not coordinators) for better distribution
+  const paginatedScores = scores2.slice(currentPage * itemsPerPage, (currentPage + 1) * itemsPerPage);
+
+  // Group paginated scores
+  const paginatedGroupedByCoord: Map<string, { coord: Coordinator; rows: ScoreRow[] }> = new Map();
+  coordinators.forEach((c) => paginatedGroupedByCoord.set(c.id, { coord: c, rows: [] }));
+  paginatedScores.forEach((s) => {
+    const coordId = s.student?.coordinator?.id;
+    if (coordId && paginatedGroupedByCoord.has(coordId)) {
+      paginatedGroupedByCoord.get(coordId)!.rows.push(s);
+    } else {
+      const noKey = "__none__";
+      if (!paginatedGroupedByCoord.has(noKey)) paginatedGroupedByCoord.set(noKey, { coord: { id: noKey, name: "ללא משפיע" }, rows: [] });
+      paginatedGroupedByCoord.get(noKey)!.rows.push(s);
+    }
+  });
+  const groupedArr = Array.from(paginatedGroupedByCoord.values())
+    .filter((g) => g.rows.length > 0)
+    .sort((a, b) => a.coord.name.localeCompare(b.coord.name, "he"));
+
+  const totalPages = Math.ceil(scores2.length / itemsPerPage);
+  const canGoNext = currentPage < totalPages - 1;
+  const canGoPrev = currentPage > 0;
 
   const handleExportCSV = useCallback(() => {
     if (activeTab === "mishpayim") {
@@ -405,8 +437,38 @@ export default function ManagementClient({
                   </div>
                 </div>
               ))}
+
+              {/* Pagination controls */}
+              <div className="bg-white rounded-xl border border-gray-200 p-4 print:hidden">
+                <div className="flex items-center justify-between">
+                  <button
+                    onClick={() => setCurrentPage((p) => p - 1)}
+                    disabled={!canGoPrev}
+                    className="flex items-center gap-2 px-4 py-2 rounded-lg border border-gray-200 text-gray-600 text-sm font-medium hover:bg-gray-50 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+                  >
+                    <ChevronUp size={16} />
+                    הקודם
+                  </button>
+                  <div className="text-center text-sm text-gray-600">
+                    <p className="font-medium">עמוד {currentPage + 1} מתוך {totalPages}</p>
+                    <p className="text-xs text-gray-400 mt-1">
+                      מציג {(currentPage * itemsPerPage) + 1}–{Math.min((currentPage + 1) * itemsPerPage, scores2.length)} מתוך {scores2.length}
+                    </p>
+                  </div>
+                  <button
+                    onClick={() => setCurrentPage((p) => p + 1)}
+                    disabled={!canGoNext}
+                    className="flex items-center gap-2 px-4 py-2 rounded-lg border border-gray-200 text-gray-600 text-sm font-medium hover:bg-gray-50 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+                  >
+                    הבא
+                    <ChevronDown size={16} />
+                  </button>
+                </div>
+              </div>
+
+              {/* Summary footer */}
               <div className="text-xs text-gray-400 text-center pb-2">
-                סה"כ {scores2.length} בחורים | {groupedArr.length} משפיעים
+                סה"כ {scores2.length} בחורים | {allGroupedArr.length} משפיעים
               </div>
             </div>
           )
