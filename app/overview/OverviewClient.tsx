@@ -1,8 +1,9 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { Search, Printer, FileSpreadsheet, FileText } from "lucide-react";
+import { Search, Printer, FileSpreadsheet, FileText, Loader } from "lucide-react";
 import { useSettings } from "@/lib/settings-context";
+import { useInfiniteScroll } from "@/lib/useInfiniteScroll";
 import * as XLSX from "xlsx";
 
 type Exam = { id: string; parasha: string; exam_date: string | null };
@@ -31,6 +32,13 @@ export default function OverviewClient({
   const [nameSearch, setNameSearch] = useState("");
   const [coordinatorFilter, setCoordinatorFilter] = useState("");
   const { settings, isStudentVisible } = useSettings();
+
+  // Infinite scroll for coordinator groups
+  const { displayedItems: displayedGrouped, hasMore, observerTarget } = useInfiniteScroll(
+    grouped,
+    3,
+    { threshold: 300 }
+  );
 
   // Exams ordered oldest→newest; displayed newest→right (RTL: columns flow left, name is rightmost)
   const orderedExams = exams; // already ascending from server
@@ -287,7 +295,7 @@ export default function OverviewClient({
                   </td>
                 </tr>
               ) : (
-                grouped.map(({ coordName, students: groupStudents }) => (
+                displayedGrouped.map(({ coordName, students: groupStudents }) => (
                   <>
                     {/* Coordinator group header */}
                     <tr key={`hdr-${coordName}`} className="bg-blue-50 border-y border-blue-100">
@@ -364,6 +372,16 @@ export default function OverviewClient({
               )}
             </tbody>
           </table>
+
+          {/* Infinite scroll observer */}
+          {hasMore && (
+            <div ref={observerTarget} className="flex justify-center items-center py-4">
+              <div className="flex items-center gap-2 text-gray-400">
+                <Loader size={16} className="animate-spin" />
+                <span className="text-sm">טוען עוד...</span>
+              </div>
+            </div>
+          )}
         </div>
 
         <div className="px-5 py-3 bg-gray-50 border-t border-gray-200 text-xs text-gray-500 flex gap-4 flex-wrap">
