@@ -1,7 +1,9 @@
 "use client";
 
 import { useOptimistic, useTransition, useState, useCallback, useMemo } from "react";
+import { Loader } from "lucide-react";
 import { updateScoreAction } from "./actions";
+import { useInfiniteScroll } from "@/lib/useInfiniteScroll";
 
 type Score = {
   id: string;
@@ -93,6 +95,8 @@ function SummerTable({
   save: (id: string, f: string, v: unknown) => void;
   toggle: (id: string, f: keyof Score, cur: boolean) => void;
 }) {
+  const { displayedItems: displayedScores, hasMore, observerTarget } = useInfiniteScroll(scores, 50);
+
   return (
     <div className="overflow-x-auto">
       <table className="w-full text-sm">
@@ -107,7 +111,7 @@ function SummerTable({
           </tr>
         </thead>
         <tbody className="divide-y divide-gray-100">
-          {scores.map((score) => (
+          {displayedScores.map((score) => (
             <tr key={score.id} className="hover:bg-orange-50/30 transition-colors">
               <td className="px-4 py-3 font-medium text-gray-900">
                 {score.student ? `${score.student.first_name} ${score.student.last_name}` : "—"}
@@ -129,6 +133,16 @@ function SummerTable({
           ))}
         </tbody>
       </table>
+
+      {/* Infinite scroll observer */}
+      {hasMore && (
+        <div ref={observerTarget} className="flex justify-center items-center py-4">
+          <div className="flex items-center gap-2 text-gray-400">
+            <Loader size={16} className="animate-spin" />
+            <span className="text-sm">טוען עוד...</span>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -142,6 +156,8 @@ function WinterTable({
   save: (id: string, f: string, v: unknown) => void;
   toggle: (id: string, f: keyof Score, cur: boolean) => void;
 }) {
+  const { displayedItems: displayedScores, hasMore, observerTarget } = useInfiniteScroll(scores, 50);
+
   return (
     <div className="overflow-x-auto">
       <table className="w-full text-sm">
@@ -158,7 +174,7 @@ function WinterTable({
           </tr>
         </thead>
         <tbody className="divide-y divide-gray-100">
-          {scores.map((score) => (
+          {displayedScores.map((score) => (
             <tr key={score.id} className="hover:bg-blue-50/30 transition-colors">
               <td className="px-4 py-3 font-medium text-gray-900">
                 {score.student ? `${score.student.first_name} ${score.student.last_name}` : "—"}
@@ -190,6 +206,16 @@ function WinterTable({
           ))}
         </tbody>
       </table>
+
+      {/* Infinite scroll observer */}
+      {hasMore && (
+        <div ref={observerTarget} className="flex justify-center items-center py-4">
+          <div className="flex items-center gap-2 text-gray-400">
+            <Loader size={16} className="animate-spin" />
+            <span className="text-sm">טוען עוד...</span>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -203,6 +229,8 @@ function DefaultTable({
   save: (id: string, f: string, v: unknown) => void;
   toggle: (id: string, f: keyof Score, cur: boolean) => void;
 }) {
+  const { displayedItems: displayedScores, hasMore, observerTarget } = useInfiniteScroll(scores, 50);
+
   return (
     <div className="overflow-x-auto">
       <table className="w-full text-sm">
@@ -222,7 +250,7 @@ function DefaultTable({
           </tr>
         </thead>
         <tbody className="divide-y divide-gray-100">
-          {scores.map((score) => {
+          {displayedScores.map((score) => {
             const vals = [score.chassidut_score, score.halacha_score, score.tefila_score].filter((v): v is number => v !== null);
             const avg = vals.length > 0 ? (vals.reduce((a, b) => a + b, 0) / vals.length).toFixed(1) : null;
             return (
@@ -251,6 +279,16 @@ function DefaultTable({
           })}
         </tbody>
       </table>
+
+      {/* Infinite scroll observer */}
+      {hasMore && (
+        <div ref={observerTarget} className="flex justify-center items-center py-4">
+          <div className="flex items-center gap-2 text-gray-400">
+            <Loader size={16} className="animate-spin" />
+            <span className="text-sm">טוען עוד...</span>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
