@@ -3,12 +3,13 @@
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { ChevronLeft, FileSpreadsheet, FileText, Settings } from "lucide-react";
+import { ChevronLeft, FileSpreadsheet, FileText, Settings, Loader } from "lucide-react";
 import EditModal from "@/components/EditModal";
 import ExportDialog from "@/components/ExportDialog";
 import FieldSettingsModal from "@/components/FieldSettingsModal";
 import { updateStudent } from "@/app/students/actions";
 import { useSettings } from "@/lib/settings-context";
+import { useInfiniteScroll } from "@/lib/useInfiniteScroll";
 
 type CoordinatorOption = { id: string; name: string };
 type GroupOption = { id: string; name: string };
@@ -185,6 +186,12 @@ export default function StudentsTable({ students, coordinators, groups, scoreMap
     (c) => !settings.hiddenCoordinators.includes(c.id)
   );
 
+  const { displayedItems: displayedStudents, hasMore, observerTarget } = useInfiniteScroll(
+    visibleStudents,
+    50,
+    { threshold: 300 }
+  );
+
   const orderedFields = [...AVAILABLE_FIELDS].sort((a, b) => {
     const aIndex = settings.studentFieldOrder.indexOf(a.id);
     const bIndex = settings.studentFieldOrder.indexOf(b.id);
@@ -276,7 +283,7 @@ export default function StudentsTable({ students, coordinators, groups, scoreMap
           </thead>
           <tbody className="divide-y divide-gray-100">
             {visibleStudents.length > 0 ? (
-              visibleStudents.map((student) => (
+              displayedStudents.map((student) => (
                 <tr
                   key={student.id}
                   className="hover:bg-blue-50/40 transition-colors cursor-pointer"
@@ -339,6 +346,16 @@ export default function StudentsTable({ students, coordinators, groups, scoreMap
             )}
           </tbody>
         </table>
+
+        {/* Infinite scroll observer */}
+        {hasMore && (
+          <div ref={observerTarget} className="flex justify-center items-center py-8">
+            <div className="flex items-center gap-2 text-gray-400">
+              <Loader size={16} className="animate-spin" />
+              <span className="text-sm">טוען עוד...</span>
+            </div>
+          </div>
+        )}
       </div>
 
       <FieldSettingsModal

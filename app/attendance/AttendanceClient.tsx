@@ -3,8 +3,9 @@
 import { useRouter } from "next/navigation";
 import { useOptimistic, useTransition, useState, useMemo, Fragment } from "react";
 import { updateScoreBoolean, updateScoreNumber } from "./actions";
-import { AlertTriangle, Download, FileText, Printer, X, Search, Filter } from "lucide-react";
+import { AlertTriangle, Download, FileText, Printer, X, Search, Filter, Loader } from "lucide-react";
 import { useSettings } from "@/lib/settings-context";
+import { useInfiniteScroll } from "@/lib/useInfiniteScroll";
 import * as XLSX from "xlsx";
 
 type Exam = { id: string; parasha: string; exam_date: string | null };
@@ -278,6 +279,19 @@ export default function AttendanceClient({
     });
     return coordinators.filter((c) => !withActivity.has(c));
   }, [optimisticScores, coordinators]);
+
+  // Infinite scroll setup - paginate by coordinator groups
+  const { displayedItems: displayedAggregateGroups, hasMore: hasMoreAgg, observerTarget: observerAgg } = useInfiniteScroll(
+    aggregateGroups,
+    3,
+    { threshold: 300 }
+  );
+
+  const { displayedItems: displayedGrouped, hasMore: hasMoreGrouped, observerTarget: observerGrouped } = useInfiniteScroll(
+    grouped,
+    3,
+    { threshold: 300 }
+  );
 
   // Export Excel
   function downloadExcel() {
@@ -564,7 +578,7 @@ export default function AttendanceClient({
                     </td>
                   </tr>
                 ) : (
-                  aggregateGroups.map(([coordName, rows]) => (
+                  displayedAggregateGroups.map(([coordName, rows]) => (
                     <Fragment key={`agg-${coordName}`}>
                       <tr className="bg-blue-50 border-y border-blue-100">
                         <td colSpan={3} className="px-5 py-2 text-sm font-semibold text-[#1e3a5f]">
@@ -591,6 +605,16 @@ export default function AttendanceClient({
                 )}
               </tbody>
             </table>
+
+            {/* Infinite scroll observer for aggregate table */}
+            {hasMoreAgg && (
+              <div ref={observerAgg} className="flex justify-center items-center py-4">
+                <div className="flex items-center gap-2 text-gray-400">
+                  <Loader size={16} className="animate-spin" />
+                  <span className="text-sm">טוען עוד...</span>
+                </div>
+              </div>
+            )}
           </div>
 
           <div className="px-5 py-3 bg-gray-50 border-t border-gray-200 text-xs text-gray-500 flex gap-4">
@@ -623,7 +647,7 @@ export default function AttendanceClient({
                   </td>
                 </tr>
               ) : (
-                grouped.map(([coordName, records]) => (
+                displayedGrouped.map(([coordName, records]) => (
                   <Fragment key={`header-${coordName}`}>
                     {/* Coordinator group header */}
                     <tr className="bg-blue-50 border-y border-blue-100">
@@ -690,6 +714,16 @@ export default function AttendanceClient({
               )}
             </tbody>
           </table>
+
+          {/* Infinite scroll observer for detail table */}
+          {hasMoreGrouped && (
+            <div ref={observerGrouped} className="flex justify-center items-center py-4">
+              <div className="flex items-center gap-2 text-gray-400">
+                <Loader size={16} className="animate-spin" />
+                <span className="text-sm">טוען עוד...</span>
+              </div>
+            </div>
+          )}
         </div>
 
         <div className="px-5 py-3 bg-gray-50 border-t border-gray-200 text-xs text-gray-500 flex gap-4">
