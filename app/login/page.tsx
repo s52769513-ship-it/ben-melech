@@ -1,4 +1,5 @@
 import LoginForm from "./LoginForm";
+import LoginYear from "./LoginYear";
 import LoginLogo from "./LoginLogo";
 import LoginStars from "./LoginStars";
 
@@ -93,7 +94,7 @@ export default function LoginPage() {
         </div>
 
         <p className="text-blue-400/30 text-xs text-center mt-6">
-          © {new Date().getFullYear()} בן מלך
+          © <LoginYear /> בן מלך
         </p>
       </div>
     </div>

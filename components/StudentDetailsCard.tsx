@@ -1,10 +1,10 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useOptimistic, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { User, Pencil, X, Check, BookOpen, Phone, MapPin, Calendar, CreditCard, Hash } from "lucide-react";
-import { updateStudent } from "@/app/students/actions";
+import { updateStudent } from "@/app/(app)/students/actions";
 
 type Student = {
   id: string;
@@ -75,11 +75,16 @@ interface Props {
 const inputCls = "w-full text-sm border border-gray-200 rounded-lg px-3 py-1.5 focus:outline-none focus:ring-2 focus:ring-blue-300 bg-white";
 const labelCls = "text-xs font-medium text-gray-400 mb-0.5 block";
 
-export default function StudentDetailsCard({ student, coordinator, coordinators }: Props) {
+export default function StudentDetailsCard({ student: saved, coordinator, coordinators }: Props) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
+  // Render the saved details immediately, before the server round-trip.
+  const [student, applyOptimistic] = useOptimistic(
+    saved,
+    (_state: Student, edited: Student) => edited
+  );
   const [editing, setEditing] = useState(false);
-  const [form, setForm] = useState<FormState>(toForm(student));
+  const [form, setForm] = useState<FormState>(toForm(saved));
 
   function set(field: keyof FormState, value: string) {
     setForm((prev) => ({ ...prev, [field]: value }));
@@ -91,24 +96,31 @@ export default function StudentDetailsCard({ student, coordinator, coordinators 
   }
 
   function handleSave() {
+    const changes = {
+      first_name: form.first_name || null,
+      last_name: form.last_name || null,
+      phone: form.phone || null,
+      city: form.city || null,
+      street: form.street || null,
+      birth_date: form.birth_date || null,
+      id_number: form.id_number ? Number(form.id_number) : null,
+      father_name: form.father_name || null,
+      yeshiva: form.yeshiva || null,
+      track: form.track || null,
+      enrollment_date: form.enrollment_date || null,
+      coordinator_id: form.coordinator_id || null,
+      nedarim_id: form.nedarim_id ? Number(form.nedarim_id) : null,
+      notes: form.notes || null,
+    };
+    setEditing(false);
     startTransition(async () => {
-      await updateStudent(student.id, {
-        first_name: form.first_name || null,
-        last_name: form.last_name || null,
-        phone: form.phone || null,
-        city: form.city || null,
-        street: form.street || null,
-        birth_date: form.birth_date || null,
-        id_number: form.id_number ? Number(form.id_number) : null,
-        father_name: form.father_name || null,
-        yeshiva: form.yeshiva || null,
-        track: form.track || null,
-        enrollment_date: form.enrollment_date || null,
-        coordinator_id: form.coordinator_id || null,
-        nedarim_id: form.nedarim_id ? Number(form.nedarim_id) : null,
-        notes: form.notes || null,
+      applyOptimistic({
+        ...student,
+        ...changes,
+        first_name: changes.first_name ?? "",
+        last_name: changes.last_name ?? "",
       });
-      setEditing(false);
+      await updateStudent(student.id, changes);
       router.refresh();
     });
   }

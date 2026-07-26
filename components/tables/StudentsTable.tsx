@@ -1,13 +1,13 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useOptimistic, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { ChevronLeft, FileSpreadsheet, FileText, Settings } from "lucide-react";
 import EditModal from "@/components/EditModal";
 import ExportDialog from "@/components/ExportDialog";
 import FieldSettingsModal from "@/components/FieldSettingsModal";
-import { updateStudent } from "@/app/students/actions";
+import { updateStudent } from "@/app/(app)/students/actions";
 import { useSettings } from "@/lib/settings-context";
 
 type CoordinatorOption = { id: string; name: string };
@@ -175,12 +175,19 @@ const AVAILABLE_FIELDS = [
 export default function StudentsTable({ students, coordinators, groups, scoreMap }: Props) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
+  // The saved row is painted from the form straight away; the server value
+  // takes over when the refresh lands.
+  const [rows, applyOptimistic] = useOptimistic(
+    students,
+    (state: Student[], edited: Student) =>
+      state.map((s) => (s.id === edited.id ? edited : s))
+  );
   const [editing, setEditing] = useState<Student | null>(null);
   const [form, setForm] = useState<FormState | null>(null);
   const [exportFormat, setExportFormat] = useState<"excel" | "pdf" | null>(null);
   const [showFieldSettings, setShowFieldSettings] = useState(false);
   const { settings, isStudentVisible, toggleStudentField, setStudentFieldOrder } = useSettings();
-  const visibleStudents = students.filter(isStudentVisible);
+  const visibleStudents = rows.filter(isStudentVisible);
   const visibleCoordinators = coordinators.filter(
     (c) => !settings.hiddenCoordinators.includes(c.id)
   );
@@ -212,25 +219,35 @@ export default function StudentsTable({ students, coordinators, groups, scoreMap
 
   function handleSave() {
     if (!editing || !form) return;
+    const student = editing;
+    const changes = {
+      first_name: form.first_name || null,
+      last_name: form.last_name || null,
+      phone: form.phone || null,
+      city: form.city || null,
+      street: form.street || null,
+      birth_date: form.birth_date || null,
+      id_number: form.id_number ? Number(form.id_number) : null,
+      father_name: form.father_name || null,
+      yeshiva: form.yeshiva || null,
+      track: form.track || null,
+      enrollment_date: form.enrollment_date || null,
+      coordinator_id: form.coordinator_id || null,
+      nedarim_id: form.nedarim_id ? Number(form.nedarim_id) : null,
+      group_id: form.group_id || null,
+      notes: form.notes || null,
+    };
+    closeEdit();
     startTransition(async () => {
-      await updateStudent(editing.id, {
-        first_name: form.first_name || null,
-        last_name: form.last_name || null,
-        phone: form.phone || null,
-        city: form.city || null,
-        street: form.street || null,
-        birth_date: form.birth_date || null,
-        id_number: form.id_number ? Number(form.id_number) : null,
-        father_name: form.father_name || null,
-        yeshiva: form.yeshiva || null,
-        track: form.track || null,
-        enrollment_date: form.enrollment_date || null,
-        coordinator_id: form.coordinator_id || null,
-        nedarim_id: form.nedarim_id ? Number(form.nedarim_id) : null,
-        group_id: form.group_id || null,
-        notes: form.notes || null,
+      applyOptimistic({
+        ...student,
+        ...changes,
+        first_name: changes.first_name ?? "",
+        last_name: changes.last_name ?? "",
+        coordinator:
+          coordinators.find((c) => c.id === changes.coordinator_id) ?? null,
       });
-      closeEdit();
+      await updateStudent(student.id, changes);
       router.refresh();
     });
   }

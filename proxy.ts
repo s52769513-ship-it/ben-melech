@@ -18,6 +18,14 @@ export function proxy(request: NextRequest) {
     return NextResponse.redirect(url);
   }
 
+  // Send the landing URL straight to the first screen instead of rendering a
+  // page whose only job is to redirect.
+  if (pathname === "/") {
+    const url = request.nextUrl.clone();
+    url.pathname = "/exams";
+    return NextResponse.redirect(url);
+  }
+
   return NextResponse.next();
 }
 

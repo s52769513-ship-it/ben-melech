@@ -1,11 +1,11 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useOptimistic, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { Clock, Plus, X } from "lucide-react";
 import EditModal from "@/components/EditModal";
-import { updateInquiry, createInquiryAction } from "@/app/inquiries/actions";
+import { updateInquiry, createInquiryAction } from "@/app/(app)/inquiries/actions";
 
 type CoordinatorOption = { id: string; name: string };
 type StudentOption = { id: string; first_name: string; last_name: string };
@@ -63,9 +63,22 @@ const emptyCreate = (): CreateForm => ({
   description: "",
 });
 
+type OptimisticChange =
+  | { kind: "update"; inquiry: Inquiry }
+  | { kind: "create"; inquiry: Inquiry };
+
 export default function InquiriesTable({ inquiries, coordinators, students, isAdmin }: Props) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
+  // A new or edited inquiry is on screen before the server round-trip finishes;
+  // the refreshed list takes over once it arrives.
+  const [rows, applyOptimistic] = useOptimistic(
+    inquiries,
+    (state: Inquiry[], change: OptimisticChange) =>
+      change.kind === "create"
+        ? [change.inquiry, ...state]
+        : state.map((i) => (i.id === change.inquiry.id ? change.inquiry : i))
+  );
   const [editing, setEditing] = useState<Inquiry | null>(null);
   const [editForm, setEditForm] = useState<EditForm | null>(null);
   const [creating, setCreating] = useState(false);
@@ -92,15 +105,27 @@ export default function InquiriesTable({ inquiries, coordinators, students, isAd
 
   function handleSave() {
     if (!editing || !editForm) return;
+    const inquiry = editing;
+    const changes = {
+      title: editForm.title || null, status: editForm.status,
+      coordinator_id: editForm.coordinator_id || null, student_id: editForm.student_id || null,
+      inquiry_date: editForm.inquiry_date || null, description: editForm.description || null,
+      target_date: editForm.target_date || null, close_date: editForm.close_date || null,
+      cancel_reminder: editForm.cancel_reminder,
+    };
+    closeEdit();
     startTransition(async () => {
-      await updateInquiry(editing.id, {
-        title: editForm.title || null, status: editForm.status,
-        coordinator_id: editForm.coordinator_id || null, student_id: editForm.student_id || null,
-        inquiry_date: editForm.inquiry_date || null, description: editForm.description || null,
-        target_date: editForm.target_date || null, close_date: editForm.close_date || null,
-        cancel_reminder: editForm.cancel_reminder,
+      applyOptimistic({
+        kind: "update",
+        inquiry: {
+          ...inquiry,
+          ...changes,
+          title: changes.title ?? "",
+          student: students.find((s) => s.id === changes.student_id) ?? null,
+          coordinator: coordinators.find((c) => c.id === changes.coordinator_id) ?? null,
+        },
       });
-      closeEdit();
+      await updateInquiry(inquiry.id, changes);
       router.refresh();
     });
   }
@@ -115,15 +140,29 @@ export default function InquiriesTable({ inquiries, coordinators, students, isAd
 
   function handleCreate() {
     if (!createForm.title.trim()) { setCreateError("יש להזין כותרת"); return; }
+    const draft = {
+      title: createForm.title.trim(),
+      student_id: createForm.student_id || null,
+      inquiry_date: createForm.inquiry_date || null,
+      target_date: createForm.target_date || null,
+      description: createForm.description || null,
+    };
+    closeCreate();
     startTransition(async () => {
-      await createInquiryAction({
-        title: createForm.title.trim(),
-        student_id: createForm.student_id || null,
-        inquiry_date: createForm.inquiry_date || null,
-        target_date: createForm.target_date || null,
-        description: createForm.description || null,
+      applyOptimistic({
+        kind: "create",
+        inquiry: {
+          id: `pending-${draft.title}`,
+          created_at: new Date().toISOString(),
+          coordinator_id: null,
+          status: "חדש",
+          close_date: null,
+          cancel_reminder: false,
+          ...draft,
+          student: students.find((s) => s.id === draft.student_id) ?? null,
+        },
       });
-      closeCreate();
+      await createInquiryAction(draft);
       router.refresh();
     });
   }
@@ -157,8 +196,8 @@ export default function InquiriesTable({ inquiries, coordinators, students, isAd
             </tr>
           </thead>
           <tbody className="divide-y divide-gray-100">
-            {inquiries.length > 0 ? (
-              inquiries.map((inq) => {
+            {rows.length > 0 ? (
+              rows.map((inq) => {
                 const student = inq.student as { id: string; first_name: string; last_name: string } | null;
                 const coordinator = inq.coordinator as { id: string; name: string } | null;
                 const daysOpen = getDaysOpen(inq.created_at, inq.status);

@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { Calendar, BarChart2, ChevronLeft } from "lucide-react";
 import EditModal from "@/components/EditModal";
-import { updateExam } from "@/app/exams/actions";
+import { updateExam } from "@/app/(app)/exams/actions";
 
 type Exam = {
   id: string;

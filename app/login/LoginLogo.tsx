@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { DEFAULT_LOGO_URL } from "@/lib/logo";
 
 interface Props {
   envLogoUrl: string;
@@ -21,7 +22,7 @@ export default function LoginLogo({ envLogoUrl, large }: Props) {
     } catch { /* ignore */ }
   }, [envLogoUrl]);
 
-  const logoUrl = envLogoUrl || localUrl || "/לוגו חתוך בן מלך.png";
+  const logoUrl = envLogoUrl || localUrl || DEFAULT_LOGO_URL;
 
   if (logoUrl) {
     return (

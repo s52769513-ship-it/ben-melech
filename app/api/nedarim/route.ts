@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { revalidateTag } from "next/cache";
 import { getStudentsForNedarim, updateNedarimCharged } from "@/lib/airtable/db";
 
 const MOSAD_ID = "7009191";
@@ -80,6 +81,10 @@ export async function POST(req: NextRequest) {
 
     results.push({ id: student.id, name, amount: toCharge, success: ok });
   }
+
+  // Charged amounts were written back to Airtable — drop the cached students so
+  // the new balances show up immediately.
+  if (!dryRun && results.some((r) => r.success)) revalidateTag("students", { expire: 0 });
 
   return NextResponse.json({ results });
 }

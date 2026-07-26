@@ -1,0 +1,30 @@
+"use server";
+
+import { refresh, updateTag } from "next/cache";
+import {
+  updateInquiry as updateInquiryDB,
+  createInquiry as createInquiryDB,
+} from "@/lib/airtable/db";
+import { getSession } from "@/lib/auth";
+
+export async function updateInquiry(id: string, data: Record<string, unknown>) {
+  await updateInquiryDB(id, data);
+  updateTag("inquiries");
+  refresh();
+}
+
+export async function createInquiryAction(data: {
+  title: string;
+  student_id: string | null;
+  inquiry_date: string | null;
+  target_date: string | null;
+  description: string | null;
+}): Promise<void> {
+  const coordinatorId = await getSession();
+  const realCoordinatorId = coordinatorId === "ADMIN" ? null : coordinatorId;
+  await createInquiryDB({ ...data, coordinator_id: realCoordinatorId });
+  // A brand new record has to show up without a page refresh, so expire the
+  // list cache before the re-render rather than waiting it out.
+  updateTag("inquiries");
+  refresh();
+}

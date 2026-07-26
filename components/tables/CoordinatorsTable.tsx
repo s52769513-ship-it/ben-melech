@@ -1,11 +1,11 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useOptimistic, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { Phone, MapPin, ChevronLeft } from "lucide-react";
 import EditModal from "@/components/EditModal";
-import { updateCoordinator } from "@/app/coordinators/actions";
+import { updateCoordinator } from "@/app/(app)/coordinators/actions";
 
 type Coordinator = {
   id: string;
@@ -58,6 +58,12 @@ function toForm(c: Coordinator): FormState {
 export default function CoordinatorsTable({ coordinators, studentCountMap, inquiryCountMap }: Props) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
+  // Saved values show up straight away; the server refresh replaces them.
+  const [rows, applyOptimistic] = useOptimistic(
+    coordinators,
+    (state: Coordinator[], edited: Coordinator) =>
+      state.map((c) => (c.id === edited.id ? edited : c))
+  );
   const [editing, setEditing] = useState<Coordinator | null>(null);
   const [form, setForm] = useState<FormState | null>(null);
 
@@ -77,20 +83,23 @@ export default function CoordinatorsTable({ coordinators, studentCountMap, inqui
 
   function handleSave() {
     if (!editing || !form) return;
+    const coordinator = editing;
+    const changes = {
+      name: form.name || null,
+      phone: form.phone || null,
+      city: form.city || null,
+      email: form.email || null,
+      id_number: form.id_number ? Number(form.id_number) : null,
+      bank: form.bank || null,
+      branch_number: form.branch_number ? Number(form.branch_number) : null,
+      account_number: form.account_number ? Number(form.account_number) : null,
+      monthly_salary: form.monthly_salary ? Number(form.monthly_salary) : 0,
+      notes: form.notes || null,
+    };
+    closeEdit();
     startTransition(async () => {
-      await updateCoordinator(editing.id, {
-        name: form.name || null,
-        phone: form.phone || null,
-        city: form.city || null,
-        email: form.email || null,
-        id_number: form.id_number ? Number(form.id_number) : null,
-        bank: form.bank || null,
-        branch_number: form.branch_number ? Number(form.branch_number) : null,
-        account_number: form.account_number ? Number(form.account_number) : null,
-        monthly_salary: form.monthly_salary ? Number(form.monthly_salary) : 0,
-        notes: form.notes || null,
-      });
-      closeEdit();
+      applyOptimistic({ ...coordinator, ...changes, name: changes.name ?? "" });
+      await updateCoordinator(coordinator.id, changes);
       router.refresh();
     });
   }
@@ -111,8 +120,8 @@ export default function CoordinatorsTable({ coordinators, studentCountMap, inqui
             </tr>
           </thead>
           <tbody className="divide-y divide-gray-100">
-            {coordinators.length > 0 ? (
-              coordinators.map((coordinator) => (
+            {rows.length > 0 ? (
+              rows.map((coordinator) => (
                 <tr
                   key={coordinator.id}
                   className="hover:bg-blue-50/40 transition-colors cursor-pointer"

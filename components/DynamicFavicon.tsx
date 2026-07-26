@@ -2,13 +2,14 @@
 
 import { useEffect } from "react";
 import { useSettings } from "@/lib/settings-context";
+import { DEFAULT_LOGO_URL } from "@/lib/logo";
 
 export default function DynamicFavicon() {
   const { settings } = useSettings();
   const logoUrl = process.env.NEXT_PUBLIC_LOGO_URL || settings.logoUrl;
 
   useEffect(() => {
-    const url = logoUrl || "/לוגו חתוך בן מלך.png";
+    const url = logoUrl || DEFAULT_LOGO_URL;
 
     let link = document.querySelector("link[rel='icon']") as HTMLLinkElement;
     if (!link) {

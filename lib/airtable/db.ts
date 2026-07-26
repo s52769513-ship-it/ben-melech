@@ -1,7 +1,6 @@
-import { unstable_cache } from "next/cache";
+import { cacheLife, cacheTag } from "next/cache";
 import {
   fetchAll,
-  fetchOne,
   patchRecord,
   createRecord,
   TABLES,
@@ -44,10 +43,8 @@ function toCoordinator(r: AirtableRecord): Coordinator {
   };
 }
 
-function toStudent(r: AirtableRecord, coordinatorMap?: Map<string, Coordinator>): Student {
+function toStudent(r: AirtableRecord): Student {
   const f = r.fields;
-  const coordinatorId = linkedId(f["רכז"]);
-  const groupId = linkedId(f["קבוצה/ישיבה"]);
   return {
     id: r.id,
     created_at: r.createdTime ?? "",
@@ -62,16 +59,15 @@ function toStudent(r: AirtableRecord, coordinatorMap?: Map<string, Coordinator>)
     yeshiva: str(f["ישיבה"]),
     track: str(f["מסלול"]),
     enrollment_date: str(f["Enrollment Date"]),
-    coordinator_id: coordinatorId,
+    coordinator_id: linkedId(f["רכז"]),
     nedarim_id: num(f["מזהה נדרים"]),
-    group_id: groupId,
+    group_id: linkedId(f["קבוצה/ישיבה"]),
     notes: str(f["הערות"]),
     nedarim_amount: num(f["כסף להטענה"]),
     nedarim_charged: num(f["הוטען"]),
     remaining_to_load: (num(f["כסף להטענה"]) ?? 0) - (num(f["הוטען"]) ?? 0),
     summer_points: num(f["נקודות זמן קיץ תשפו"]),
     summer_points_over_500: num(f["נקודות זמן קיץ תשפו (מעל 500)"]),
-    coordinator: coordinatorId && coordinatorMap ? coordinatorMap.get(coordinatorId) : undefined,
   };
 }
 
@@ -98,19 +94,13 @@ function toZman(r: AirtableRecord): Zman {
   };
 }
 
-function toScore(
-  r: AirtableRecord,
-  studentMap?: Map<string, Student>,
-  examMap?: Map<string, Exam>
-): Score {
+function toScore(r: AirtableRecord): Score {
   const f = r.fields;
-  const studentId = linkedId(f["בחור"]);
-  const examId = linkedId(f["מבחן"]);
   return {
     id: r.id,
     created_at: r.createdTime ?? "",
-    student_id: studentId ?? "",
-    exam_id: examId ?? "",
+    student_id: linkedId(f["בחור"]) ?? "",
+    exam_id: linkedId(f["מבחן"]) ?? "",
     chassidut_score: num(f["מבחן חסידות"]),
     halacha_score: num(f["מבחן הלכה"]),
     tefila_score: num(f["מבחן שערי תפילה"]),
@@ -128,71 +118,51 @@ function toScore(
     points_kaitz: num(f["נקודות זמן קיץ תשפו"]),
     personal_note: str(f['פניה אישית (לכה"פ ל-2 בחורים בשבוע)']),
     rabbi_note: str(f["שמתי לב.... (הערות להרב חיים מרדכי ישיר)"]),
-    student: studentId && studentMap ? studentMap.get(studentId) : undefined,
-    exam: examId && examMap ? examMap.get(examId) : undefined,
   };
 }
 
-function toInquiry(
-  r: AirtableRecord,
-  studentMap?: Map<string, Student>,
-  coordinatorMap?: Map<string, Coordinator>
-): Inquiry {
+function toInquiry(r: AirtableRecord): Inquiry {
   const f = r.fields;
-  const studentId = linkedId(f["בחור"]);
-  const coordinatorId = linkedId(f["רכז"]);
   return {
     id: r.id,
     created_at: r.createdTime ?? "",
     title: str(f["שם"]) ?? "",
-    coordinator_id: coordinatorId,
-    student_id: studentId,
+    coordinator_id: linkedId(f["רכז"]),
+    student_id: linkedId(f["בחור"]),
     status: (str(f["סטטוס"]) ?? "חדש") as Inquiry["status"],
     inquiry_date: str(f["תאריך"]),
     description: str(f["תיאור"]),
     target_date: str(f["תאריך יעד"]),
     close_date: str(f["תאריך סיום"]),
     cancel_reminder: bool(f["ביטול תזכורת"]),
-    student: studentId && studentMap ? studentMap.get(studentId) : undefined,
-    coordinator: coordinatorId && coordinatorMap ? coordinatorMap.get(coordinatorId) : undefined,
   };
 }
 
-function toFinance(
-  r: AirtableRecord,
-  coordinatorMap?: Map<string, Coordinator>
-): Finance {
+function toFinance(r: AirtableRecord): Finance {
   const f = r.fields;
-  const coordinatorId = linkedId(f["רכז"]);
   return {
     id: r.id,
     created_at: r.createdTime ?? "",
     name: str(f["שם"]),
     payment_date: str(f["תאריך"]),
     amount: num(f["סכום"]),
-    coordinator_id: coordinatorId,
-    coordinator: coordinatorId && coordinatorMap ? coordinatorMap.get(coordinatorId) : undefined,
+    coordinator_id: linkedId(f["רכז"]),
   };
 }
 
-function toInstruction(
-  r: AirtableRecord,
-  coordinatorMap?: Map<string, Coordinator>
-): CoordinatorInstruction {
+function toInstruction(r: AirtableRecord): CoordinatorInstruction {
   const f = r.fields;
-  const coordinatorId = linkedId(f["רכז"]);
   return {
     id: r.id,
     created_at: r.createdTime ?? "",
     title: str(f["כותרת"]) ?? "",
     content: str(f["טקסט"]),
-    coordinator_id: coordinatorId,
+    coordinator_id: linkedId(f["רכז"]),
     viewed: bool(f["נצפה"]),
     coordinator_response: str(f["תגובת רכז"]),
     sent_date: str(f["תאריך"]) ?? "",
     office_status: str(f["סטטוס משרד"]),
     bank_notice: bool(f["הודעת בנק"]),
-    coordinator: coordinatorId && coordinatorMap ? coordinatorMap.get(coordinatorId) : undefined,
   };
 }
 
@@ -205,55 +175,157 @@ function toGroup(r: AirtableRecord): Group {
   };
 }
 
-// ─── Helpers ─────────────────────────────────────────────────────────────────
+// ─── Cached table reads ──────────────────────────────────────────────────────
+//
+// Every screen is built from these ten reads and nothing else. Each table is
+// pulled once, shared by every page and every user, and then sliced in memory
+// (by coordinator, exam, student…) instead of issuing a filtered Airtable
+// request per view. `use cache: remote` keeps the entry in the platform cache
+// so it survives across requests and server instances — Airtable is rate
+// limited, so a shared cache is what keeps us far below the limit.
+//
+// Writes call updateTag() (see the server actions), which expires the matching
+// tag immediately, so an edit is visible on the very next render without
+// waiting for the revalidate window.
 
-// Cached base lists. unstable_cache serializes return values as JSON, so we
-// cache plain arrays here and build the lookup Maps below (Maps don't survive
-// JSON serialization). This avoids re-fetching all records on every navigation.
-const getStudentList = unstable_cache(
-  async (): Promise<Student[]> => {
-    const coordinatorMap = await getCoordinatorMap();
-    const recs = await fetchAll(TABLES.STUDENTS);
-    return recs.map((r) => toStudent(r, coordinatorMap));
-  },
-  ["student-list"],
-  { revalidate: 120, tags: ["students"] }
-);
+const LIVE = { stale: 30, revalidate: 180, expire: 3600 } as const;
+const STABLE = { stale: 60, revalidate: 1800, expire: 86400 } as const;
 
-async function getCoordinatorMap(): Promise<Map<string, Coordinator>> {
-  const coords = await getCoordinators();
-  return new Map(coords.map((c) => [c.id, c]));
+export async function getCoordinators(): Promise<Coordinator[]> {
+  "use cache: remote";
+  cacheLife(STABLE);
+  cacheTag("coordinators");
+  const recs = await fetchAll(TABLES.COORDINATORS);
+  return recs.map(toCoordinator).sort((a, b) => a.name.localeCompare(b.name, "he"));
 }
 
-async function getStudentMap(): Promise<Map<string, Student>> {
-  const students = await getStudentList();
-  return new Map(students.map((s) => [s.id, s]));
+export async function getGroups(): Promise<Group[]> {
+  "use cache: remote";
+  cacheLife(STABLE);
+  cacheTag("groups");
+  const recs = await fetchAll(TABLES.GROUPS);
+  return recs.map(toGroup).sort((a, b) => a.name.localeCompare(b.name, "he"));
 }
 
-async function getExamMap(): Promise<Map<string, Exam>> {
-  const exams = await getExams();
-  return new Map(exams.map((e) => [e.id, e]));
+export async function getZmanim(): Promise<Zman[]> {
+  "use cache: remote";
+  cacheLife(STABLE);
+  cacheTag("zmanim");
+  const recs = await fetchAll(TABLES.ZMANIM);
+  return recs.map(toZman).filter((z) => z.name.trim() !== "");
+}
+
+export async function getExams(): Promise<Exam[]> {
+  "use cache: remote";
+  cacheLife(LIVE);
+  cacheTag("exams");
+  const recs = await fetchAll(TABLES.EXAMS);
+  return recs
+    .map(toExam)
+    .sort((a, b) => (b.created_at ?? "").localeCompare(a.created_at ?? ""));
+}
+
+async function studentList(): Promise<Student[]> {
+  "use cache: remote";
+  cacheLife(LIVE);
+  cacheTag("students");
+  const recs = await fetchAll(TABLES.STUDENTS);
+  return recs.map(toStudent);
+}
+
+async function scoreList(): Promise<Score[]> {
+  "use cache: remote";
+  cacheLife(LIVE);
+  cacheTag("scores");
+  const recs = await fetchAll(TABLES.SCORES);
+  return recs.map(toScore);
+}
+
+async function inquiryList(): Promise<Inquiry[]> {
+  "use cache: remote";
+  cacheLife(LIVE);
+  cacheTag("inquiries");
+  const recs = await fetchAll(TABLES.INQUIRIES);
+  return recs
+    .map(toInquiry)
+    .sort((a, b) => (b.created_at ?? "").localeCompare(a.created_at ?? ""));
+}
+
+async function financeList(): Promise<Finance[]> {
+  "use cache: remote";
+  cacheLife(LIVE);
+  cacheTag("finances");
+  const recs = await fetchAll(TABLES.FINANCES);
+  return recs
+    .map(toFinance)
+    .sort((a, b) => (b.payment_date ?? "").localeCompare(a.payment_date ?? ""));
+}
+
+async function instructionList(): Promise<CoordinatorInstruction[]> {
+  "use cache: remote";
+  cacheLife(LIVE);
+  cacheTag("instructions");
+  const recs = await fetchAll(TABLES.INSTRUCTIONS);
+  return recs.map(toInstruction);
+}
+
+async function examNoteList(): Promise<CoordinatorExamNote[]> {
+  "use cache: remote";
+  cacheLife(LIVE);
+  cacheTag("exam-notes");
+  const recs = await fetchAll(TABLES.EXAM_NOTES);
+  return recs.map(toExamNote);
+}
+
+// ─── Relation helpers (in memory — no Airtable traffic) ──────────────────────
+
+function byId<T extends { id: string }>(rows: T[]): Map<string, T> {
+  return new Map(rows.map((row) => [row.id, row]));
+}
+
+async function coordinatorMap(): Promise<Map<string, Coordinator>> {
+  return byId(await getCoordinators());
+}
+
+// Students carrying their coordinator — several screens read
+// `score.student.coordinator.name`, so the two lists are stitched together here
+// rather than fetched together.
+async function studentsWithCoordinator(): Promise<Student[]> {
+  const [students, coordinators] = await Promise.all([studentList(), coordinatorMap()]);
+  return withCoordinator(students, coordinators);
+}
+
+function withCoordinator<T extends { coordinator_id: string | null }>(
+  rows: T[],
+  coordinators: Map<string, Coordinator>
+): (T & { coordinator?: Coordinator })[] {
+  return rows.map((row) => ({
+    ...row,
+    coordinator: row.coordinator_id
+      ? coordinators.get(row.coordinator_id)
+      : undefined,
+  }));
+}
+
+function withScoreRelations(
+  scores: Score[],
+  students?: Map<string, Student>,
+  exams?: Map<string, Exam>
+): Score[] {
+  if (!students && !exams) return scores;
+  return scores.map((s) => ({
+    ...s,
+    student: students && s.student_id ? students.get(s.student_id) : undefined,
+    exam: exams && s.exam_id ? exams.get(s.exam_id) : undefined,
+  }));
 }
 
 // ─── Coordinators ────────────────────────────────────────────────────────────
 
-export const getCoordinators = unstable_cache(
-  async (): Promise<Coordinator[]> => {
-    const recs = await fetchAll(TABLES.COORDINATORS);
-    return recs.map(toCoordinator).sort((a, b) => a.name.localeCompare(b.name, "he"));
-  },
-  ["coordinators"],
-  { revalidate: 120, tags: ["coordinators"] }
-);
-
-export const getCoordinator = unstable_cache(
-  async (id: string): Promise<Coordinator | null> => {
-    const r = await fetchOne(TABLES.COORDINATORS, id);
-    return r ? toCoordinator(r) : null;
-  },
-  ["coordinator"],
-  { revalidate: 120, tags: ["coordinators"] }
-);
+export async function getCoordinator(id: string): Promise<Coordinator | null> {
+  const coordinators = await getCoordinators();
+  return coordinators.find((c) => c.id === id) ?? null;
+}
 
 export async function updateCoordinator(
   id: string,
@@ -278,20 +350,6 @@ export async function updateCoordinator(
   await patchRecord(TABLES.COORDINATORS, id, fields);
 }
 
-// ─── Helpers ─────────────────────────────────────────────────────────────────
-
-async function fetchByIds(tableId: string, ids: string[]): Promise<AirtableRecord[]> {
-  if (ids.length === 0) return [];
-  const all: AirtableRecord[] = [];
-  for (let i = 0; i < ids.length; i += 50) {
-    const chunk = ids.slice(i, i + 50);
-    const formula = `OR(${chunk.map((id) => `RECORD_ID()="${id}"`).join(",")})`;
-    const recs = await fetchAll(tableId, { filterByFormula: formula });
-    all.push(...recs);
-  }
-  return all;
-}
-
 // ─── Students ────────────────────────────────────────────────────────────────
 
 export async function getStudents(filters?: {
@@ -299,7 +357,7 @@ export async function getStudents(filters?: {
   city?: string;
   yeshiva?: string;
 }): Promise<Student[]> {
-  let students = await getStudentList();
+  let students = await studentsWithCoordinator();
 
   if (filters?.coordinator)
     students = students.filter((s) => s.coordinator_id === filters.coordinator);
@@ -310,18 +368,15 @@ export async function getStudents(filters?: {
     students = students.filter((s) => s.yeshiva?.toLowerCase().includes(term));
   }
 
-  return [...students].sort((a, b) =>
+  return students.sort((a, b) =>
     a.last_name.localeCompare(b.last_name, "he") ||
     a.first_name.localeCompare(b.first_name, "he")
   );
 }
 
 export async function getStudent(id: string): Promise<Student | null> {
-  const [r, coordinatorMap] = await Promise.all([
-    fetchOne(TABLES.STUDENTS, id),
-    getCoordinatorMap(),
-  ]);
-  return r ? toStudent(r, coordinatorMap) : null;
+  const students = await studentsWithCoordinator();
+  return students.find((s) => s.id === id) ?? null;
 }
 
 export async function updateStudent(
@@ -363,22 +418,17 @@ export async function updateStudent(
 export async function getStudentsForNedarim(coordinatorId?: string): Promise<
   Pick<Student, "id" | "first_name" | "last_name" | "nedarim_id" | "nedarim_amount" | "nedarim_charged">[]
 > {
-  const params: Record<string, string> | undefined = coordinatorId
-    ? { filterByFormula: `FIND("${coordinatorId}",ARRAYJOIN({ID רכז}))>0` }
-    : undefined;
-  const recs = await fetchAll(TABLES.STUDENTS, params);
-  return recs
-    .map((r) => {
-      const f = r.fields;
-      return {
-        id: r.id,
-        first_name: str(f["שם"]) ?? "",
-        last_name: str(f["משפחה"]) ?? "",
-        nedarim_id: num(f["מזהה נדרים"]),
-        nedarim_amount: num(f["כסף להטענה"]),
-        nedarim_charged: num(f["הוטען"]),
-      };
-    })
+  const students = await studentList();
+  return students
+    .filter((s) => !coordinatorId || s.coordinator_id === coordinatorId)
+    .map((s) => ({
+      id: s.id,
+      first_name: s.first_name,
+      last_name: s.last_name,
+      nedarim_id: s.nedarim_id,
+      nedarim_amount: s.nedarim_amount,
+      nedarim_charged: s.nedarim_charged,
+    }))
     .sort((a, b) => a.last_name.localeCompare(b.last_name, "he"));
 }
 
@@ -386,36 +436,11 @@ export async function updateNedarimCharged(id: string, charged: number): Promise
   await patchRecord(TABLES.STUDENTS, id, { "הוטען": charged });
 }
 
-// ─── Groups ──────────────────────────────────────────────────────────────────
-
-export async function getGroups(): Promise<Group[]> {
-  const recs = await fetchAll(TABLES.GROUPS);
-  return recs.map(toGroup).sort((a, b) => a.name.localeCompare(b.name, "he"));
-}
-
 // ─── Exams ───────────────────────────────────────────────────────────────────
 
-export const getExams = unstable_cache(
-  async (): Promise<Exam[]> => {
-    const recs = await fetchAll(TABLES.EXAMS);
-    return recs
-      .map(toExam)
-      .sort((a, b) => (b.created_at ?? "").localeCompare(a.created_at ?? ""));
-  },
-  ["exams"],
-  { revalidate: 60, tags: ["exams"] }
-);
-
 export async function getExam(id: string): Promise<Exam | null> {
-  const r = await fetchOne(TABLES.EXAMS, id);
-  return r ? toExam(r) : null;
-}
-
-export async function getZmanim(): Promise<Zman[]> {
-  const recs = await fetchAll(TABLES.ZMANIM);
-  return recs
-    .map(toZman)
-    .filter((z) => z.name.trim() !== "");
+  const exams = await getExams();
+  return exams.find((e) => e.id === id) ?? null;
 }
 
 export async function updateExam(
@@ -437,117 +462,67 @@ export async function updateExam(
 
 // ─── Scores ──────────────────────────────────────────────────────────────────
 
-// Fetch scores for a specific exam using the exam's reverse-linked score IDs.
-// Note: ARRAYJOIN on linked record fields returns display names not IDs, so we
-// can't use filterByFormula with record IDs on multipleRecordLinks fields.
-export const getScoresByExam = unstable_cache(
-  async (examId: string): Promise<Score[]> => {
-    const examRec = await fetchOne(TABLES.EXAMS, examId);
-    if (!examRec) return [];
-    const scoreIds = (examRec.fields["ציונים"] as string[] | undefined) ?? [];
-    if (scoreIds.length === 0) return [];
-    const [studentMap, recs] = await Promise.all([
-      getStudentMap(),
-      fetchByIds(TABLES.SCORES, scoreIds),
-    ]);
-    const exam = toExam(examRec);
-    const examMap = new Map<string, Exam>([[examId, exam]]);
-    return recs.map((r) => toScore(r, studentMap, examMap));
-  },
-  ["scores-by-exam"],
-  { revalidate: 60, tags: ["scores"] }
-);
-
-// {ID רכז} is a multipleLookupValues field → ARRAYJOIN works correctly.
-// Then filter by exam in memory using raw fields["מבחן"] array (contains record IDs).
-export const getScoresByExamForCoordinator = unstable_cache(
-  async (examId: string, coordinatorId: string): Promise<Score[]> => {
-    const [recs, studentMap] = await Promise.all([
-      fetchAll(TABLES.SCORES, {
-        filterByFormula: `FIND("${coordinatorId}",ARRAYJOIN({ID רכז}))>0`,
-      }),
-      getStudentMap(),
-    ]);
-    const exam: Exam | null = await getExam(examId);
-    const examMap = exam ? new Map([[exam.id, exam]]) : new Map<string, Exam>();
-    return recs
-      .filter((r) => {
-        const linked = r.fields["מבחן"] as string[] | null;
-        return Array.isArray(linked) && linked.includes(examId);
-      })
-      .map((r) => toScore(r, studentMap, examMap));
-  },
-  ["scores-by-exam-coordinator"],
-  { revalidate: 60, tags: ["scores"] }
-);
-
-export const getAllScoresForCoordinator = unstable_cache(
-  async (coordinatorId: string): Promise<Score[]> => {
-    const recs = await fetchAll(TABLES.SCORES, {
-      filterByFormula: `FIND("${coordinatorId}",ARRAYJOIN({ID רכז}))>0`,
-    });
-    return recs.map((r) => toScore(r));
-  },
-  ["all-scores-coordinator"],
-  { revalidate: 60, tags: ["scores"] }
-);
-
-// Use STUDENTS.{ציונים} reverse-link to get score IDs for this student.
-export async function getScoresByStudent(studentId: string): Promise<Score[]> {
-  const studentRec = await fetchOne(TABLES.STUDENTS, studentId);
-  if (!studentRec) return [];
-  const scoreIds = (studentRec.fields["ציונים"] as string[] | undefined) ?? [];
-  if (scoreIds.length === 0) return [];
-  const [examMap, recs] = await Promise.all([
-    getExamMap(),
-    fetchByIds(TABLES.SCORES, scoreIds),
-  ]);
-  return recs
-    .map((r) => toScore(r, undefined, examMap))
-    .sort((a, b) => (b.exam?.exam_date ?? "").localeCompare(a.exam?.exam_date ?? ""));
+export async function getAllScores(): Promise<Score[]> {
+  return scoreList();
 }
 
-export const getAllScores = unstable_cache(
-  async (): Promise<Score[]> => {
-    const recs = await fetchAll(TABLES.SCORES);
-    return recs.map((r) => toScore(r));
-  },
-  ["all-scores"],
-  { revalidate: 60, tags: ["scores"] }
-);
+export async function getScoresByExam(examId: string): Promise<Score[]> {
+  const [scores, students, exams] = await Promise.all([
+    scoreList(),
+    studentsWithCoordinator(),
+    getExams(),
+  ]);
+  return withScoreRelations(
+    scores.filter((s) => s.exam_id === examId),
+    byId(students),
+    byId(exams)
+  );
+}
 
-// Fetch all scores with relations — no exam filtering (caller filters in memory).
-export const getScoresWithRelations = unstable_cache(
-  async (): Promise<Score[]> => {
-    const [studentMap, examMap, recs] = await Promise.all([
-      getStudentMap(),
-      getExamMap(),
-      fetchAll(TABLES.SCORES),
-    ]);
-    return recs
-      .map((r) => toScore(r, studentMap, examMap))
-      .sort((a, b) => (b.created_at ?? "").localeCompare(a.created_at ?? ""));
-  },
-  ["scores-with-relations"],
-  { revalidate: 60, tags: ["scores"] }
-);
+export async function getScoresByExamForCoordinator(
+  examId: string,
+  coordinatorId: string
+): Promise<Score[]> {
+  const scores = await getScoresByExam(examId);
+  return scores.filter((s) => s.student?.coordinator_id === coordinatorId);
+}
 
-export const getScoresWithRelationsForCoordinator = unstable_cache(
-  async (coordinatorId: string): Promise<Score[]> => {
-    const [recs, studentMap, examMap] = await Promise.all([
-      fetchAll(TABLES.SCORES, {
-        filterByFormula: `FIND("${coordinatorId}",ARRAYJOIN({ID רכז}))>0`,
-      }),
-      getStudentMap(),
-      getExamMap(),
-    ]);
-    return recs
-      .map((r) => toScore(r, studentMap, examMap))
-      .sort((a, b) => (b.created_at ?? "").localeCompare(a.created_at ?? ""));
-  },
-  ["scores-with-relations-coordinator"],
-  { revalidate: 60, tags: ["scores"] }
-);
+export async function getAllScoresForCoordinator(coordinatorId: string): Promise<Score[]> {
+  const [scores, students] = await Promise.all([scoreList(), studentList()]);
+  const studentMap = byId(students);
+  return scores.filter(
+    (s) => studentMap.get(s.student_id)?.coordinator_id === coordinatorId
+  );
+}
+
+export async function getScoresByStudent(studentId: string): Promise<Score[]> {
+  const [scores, exams] = await Promise.all([scoreList(), getExams()]);
+  const examMap = byId(exams);
+  return withScoreRelations(
+    scores.filter((s) => s.student_id === studentId),
+    undefined,
+    examMap
+  ).sort((a, b) => (b.exam?.exam_date ?? "").localeCompare(a.exam?.exam_date ?? ""));
+}
+
+// All scores with their student (incl. the student's coordinator) and exam.
+export async function getScoresWithRelations(): Promise<Score[]> {
+  const [scores, students, exams] = await Promise.all([
+    scoreList(),
+    studentsWithCoordinator(),
+    getExams(),
+  ]);
+  return withScoreRelations(scores, byId(students), byId(exams)).sort((a, b) =>
+    (b.created_at ?? "").localeCompare(a.created_at ?? "")
+  );
+}
+
+export async function getScoresWithRelationsForCoordinator(
+  coordinatorId: string
+): Promise<Score[]> {
+  const scores = await getScoresWithRelations();
+  return scores.filter((s) => s.student?.coordinator_id === coordinatorId);
+}
 
 export async function updateScore(
   id: string,
@@ -579,48 +554,33 @@ export async function updateScore(
 
 // ─── Inquiries ───────────────────────────────────────────────────────────────
 
-export async function getInquiries(statusFilter?: string): Promise<Inquiry[]> {
-  const [coordinatorMap, studentRecs] = await Promise.all([
-    getCoordinatorMap(),
-    fetchAll(TABLES.STUDENTS),
+async function inquiriesWithRelations(): Promise<Inquiry[]> {
+  const [inquiries, students, coordinators] = await Promise.all([
+    inquiryList(),
+    studentsWithCoordinator(),
+    coordinatorMap(),
   ]);
-  const studentMap = new Map(studentRecs.map((r) => [r.id, toStudent(r, coordinatorMap)]));
+  const studentMap = byId(students);
+  return inquiries.map((i) => ({
+    ...i,
+    student: i.student_id ? studentMap.get(i.student_id) : undefined,
+    coordinator: i.coordinator_id ? coordinators.get(i.coordinator_id) : undefined,
+  }));
+}
 
-  const recs = await fetchAll(TABLES.INQUIRIES);
-  let inquiries = recs.map((r) => toInquiry(r, studentMap, coordinatorMap));
-
-  if (statusFilter) inquiries = inquiries.filter((i) => i.status === statusFilter);
-
-  return inquiries.sort((a, b) => (b.created_at ?? "").localeCompare(a.created_at ?? ""));
+export async function getInquiries(statusFilter?: string): Promise<Inquiry[]> {
+  const inquiries = await inquiriesWithRelations();
+  return statusFilter ? inquiries.filter((i) => i.status === statusFilter) : inquiries;
 }
 
 export async function getInquiriesByStudent(studentId: string): Promise<Inquiry[]> {
-  // Use student's {פניות} reverse-link — REST API returns record IDs, not display names
-  const studentRec = await fetchOne(TABLES.STUDENTS, studentId);
-  if (!studentRec) return [];
-  const inquiryIds = (studentRec.fields["פניות"] as string[] | undefined) ?? [];
-  if (inquiryIds.length === 0) return [];
-  const recs = await fetchByIds(TABLES.INQUIRIES, inquiryIds);
-  return recs
-    .map((r) => toInquiry(r))
-    .sort((a, b) => (b.created_at ?? "").localeCompare(a.created_at ?? ""));
+  const inquiries = await inquiryList();
+  return inquiries.filter((i) => i.student_id === studentId);
 }
 
 export async function getInquiriesByCoordinator(coordinatorId: string): Promise<Inquiry[]> {
-  // Use coordinator's {פניות} reverse-link — REST API returns record IDs, not display names
-  const [coordinatorRec, studentRecs] = await Promise.all([
-    fetchOne(TABLES.COORDINATORS, coordinatorId),
-    fetchAll(TABLES.STUDENTS, {
-      filterByFormula: `FIND("${coordinatorId}",ARRAYJOIN({ID רכז}))>0`,
-    }),
-  ]);
-  const studentMap = new Map(studentRecs.map((r) => [r.id, toStudent(r)]));
-  const inquiryIds = (coordinatorRec?.fields["פניות"] as string[] | undefined) ?? [];
-  if (inquiryIds.length === 0) return [];
-  const recs = await fetchByIds(TABLES.INQUIRIES, inquiryIds);
-  return recs
-    .map((r) => toInquiry(r, studentMap))
-    .sort((a, b) => (b.created_at ?? "").localeCompare(a.created_at ?? ""));
+  const inquiries = await inquiriesWithRelations();
+  return inquiries.filter((i) => i.coordinator_id === coordinatorId);
 }
 
 export async function createInquiry(data: {
@@ -672,23 +632,13 @@ export async function updateInquiry(
 // ─── Finances ────────────────────────────────────────────────────────────────
 
 export async function getFinances(): Promise<Finance[]> {
-  const coordinatorMap = await getCoordinatorMap();
-  const recs = await fetchAll(TABLES.FINANCES);
-  return recs
-    .map((r) => toFinance(r, coordinatorMap))
-    .sort((a, b) => (b.payment_date ?? "").localeCompare(a.payment_date ?? ""));
+  const [finances, coordinators] = await Promise.all([financeList(), coordinatorMap()]);
+  return withCoordinator(finances, coordinators);
 }
 
 export async function getFinancesByCoordinator(coordinatorId: string): Promise<Finance[]> {
-  // Filter in memory — REST API returns IDs in linked record fields, safe to compare
-  const recs = await fetchAll(TABLES.FINANCES);
-  return recs
-    .filter((r) => {
-      const linked = r.fields["רכז"] as string[] | null;
-      return Array.isArray(linked) && linked.includes(coordinatorId);
-    })
-    .map((r) => toFinance(r))
-    .sort((a, b) => (b.payment_date ?? "").localeCompare(a.payment_date ?? ""));
+  const finances = await getFinances();
+  return finances.filter((f) => f.coordinator_id === coordinatorId);
 }
 
 export async function updateFinance(
@@ -711,9 +661,11 @@ export async function updateFinance(
 // ─── Coordinator Instructions ─────────────────────────────────────────────────
 
 export async function getInstructions(): Promise<CoordinatorInstruction[]> {
-  const coordinatorMap = await getCoordinatorMap();
-  const recs = await fetchAll(TABLES.INSTRUCTIONS);
-  return recs.map((r) => toInstruction(r, coordinatorMap));
+  const [instructions, coordinators] = await Promise.all([
+    instructionList(),
+    coordinatorMap(),
+  ]);
+  return withCoordinator(instructions, coordinators);
 }
 
 export async function updateInstruction(
@@ -760,10 +712,8 @@ function toExamNote(r: AirtableRecord): CoordinatorExamNote {
 }
 
 export async function getExamNotesByExam(examId: string): Promise<CoordinatorExamNote[]> {
-  const recs = await fetchAll(TABLES.EXAM_NOTES, {
-    filterByFormula: `FIND("${examId}", ARRAYJOIN({פרשה}))>0`,
-  });
-  return recs.map(toExamNote);
+  const notes = await examNoteList();
+  return notes.filter((n) => n.exam_id === examId);
 }
 
 export async function upsertExamNote({
@@ -779,9 +729,10 @@ export async function upsertExamNote({
   maskana: string | null;
   hemshech_tipul: string | null;
 }): Promise<void> {
-  const existing = await fetchAll(TABLES.EXAM_NOTES, {
-    filterByFormula: `AND(FIND("${coordinatorId}", ARRAYJOIN({משפיע}))>0, FIND("${examId}", ARRAYJOIN({פרשה}))>0)`,
-  });
+  const notes = await examNoteList();
+  const existing = notes.find(
+    (n) => n.coordinator_id === coordinatorId && n.exam_id === examId
+  );
 
   const fields: Record<string, unknown> = {
     "שיחה בעניין": sicha_beinyan ?? null,
@@ -789,8 +740,8 @@ export async function upsertExamNote({
     "המשך טיפול ומעקב": hemshech_tipul ?? null,
   };
 
-  if (existing.length > 0) {
-    await patchRecord(TABLES.EXAM_NOTES, existing[0].id, fields);
+  if (existing) {
+    await patchRecord(TABLES.EXAM_NOTES, existing.id, fields);
   } else {
     await createRecord(TABLES.EXAM_NOTES, {
       ...fields,

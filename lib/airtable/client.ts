@@ -48,17 +48,6 @@ export async function fetchAll(
   return records;
 }
 
-export async function fetchOne(
-  tableId: string,
-  recordId: string
-): Promise<AirtableRecord | null> {
-  try {
-    return (await request(`${tableId}/${recordId}`)) as AirtableRecord;
-  } catch {
-    return null;
-  }
-}
-
 export async function patchRecord(
   tableId: string,
   recordId: string,

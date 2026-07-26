@@ -1,10 +1,10 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useOptimistic, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import EditModal from "@/components/EditModal";
-import { updateFinance } from "@/app/finances/actions";
+import { updateFinance } from "@/app/(app)/finances/actions";
 
 type CoordinatorOption = { id: string; name: string };
 
@@ -41,6 +41,12 @@ function toForm(f: Finance): FormState {
 export default function FinancesTable({ finances, coordinators }: Props) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
+  // Show the saved values immediately; the server refresh replaces them.
+  const [rows, applyOptimistic] = useOptimistic(
+    finances,
+    (state: Finance[], edited: Finance) =>
+      state.map((f) => (f.id === edited.id ? edited : f))
+  );
   const [editing, setEditing] = useState<Finance | null>(null);
   const [form, setForm] = useState<FormState | null>(null);
 
@@ -60,14 +66,22 @@ export default function FinancesTable({ finances, coordinators }: Props) {
 
   function handleSave() {
     if (!editing || !form) return;
+    const finance = editing;
+    const changes = {
+      name: form.name || null,
+      payment_date: form.payment_date || null,
+      amount: form.amount ? Number(form.amount) : null,
+      coordinator_id: form.coordinator_id || null,
+    };
+    closeEdit();
     startTransition(async () => {
-      await updateFinance(editing.id, {
-        name: form.name || null,
-        payment_date: form.payment_date || null,
-        amount: form.amount ? Number(form.amount) : null,
-        coordinator_id: form.coordinator_id || null,
+      applyOptimistic({
+        ...finance,
+        ...changes,
+        coordinator:
+          coordinators.find((c) => c.id === changes.coordinator_id) ?? null,
       });
-      closeEdit();
+      await updateFinance(finance.id, changes);
       router.refresh();
     });
   }
@@ -77,7 +91,7 @@ export default function FinancesTable({ finances, coordinators }: Props) {
       <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
         <div className="px-6 py-4 bg-gray-50 border-b border-gray-200">
           <h2 className="font-semibold text-gray-700">
-            כל התשלומים ({finances.length})
+            כל התשלומים ({rows.length})
           </h2>
         </div>
         <table className="w-full text-sm">
@@ -90,8 +104,8 @@ export default function FinancesTable({ finances, coordinators }: Props) {
             </tr>
           </thead>
           <tbody className="divide-y divide-gray-100">
-            {finances.length > 0 ? (
-              finances.map((finance) => {
+            {rows.length > 0 ? (
+              rows.map((finance) => {
                 const coordinator = finance.coordinator as { id: string; name: string } | null;
                 return (
                   <tr
