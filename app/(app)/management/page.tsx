@@ -46,12 +46,60 @@ async function ManagementContent({
     selectedExamId ? getExamNotesByExam(selectedExamId) : Promise.resolve([]),
   ]);
 
+  // Flat rows + one entry per bochur, rather than the bochur nested in each row.
+  const rows = scores.map((s) => ({
+    id: s.id,
+    student_id: s.student_id,
+    chassidut_score: s.chassidut_score,
+    halacha_score: s.halacha_score,
+    tefila_score: s.tefila_score,
+    beinoni_score: s.beinoni_score,
+    shleimut_score: s.shleimut_score,
+    attended_seder: s.attended_seder,
+    arrived_on_time: s.arrived_on_time,
+    attended_class: s.attended_class,
+    weekly_summary: s.weekly_summary,
+    paid: s.paid,
+    payment_amount: s.payment_amount,
+    personal_note: s.personal_note,
+    rabbi_note: s.rabbi_note,
+  }));
+
+  const students: Record<
+    string,
+    { id: string; first_name: string; last_name: string; coordinator: { id: string; name: string } | null }
+  > = {};
+  for (const score of scores) {
+    const student = score.student;
+    if (!student || students[student.id]) continue;
+    students[student.id] = {
+      id: student.id,
+      first_name: student.first_name,
+      last_name: student.last_name,
+      coordinator: student.coordinator
+        ? { id: student.coordinator.id, name: student.coordinator.name }
+        : null,
+    };
+  }
+
+  // Notes are keyed by coordinator, so a note without one has nothing to attach to.
+  const coordinatorNotes = examNotes
+    .filter((n): n is typeof n & { coordinator_id: string } => n.coordinator_id !== null)
+    .map((n) => ({
+      id: n.id,
+      coordinator_id: n.coordinator_id,
+      sicha_beinyan: n.sicha_beinyan,
+      maskana: n.maskana,
+      hemshech_tipul: n.hemshech_tipul,
+    }));
+
   return (
     <ManagementClient
       exams={exams}
       coordinators={coordinators}
-      scores={scores as any}
-      examNotes={examNotes as any}
+      scores={rows}
+      students={students}
+      examNotes={coordinatorNotes}
       selectedExamId={selectedExamId}
       activeTab={activeTab}
     />

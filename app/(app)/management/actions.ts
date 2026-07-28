@@ -1,6 +1,6 @@
 "use server";
 
-import { refresh, updateTag } from "next/cache";
+import { refresh, revalidateTag, updateTag } from "next/cache";
 import { updateScore, upsertExamNote } from "@/lib/airtable/db";
 
 export async function updateExamNote(
@@ -9,7 +9,8 @@ export async function updateExamNote(
   value: string | null
 ) {
   await updateScore(scoreId, { [field]: value });
-  updateTag("scores");
+  // Background refresh — see attendance/actions.ts.
+  revalidateTag("scores", "max");
   refresh();
 }
 

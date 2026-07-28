@@ -61,6 +61,39 @@ async function ScoresContent({ searchParams }: { searchParams: Promise<Filters> 
     ? examFiltered.filter((s) => s.student?.coordinator_id === coordFilter)
     : examFiltered;
 
+  // Send flat rows plus one entry per bochur/parasha instead of repeating the
+  // whole bochur inside every score.
+  const rows = filteredScores.map((s) => ({
+    id: s.id,
+    student_id: s.student_id,
+    exam_id: s.exam_id,
+    chassidut_score: s.chassidut_score,
+    halacha_score: s.halacha_score,
+    tefila_score: s.tefila_score,
+    beinoni_score: s.beinoni_score,
+    shleimut_score: s.shleimut_score,
+    attended_seder: s.attended_seder,
+    paid: s.paid,
+  }));
+
+  const studentInfo: Record<
+    string,
+    { name: string; coordinator_id: string | null; coordinator_name: string | null; group_id: string | null }
+  > = {};
+  for (const score of filteredScores) {
+    const student = score.student;
+    if (!student || studentInfo[student.id]) continue;
+    studentInfo[student.id] = {
+      name: `${student.first_name} ${student.last_name}`,
+      coordinator_id: student.coordinator_id,
+      coordinator_name: student.coordinator?.name ?? null,
+      group_id: student.group_id,
+    };
+  }
+
+  const parashot: Record<string, string> = {};
+  for (const exam of exams) parashot[exam.id] = exam.parasha;
+
   return (
     <>
       <form className="bg-white rounded-xl border border-gray-200 p-4 mb-6 flex flex-wrap gap-4 items-end">
@@ -99,7 +132,7 @@ async function ScoresContent({ searchParams }: { searchParams: Promise<Filters> 
         )}
       </form>
 
-      <ScoresTable scores={filteredScores as any[]} />
+      <ScoresTable rows={rows} students={studentInfo} parashot={parashot} />
     </>
   );
 }

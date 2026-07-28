@@ -190,6 +190,10 @@ function toGroup(r: AirtableRecord): Group {
 
 const LIVE = { stale: 30, revalidate: 180, expire: 3600 } as const;
 const STABLE = { stale: 60, revalidate: 1800, expire: 86400 } as const;
+// Scores is by far the biggest table — a full read is one request per 100 rows,
+// so it refreshes on a longer beat. Writes push it forward on their own via
+// revalidateTag, and stale rows are still served while that happens.
+const BULK = { stale: 60, revalidate: 900, expire: 7200 } as const;
 
 export async function getCoordinators(): Promise<Coordinator[]> {
   "use cache: remote";
@@ -235,7 +239,7 @@ async function studentList(): Promise<Student[]> {
 
 async function scoreList(): Promise<Score[]> {
   "use cache: remote";
-  cacheLife(LIVE);
+  cacheLife(BULK);
   cacheTag("scores");
   const recs = await fetchAll(TABLES.SCORES);
   return recs.map(toScore);

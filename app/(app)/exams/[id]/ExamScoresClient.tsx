@@ -1,7 +1,8 @@
 "use client";
 
-import { useOptimistic, useTransition, useState, useCallback, useMemo } from "react";
+import { useTransition, useState, useCallback, useMemo } from "react";
 import { updateScoreAction } from "./actions";
+import { usePendingEdits } from "@/lib/use-pending-edits";
 
 type Score = {
   id: string;
@@ -271,21 +272,17 @@ export default function ExamScoresClient({ scores: initialScores, examId, season
     [initialScores]
   );
 
-  const [scores, updateOptimistic] = useOptimistic(
-    sortedInitial,
-    (state: Score[], update: { id: string; patch: Partial<Score> }) =>
-      state.map((s) => (s.id === update.id ? { ...s, ...update.patch } : s))
-  );
+  const [scores, applyEdit] = usePendingEdits(sortedInitial);
 
   const save = useCallback(
     (scoreId: string, field: string, value: unknown) => {
       setEditing(null);
+      applyEdit(scoreId, { [field]: value } as Partial<Score>);
       startTransition(async () => {
-        updateOptimistic({ id: scoreId, patch: { [field]: value } as Partial<Score> });
         await updateScoreAction(scoreId, { [field]: value }, examId);
       });
     },
-    [updateOptimistic, examId]
+    [applyEdit, examId]
   );
 
   const toggle = useCallback(

@@ -1,6 +1,6 @@
 "use server";
 
-import { refresh, updateTag } from "next/cache";
+import { refresh, revalidateTag } from "next/cache";
 import { updateScore as updateScoreDB } from "@/lib/airtable/db";
 
 export async function updateScoreAction(
@@ -9,6 +9,7 @@ export async function updateScoreAction(
   _examId: string
 ) {
   await updateScoreDB(id, data);
-  updateTag("scores");
+  // Background refresh — a score edit shouldn't wait on a full table re-read.
+  revalidateTag("scores", "max");
   refresh();
 }

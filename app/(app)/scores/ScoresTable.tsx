@@ -1,10 +1,14 @@
 "use client";
 
 import Link from "next/link";
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
+import { ChevronLeft, ChevronRight } from "lucide-react";
 import { useSettings } from "@/lib/settings-context";
 
-type Score = {
+// Flat rows plus a lookup per bochur/parasha. Nesting the bochur inside every
+// score meant his name, coordinator and exam were re-serialized once per row —
+// on a full-year view that alone was tens of megabytes.
+type ScoreRow = {
   id: string;
   student_id: string;
   exam_id: string;
@@ -15,23 +19,39 @@ type Score = {
   shleimut_score: number | null;
   attended_seder: boolean;
   paid: boolean;
-  student?: {
-    id: string;
-    first_name: string;
-    last_name: string;
-    coordinator_id?: string | null;
-    group_id?: string | null;
-    coordinator?: { id: string; name: string } | null;
-  } | null;
-  exam?: { id: string; parasha: string } | null;
 };
 
-export default function ScoresTable({ scores }: { scores: Score[] }) {
+type StudentInfo = {
+  name: string;
+  coordinator_id: string | null;
+  coordinator_name: string | null;
+  group_id: string | null;
+};
+
+const PAGE_SIZE = 100;
+
+export default function ScoresTable({
+  rows,
+  students,
+  parashot,
+}: {
+  rows: ScoreRow[];
+  students: Record<string, StudentInfo>;
+  parashot: Record<string, string>;
+}) {
   const { isStudentVisible } = useSettings();
+  const [page, setPage] = useState(0);
 
   const visibleScores = useMemo(
-    () => scores.filter((s) => isStudentVisible({ coordinator_id: s.student?.coordinator_id, group_id: s.student?.group_id })),
-    [scores, isStudentVisible]
+    () =>
+      rows.filter((s) => {
+        const student = students[s.student_id];
+        return isStudentVisible({
+          coordinator_id: student?.coordinator_id,
+          group_id: student?.group_id,
+        });
+      }),
+    [rows, students, isStudentVisible]
   );
 
   const overallAvg =
@@ -45,6 +65,10 @@ export default function ScoresTable({ scores }: { scores: Score[] }) {
           }, 0) / visibleScores.length
         ).toFixed(1)
       : "—";
+
+  const pageCount = Math.ceil(visibleScores.length / PAGE_SIZE);
+  const current = Math.min(page, Math.max(pageCount - 1, 0));
+  const pageRows = visibleScores.slice(current * PAGE_SIZE, current * PAGE_SIZE + PAGE_SIZE);
 
   return (
     <>
@@ -70,8 +94,10 @@ export default function ScoresTable({ scores }: { scores: Score[] }) {
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-100">
-              {visibleScores.length > 0 ? (
-                visibleScores.map((score) => {
+              {pageRows.length > 0 ? (
+                pageRows.map((score) => {
+                  const student = students[score.student_id];
+                  const parasha = parashot[score.exam_id];
                   const vals = [score.chassidut_score, score.halacha_score, score.tefila_score].filter(
                     (v): v is number => v !== null
                   );
@@ -82,19 +108,19 @@ export default function ScoresTable({ scores }: { scores: Score[] }) {
                   return (
                     <tr key={score.id} className="hover:bg-gray-50 transition-colors">
                       <td className="px-6 py-3 font-medium text-gray-900">
-                        {score.student ? (
-                          <Link href={`/students/${score.student.id}`} className="text-blue-600 hover:underline">
-                            {score.student.first_name} {score.student.last_name}
+                        {student ? (
+                          <Link href={`/students/${score.student_id}`} className="text-blue-600 hover:underline">
+                            {student.name}
                           </Link>
                         ) : "—"}
                       </td>
                       <td className="px-6 py-3 text-gray-500 text-xs">
-                        {score.student?.coordinator?.name ?? "—"}
+                        {student?.coordinator_name ?? "—"}
                       </td>
                       <td className="px-6 py-3 text-gray-600">
-                        {score.exam ? (
-                          <Link href={`/exams/${score.exam.id}`} className="text-blue-600 hover:underline">
-                            {score.exam.parasha}
+                        {parasha ? (
+                          <Link href={`/exams/${score.exam_id}`} className="text-blue-600 hover:underline">
+                            {parasha}
                           </Link>
                         ) : "—"}
                       </td>
@@ -139,6 +165,37 @@ export default function ScoresTable({ scores }: { scores: Score[] }) {
             </tbody>
           </table>
         </div>
+
+        {pageCount > 1 && (
+          <div className="flex items-center justify-between px-6 py-3 bg-gray-50 border-t border-gray-200 text-sm">
+            <span className="text-gray-500">
+              מציג {current * PAGE_SIZE + 1}–
+              {Math.min((current + 1) * PAGE_SIZE, visibleScores.length)} מתוך{" "}
+              {visibleScores.length}
+            </span>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => setPage(current - 1)}
+                disabled={current === 0}
+                className="flex items-center gap-1 px-3 py-1.5 rounded-lg border border-gray-200 text-gray-600 hover:bg-white disabled:opacity-40 disabled:hover:bg-transparent transition-colors"
+              >
+                <ChevronRight size={14} />
+                הקודם
+              </button>
+              <span className="text-gray-400 text-xs">
+                {current + 1} / {pageCount}
+              </span>
+              <button
+                onClick={() => setPage(current + 1)}
+                disabled={current >= pageCount - 1}
+                className="flex items-center gap-1 px-3 py-1.5 rounded-lg border border-gray-200 text-gray-600 hover:bg-white disabled:opacity-40 disabled:hover:bg-transparent transition-colors"
+              >
+                הבא
+                <ChevronLeft size={14} />
+              </button>
+            </div>
+          </div>
+        )}
       </div>
     </>
   );

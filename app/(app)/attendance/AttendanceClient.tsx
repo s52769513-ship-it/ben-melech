@@ -1,15 +1,29 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useOptimistic, useTransition, useState, useMemo, Fragment } from "react";
+import { useTransition, useState, useMemo, Fragment } from "react";
 import { updateScoreBoolean, updateScoreNumber } from "./actions";
 import { AlertTriangle, Download, FileText, Printer, X, Search, Filter } from "lucide-react";
 import { useSettings } from "@/lib/settings-context";
+import { usePendingEdits } from "@/lib/use-pending-edits";
 import * as XLSX from "xlsx";
 
 type Exam = { id: string; parasha: string; exam_date: string | null };
 
-type Score = {
+type StudentInfo = {
+  id: string;
+  first_name: string;
+  last_name: string;
+  city: string | null;
+  coordinator_id?: string | null;
+  group_id?: string | null;
+  coordinator: { id: string; name: string } | null;
+};
+
+// Rows arrive flat, with one entry per bochur alongside them. Nesting the
+// bochur in every row re-serialized his details once per parasha, which is what
+// made the full-year view so heavy.
+type ScoreRow = {
   id: string;
   student_id: string;
   exam_id: string;
@@ -22,16 +36,9 @@ type Score = {
   halacha_score: number | null;
   tefila_score: number | null;
   points_kaitz: number | null;
-  student: {
-    id: string;
-    first_name: string;
-    last_name: string;
-    city: string | null;
-    coordinator_id?: string | null;
-    group_id?: string | null;
-    coordinator: { id: string; name: string } | null;
-  } | null;
 };
+
+type Score = ScoreRow & { student: StudentInfo | null };
 
 function getAttendanceBg(rate: number) {
   if (rate >= 80) return "bg-green-100 text-green-800";
@@ -112,23 +119,25 @@ function ManualPointsCell({
 
 export default function AttendanceClient({
   exams,
-  scores: initialScores,
+  scores,
+  students,
   selectedExamId,
   attendanceRates,
 }: {
   exams: Exam[];
-  scores: Score[];
+  scores: ScoreRow[];
+  students: Record<string, StudentInfo>;
   selectedExamId: string | null;
   attendanceRates: Record<string, number>;
 }) {
   const router = useRouter();
   const { isStudentVisible, settings } = useSettings();
   const [, startTransition] = useTransition();
-  const [optimisticScores, updateOptimistic] = useOptimistic(
-    initialScores,
-    (state, { id, field, value }: { id: string; field: string; value: boolean | number | null }) =>
-      state.map((s) => (s.id === id ? { ...s, [field]: value } : s))
+  const initialScores = useMemo<Score[]>(
+    () => scores.map((s) => ({ ...s, student: students[s.student_id] ?? null })),
+    [scores, students]
   );
+  const [optimisticScores, applyEdit] = usePendingEdits(initialScores);
 
   const isAll = selectedExamId === "all";
 
@@ -145,15 +154,15 @@ export default function AttendanceClient({
   }
 
   function handleToggle(scoreId: string, field: BoolField, value: boolean) {
+    applyEdit(scoreId, { [field]: value } as Partial<Score>);
     startTransition(async () => {
-      updateOptimistic({ id: scoreId, field, value });
       await updateScoreBoolean(scoreId, field, value);
     });
   }
 
   function handleManualPoints(scoreId: string, value: number | null) {
+    applyEdit(scoreId, { points_kaitz: value });
     startTransition(async () => {
-      updateOptimistic({ id: scoreId, field: "points_kaitz", value });
       await updateScoreNumber(scoreId, "points_kaitz", value);
     });
   }

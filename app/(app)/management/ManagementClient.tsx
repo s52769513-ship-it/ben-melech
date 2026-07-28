@@ -1,15 +1,25 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useOptimistic, useTransition, useCallback, useState } from "react";
+import { useTransition, useCallback, useMemo, useState } from "react";
 import { ChevronRight, ChevronLeft, Download, Printer } from "lucide-react";
 import { updateExamNote, upsertCoordinatorNote } from "./actions";
+import { usePendingEdits } from "@/lib/use-pending-edits";
 
 type Exam = { id: string; parasha: string; exam_date: string | null };
 
 type Coordinator = { id: string; name: string };
 
-type ScoreRow = {
+type StudentInfo = {
+  id: string;
+  first_name: string;
+  last_name: string;
+  coordinator: { id: string; name: string } | null;
+};
+
+// Rows arrive flat with a separate entry per bochur, so his details aren't
+// re-serialized once per score.
+type ScoreData = {
   id: string;
   student_id: string;
   chassidut_score: number | null;
@@ -25,13 +35,9 @@ type ScoreRow = {
   payment_amount: number | null;
   personal_note: string | null;
   rabbi_note: string | null;
-  student: {
-    id: string;
-    first_name: string;
-    last_name: string;
-    coordinator: { id: string; name: string } | null;
-  } | null;
 };
+
+type ScoreRow = ScoreData & { student: StudentInfo | null };
 
 type CoordNote = {
   id: string | null;
@@ -44,7 +50,8 @@ type CoordNote = {
 interface Props {
   exams: Exam[];
   coordinators: Coordinator[];
-  scores: ScoreRow[];
+  scores: ScoreData[];
+  students: Record<string, StudentInfo>;
   examNotes: { id: string; coordinator_id: string; sicha_beinyan: string | null; maskana: string | null; hemshech_tipul: string | null }[];
   selectedExamId: string | null;
   activeTab: string;
@@ -60,13 +67,18 @@ const SICHA_OPTIONS = ["מיוזמתי", "יוזמת המשפיע"];
 export default function ManagementClient({
   exams,
   coordinators,
-  scores,
+  scores: scoreData,
+  students,
   examNotes: initialExamNotes,
   selectedExamId,
   activeTab,
 }: Props) {
   const router = useRouter();
   const [, startTransition] = useTransition();
+  const scores = useMemo<ScoreRow[]>(
+    () => scoreData.map((s) => ({ ...s, student: students[s.student_id] ?? null })),
+    [scoreData, students]
+  );
 
   // Build initial coord notes map (one per coordinator)
   const buildNotesMap = (notes: Props["examNotes"]): Map<string, CoordNote> => {
@@ -88,14 +100,8 @@ export default function ManagementClient({
     buildNotesMap(initialExamNotes)
   );
 
-  // Per-student note optimistic state (tab 2)
-  const [scores2, updateOptimistic] = useOptimistic(
-    scores,
-    (
-      state,
-      { id, field, value }: { id: string; field: "personal_note" | "rabbi_note"; value: string | null }
-    ) => state.map((s) => (s.id === id ? { ...s, [field]: value } : s))
-  );
+  // Per-student notes stay on screen until the server reports them back.
+  const [scores2, applyEdit] = usePendingEdits(scores);
 
   const currentIndex = exams.findIndex((e) => e.id === selectedExamId);
   const currentExam = exams[currentIndex] ?? exams[0];
@@ -109,8 +115,8 @@ export default function ManagementClient({
   }
 
   function handleStudentNote(scoreId: string, field: "personal_note" | "rabbi_note", value: string) {
+    applyEdit(scoreId, { [field]: value || null });
     startTransition(async () => {
-      updateOptimistic({ id: scoreId, field, value: value || null });
       await updateExamNote(scoreId, field, value || null);
     });
   }

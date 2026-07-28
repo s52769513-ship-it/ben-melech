@@ -2,9 +2,8 @@ import { Suspense } from "react";
 import { TableProperties } from "lucide-react";
 import OverviewClient from "./OverviewClient";
 import { TableSkeleton } from "@/components/Skeletons";
-import { getExams, getAllScores, getStudents, getCoordinators } from "@/lib/airtable/db";
+import { getExams, getAllScores, getStudents } from "@/lib/airtable/db";
 import { getSession } from "@/lib/auth";
-import type { Student, Coordinator } from "@/lib/types";
 
 export default function OverviewPage() {
   return (
@@ -26,45 +25,50 @@ export default function OverviewPage() {
 
 async function OverviewContent() {
   const coordinatorId = await getSession();
-  const [exams, allScores, students, coordinators] = await Promise.all([
+  const [exams, allScores, students] = await Promise.all([
     getExams(),
     getAllScores(),
     getStudents(),
-    getCoordinators(),
   ]);
 
-  const coordinatorMap = new Map<string, Coordinator>(coordinators.map((c) => [c.id, c]));
-  const studentMap = new Map<string, Student>(students.map((s) => [s.id, s]));
+  const visible =
+    !coordinatorId || coordinatorId === "ADMIN"
+      ? students
+      : students.filter((s) => s.coordinator_id === coordinatorId);
 
-  const scoresWithRelations = allScores
-    .filter((s) => {
-      if (!coordinatorId || coordinatorId === "ADMIN") return true;
-      const st = studentMap.get(s.student_id);
-      return st?.coordinator_id === coordinatorId;
-    })
-    .map((s) => {
-      const student = studentMap.get(s.student_id);
-      return {
-        ...s,
-        student: student
-          ? {
-              ...student,
-              coordinator: student.coordinator_id
-                ? coordinatorMap.get(student.coordinator_id) ?? null
-                : null,
-            }
-          : undefined,
-      };
-    });
+  // Collapse the scores into one row per bochur. The grid only asks "was he
+  // there for this parasha", so a row per score — with the bochur repeated
+  // inside each one — was moving tens of megabytes for no added detail.
+  const recorded = new Map<string, string[]>();
+  const attended = new Map<string, string[]>();
+  for (const score of allScores) {
+    if (!score.student_id || !score.exam_id) continue;
+    let recordedIds = recorded.get(score.student_id);
+    if (!recordedIds) recorded.set(score.student_id, (recordedIds = []));
+    recordedIds.push(score.exam_id);
+
+    if (score.attended_seder || score.attended_seder_old) {
+      let attendedIds = attended.get(score.student_id);
+      if (!attendedIds) attended.set(score.student_id, (attendedIds = []));
+      attendedIds.push(score.exam_id);
+    }
+  }
+
+  const studentRows = visible
+    .filter((s) => recorded.has(s.id))
+    .map((s) => ({
+      id: s.id,
+      first_name: s.first_name,
+      last_name: s.last_name,
+      group_id: s.group_id,
+      coordinator: s.coordinator ? { id: s.coordinator.id, name: s.coordinator.name } : null,
+      recorded_exam_ids: recorded.get(s.id) ?? [],
+      attended_exam_ids: attended.get(s.id) ?? [],
+    }));
 
   const sortedExams = [...exams].sort((a, b) =>
     (a.exam_date ?? "").localeCompare(b.exam_date ?? "")
   );
 
-  return (
-    <OverviewClient
-      exams={sortedExams}
-      scores={scoresWithRelations as any[]}
-    />
-  );
+  return <OverviewClient exams={sortedExams} students={studentRows} />;
 }

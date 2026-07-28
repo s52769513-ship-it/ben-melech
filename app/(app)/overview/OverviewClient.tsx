@@ -7,26 +7,26 @@ import * as XLSX from "xlsx";
 
 type Exam = { id: string; parasha: string; exam_date: string | null };
 
-type Score = {
-  student_id: string;
-  exam_id: string;
-  attended_seder: boolean;
-  attended_seder_old: boolean;
-  student: {
-    id: string;
-    first_name: string;
-    last_name: string;
-    group_id: string | null;
-    coordinator: { id: string; name: string } | null;
-  } | null;
+// One row per bochur with the exams he attended, instead of one row per score
+// with the bochur repeated inside it — the grid needs nothing else, and this is
+// what keeps the payload small enough to stay quick.
+type StudentRow = {
+  id: string;
+  first_name: string;
+  last_name: string;
+  group_id: string | null;
+  coordinator: { id: string; name: string } | null;
+  // Exams the bochur has a score row for, and the subset he was present at.
+  recorded_exam_ids: string[];
+  attended_exam_ids: string[];
 };
 
 export default function OverviewClient({
   exams,
-  scores,
+  students,
 }: {
   exams: Exam[];
-  scores: Score[];
+  students: StudentRow[];
 }) {
   const [nameSearch, setNameSearch] = useState("");
   const [coordinatorFilter, setCoordinatorFilter] = useState("");
@@ -35,27 +35,17 @@ export default function OverviewClient({
   // Exams ordered oldest→newest; displayed newest→right (RTL: columns flow left, name is rightmost)
   const orderedExams = exams; // already ascending from server
 
-  // Build lookup: studentId → examId → attended_seder
+  // Build lookup: studentId → { exams with a record, exams he attended }
   const attendanceMap = useMemo(() => {
-    const map = new Map<string, Map<string, boolean>>();
-    scores.forEach((s) => {
-      if (!s.student_id) return;
-      if (!map.has(s.student_id)) map.set(s.student_id, new Map());
-      map.get(s.student_id)!.set(s.exam_id, s.attended_seder || s.attended_seder_old);
-    });
+    const map = new Map<string, { recorded: Set<string>; attended: Set<string> }>();
+    students.forEach((s) =>
+      map.set(s.id, {
+        recorded: new Set(s.recorded_exam_ids),
+        attended: new Set(s.attended_exam_ids),
+      })
+    );
     return map;
-  }, [scores]);
-
-  // Collect unique students from scores
-  const students = useMemo(() => {
-    const seen = new Map<string, Score["student"]>();
-    scores.forEach((s) => {
-      if (s.student && !seen.has(s.student_id)) {
-        seen.set(s.student_id, s.student);
-      }
-    });
-    return Array.from(seen.values()).filter(Boolean) as NonNullable<Score["student"]>[];
-  }, [scores]);
+  }, [students]);
 
   // Unique coordinators for filter — excluding hidden ones
   const coordinators = useMemo(() => {
@@ -107,7 +97,7 @@ export default function OverviewClient({
         rows.push([
           `${s.first_name} ${s.last_name}`,
           coordName,
-          ...orderedExams.map((e) => (examMap?.get(e.id) ? 1 : 0)),
+          ...orderedExams.map((e) => (examMap?.attended.has(e.id) ? 1 : 0)),
         ]);
       });
     });
@@ -128,7 +118,7 @@ export default function OverviewClient({
         rows.push([
           `${s.first_name} ${s.last_name}`,
           coordName,
-          ...orderedExams.map((e) => (examMap?.get(e.id) ? "✓" : "—")),
+          ...orderedExams.map((e) => (examMap?.attended.has(e.id) ? "✓" : "—")),
         ]);
       });
     });
@@ -305,11 +295,11 @@ export default function OverviewClient({
                     {/* Student rows */}
                     {groupStudents.map((student, idx) => {
                       const examMap = attendanceMap.get(student.id);
-                      const totalAttended = orderedExams.filter(
-                        (e) => examMap?.get(e.id) === true
+                      const totalAttended = orderedExams.filter((e) =>
+                        examMap?.attended.has(e.id)
                       ).length;
                       const totalExams = orderedExams.filter((e) =>
-                        examMap?.has(e.id)
+                        examMap?.recorded.has(e.id)
                       ).length;
 
                       return (
@@ -341,10 +331,10 @@ export default function OverviewClient({
 
                           {/* Parasha cells — newest first */}
                           {[...orderedExams].reverse().map((exam) => {
-                            const attended = examMap?.get(exam.id);
+                            const attended = examMap?.attended.has(exam.id);
                             return (
                               <td key={exam.id} className="px-3 py-2.5 text-center">
-                                {attended === true ? (
+                                {attended ? (
                                   <span className="inline-flex items-center justify-center w-7 h-7 rounded-full bg-green-100 text-green-600 font-bold text-base">
                                     ✓
                                   </span>
