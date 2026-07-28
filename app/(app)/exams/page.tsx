@@ -2,6 +2,7 @@ import Link from "next/link";
 import { Suspense } from "react";
 import { BookOpen, ArrowRight, Calendar, Sun, Snowflake } from "lucide-react";
 import { CardsSkeleton } from "@/components/Skeletons";
+import { ExamAverage, ExamParticipants, type ExamStats } from "@/components/ExamStats";
 import { getExams, getZmanim, getAllScores, getAllScoresForCoordinator } from "@/lib/airtable/db";
 import { getSession } from "@/lib/auth";
 
@@ -30,26 +31,12 @@ export default function ExamsPage({
   );
 }
 
-async function ExamsContent({
-  searchParams,
-}: {
-  searchParams: Promise<{ zman?: string }>;
-}) {
-  const [{ zman: selectedZmanId }, coordinatorId] = await Promise.all([
-    searchParams,
-    getSession().catch(() => null),
-  ]);
+async function buildExamStats(coordinatorId: string | null): Promise<Record<string, ExamStats>> {
+  const scores = coordinatorId
+    ? await getAllScoresForCoordinator(coordinatorId)
+    : await getAllScores();
 
-  const isAdmin = coordinatorId === "ADMIN";
-  const loggedIn = isAdmin ? null : coordinatorId;
-
-  const [exams, zmanim, scores] = await Promise.all([
-    getExams(),
-    getZmanim(),
-    loggedIn ? getAllScoresForCoordinator(loggedIn) : getAllScores(),
-  ]);
-
-  const examStatsMap: Record<string, { total: number; count: number; participants: number }> = {};
+  const examStatsMap: Record<string, ExamStats> = {};
   scores.forEach((s) => {
     if (!examStatsMap[s.exam_id]) {
       examStatsMap[s.exam_id] = { total: 0, count: 0, participants: 0 };
@@ -63,6 +50,28 @@ async function ExamsContent({
     }
     examStatsMap[s.exam_id].participants++;
   });
+  return examStatsMap;
+}
+
+async function ExamsContent({
+  searchParams,
+}: {
+  searchParams: Promise<{ zman?: string }>;
+}) {
+  const [{ zman: selectedZmanId }, coordinatorId] = await Promise.all([
+    searchParams,
+    getSession().catch(() => null),
+  ]);
+
+  const isAdmin = coordinatorId === "ADMIN";
+  const loggedIn = isAdmin ? null : coordinatorId;
+
+  const [exams, zmanim] = await Promise.all([getExams(), getZmanim()]);
+
+  // The parashot list only needs the exams table. Their averages come from the
+  // scores table, which is many times larger — so it is left unawaited and the
+  // cards render immediately.
+  const statsPromise = buildExamStats(loggedIn).catch(() => ({}));
 
   const isAll = selectedZmanId === "all";
   const selectedZman = zmanim.find((z) => z.id === selectedZmanId);
@@ -96,8 +105,6 @@ async function ExamsContent({
         </div>
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 mb-8">
           {exams.map((exam) => {
-            const stats = examStatsMap[exam.id];
-            const avgScore = stats && stats.count > 0 ? (stats.total / stats.count).toFixed(1) : null;
             return (
               <Link
                 key={exam.id}
@@ -108,18 +115,14 @@ async function ExamsContent({
                   <h3 className="font-semibold text-gray-900 text-base group-hover:text-[#1e3a5f] transition-colors leading-tight">
                     {exam.parasha}
                   </h3>
-                  {avgScore && (
-                    <span className="bg-blue-50 text-blue-700 font-bold text-sm px-2.5 py-0.5 rounded-full shrink-0 mr-2">
-                      {avgScore}
-                    </span>
-                  )}
+                  <ExamAverage examId={exam.id} statsPromise={statsPromise} />
                 </div>
                 <div className="flex items-center justify-between text-xs text-gray-400">
                   <span className="flex items-center gap-1">
                     <Calendar size={11} />
                     {exam.exam_date ? new Date(exam.exam_date).toLocaleDateString("he-IL") : "תאריך לא הוגדר"}
                   </span>
-                  {stats && <span>{stats.participants} בחורים</span>}
+                  <ExamParticipants examId={exam.id} statsPromise={statsPromise} />
                 </div>
               </Link>
             );
@@ -163,11 +166,6 @@ async function ExamsContent({
 
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 mb-8">
           {zmanExams.map((exam) => {
-            const stats = examStatsMap[exam.id];
-            const avgScore =
-              stats && stats.count > 0
-                ? (stats.total / stats.count).toFixed(1)
-                : null;
             return (
               <Link
                 key={exam.id}
@@ -178,11 +176,7 @@ async function ExamsContent({
                   <h3 className="font-semibold text-gray-900 text-base group-hover:text-[#1e3a5f] transition-colors leading-tight">
                     {exam.parasha}
                   </h3>
-                  {avgScore && (
-                    <span className="bg-blue-50 text-blue-700 font-bold text-sm px-2.5 py-0.5 rounded-full shrink-0 mr-2">
-                      {avgScore}
-                    </span>
-                  )}
+                  <ExamAverage examId={exam.id} statsPromise={statsPromise} />
                 </div>
                 <div className="flex items-center justify-between text-xs text-gray-400">
                   <span className="flex items-center gap-1">
@@ -191,9 +185,7 @@ async function ExamsContent({
                       ? new Date(exam.exam_date).toLocaleDateString("he-IL")
                       : "תאריך לא הוגדר"}
                   </span>
-                  {stats && (
-                    <span>{stats.participants} בחורים</span>
-                  )}
+                  <ExamParticipants examId={exam.id} statsPromise={statsPromise} />
                 </div>
               </Link>
             );

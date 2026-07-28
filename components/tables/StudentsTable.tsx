@@ -1,6 +1,7 @@
 "use client";
 
 import { useOptimistic, useState, useTransition } from "react";
+import { useStreamedValue } from "@/lib/use-streamed-value";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { ChevronLeft, FileSpreadsheet, FileText, Settings } from "lucide-react";
@@ -44,8 +45,13 @@ interface Props {
   students: Student[];
   coordinators: CoordinatorOption[];
   groups: GroupOption[];
-  scoreMap: Record<string, ScoreStats>;
+  // Averages and attendance are aggregated over the whole scores table, which
+  // takes far longer to read than the bochurim themselves — so it arrives as a
+  // promise and the table renders without waiting for it.
+  scoreMapPromise: Promise<Record<string, ScoreStats>>;
 }
+
+const NO_SCORES: Record<string, ScoreStats> = {};
 
 type FormState = {
   first_name: string;
@@ -87,7 +93,7 @@ function toForm(s: Student): FormState {
 
 type FieldKey = typeof AVAILABLE_FIELDS[number]["id"];
 
-function renderCellValue(fieldId: FieldKey, student: Student, scoreMap: Record<string, ScoreStats>, coordinators: CoordinatorOption[], groups: GroupOption[]): React.ReactNode {
+function renderCellValue(fieldId: FieldKey, student: Student, scoreMap: Record<string, ScoreStats>, coordinators: CoordinatorOption[], groups: GroupOption[], scoresPending = false): React.ReactNode {
   switch (fieldId) {
     case "name":
       return `${student.first_name} ${student.last_name}`;
@@ -131,12 +137,14 @@ function renderCellValue(fieldId: FieldKey, student: Student, scoreMap: Record<s
       return student.summer_points_over_500 ?? "—";
     case "attendance": {
       const stats = scoreMap[student.id];
+      if (!stats && scoresPending) return <PendingCell />;
       return stats && stats.sessions > 0
         ? Math.round((stats.attended / stats.sessions) * 100) + "%"
         : "—";
     }
     case "score": {
       const stats = scoreMap[student.id];
+      if (!stats && scoresPending) return <PendingCell />;
       return stats && stats.count > 0
         ? (stats.total / stats.count).toFixed(1)
         : "—";
@@ -172,7 +180,12 @@ const AVAILABLE_FIELDS = [
   { id: "notes", label: "הערות" },
 ];
 
-export default function StudentsTable({ students, coordinators, groups, scoreMap }: Props) {
+function PendingCell() {
+  return <span className="inline-block h-3 w-8 rounded bg-gray-100 animate-pulse align-middle" />;
+}
+
+export default function StudentsTable({ students, coordinators, groups, scoreMapPromise }: Props) {
+  const [scoreMap, scoresPending] = useStreamedValue(scoreMapPromise, NO_SCORES);
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
   // The saved row is painted from the form straight away; the server value
@@ -317,21 +330,21 @@ export default function StudentsTable({ students, coordinators, groups, scoreMap
                               className="text-blue-600 hover:underline"
                               onClick={(e) => e.stopPropagation()}
                             >
-                              {renderCellValue(field.id as FieldKey, student, scoreMap, visibleCoordinators, groups)}
+                              {renderCellValue(field.id as FieldKey, student, scoreMap, visibleCoordinators, groups, scoresPending)}
                             </Link>
                           ) : (
                             <span className="text-gray-300">—</span>
                           )
                         ) : field.id === "score" ? (
-                          renderCellValue(field.id as FieldKey, student, scoreMap, visibleCoordinators, groups) !== "—" ? (
+                          renderCellValue(field.id as FieldKey, student, scoreMap, visibleCoordinators, groups, scoresPending) !== "—" ? (
                             <span className="bg-blue-50 text-blue-700 font-semibold text-xs px-2.5 py-1 rounded-full">
-                              {renderCellValue(field.id as FieldKey, student, scoreMap, visibleCoordinators, groups)}
+                              {renderCellValue(field.id as FieldKey, student, scoreMap, visibleCoordinators, groups, scoresPending)}
                             </span>
                           ) : (
                             <span className="text-gray-300">—</span>
                           )
                         ) : (
-                          renderCellValue(field.id as FieldKey, student, scoreMap, visibleCoordinators, groups)
+                          renderCellValue(field.id as FieldKey, student, scoreMap, visibleCoordinators, groups, scoresPending)
                         )}
                       </td>
                     )
