@@ -49,19 +49,21 @@ async function ScoresContent({ searchParams }: { searchParams: Promise<Filters> 
   const isAdmin = coordinatorId === "ADMIN";
   const loggedInCoordinator = isAdmin ? null : coordinatorId;
 
-  // With a parasha chosen we read just that parasha's rows; only "all
-  // parshiyot" needs the whole table.
-  const scoresFor = filters.exam
-    ? loggedInCoordinator
-      ? getScoresByExamForCoordinator(filters.exam, loggedInCoordinator)
-      : getScoresByExam(filters.exam)
-    : loggedInCoordinator
-      ? getScoresWithRelationsForCoordinator(loggedInCoordinator)
-      : getScoresWithRelations();
+  const exams = await getExams();
 
-  const [examFiltered, exams, coordinators] = await Promise.all([
-    scoresFor,
-    getExams(),
+  // One parasha by default — the newest — because that reads only its own rows.
+  // "כל הפרשות" is still a choice, it just costs the whole zman.
+  const selectedExamId =
+    filters.exam === "all" ? null : filters.exam ?? exams[0]?.id ?? null;
+
+  const [examFiltered, coordinators] = await Promise.all([
+    selectedExamId
+      ? loggedInCoordinator
+        ? getScoresByExamForCoordinator(selectedExamId, loggedInCoordinator)
+        : getScoresByExam(selectedExamId)
+      : loggedInCoordinator
+        ? getScoresWithRelationsForCoordinator(loggedInCoordinator)
+        : getScoresWithRelations(),
     getCoordinators(),
   ]);
 
@@ -111,10 +113,10 @@ async function ScoresContent({ searchParams }: { searchParams: Promise<Filters> 
           <label className="text-xs font-medium text-gray-500">סינון לפי מבחן</label>
           <select
             name="exam"
-            defaultValue={filters.exam ?? ""}
+            defaultValue={selectedExamId ?? "all"}
             className="text-sm border border-gray-200 rounded-lg px-3 py-2 bg-white focus:outline-none focus:ring-2 focus:ring-blue-300"
           >
-            <option value="">כל הפרשות</option>
+            <option value="all">כל הפרשות</option>
             {exams.map((e) => (
               <option key={e.id} value={e.id}>
                 {e.parasha}

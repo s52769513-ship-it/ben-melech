@@ -238,14 +238,6 @@ async function studentList(): Promise<Student[]> {
   return recs.map(toStudent);
 }
 
-async function scoreList(): Promise<Score[]> {
-  "use cache: remote";
-  cacheLife(BULK);
-  cacheTag("scores");
-  const recs = await fetchAll(TABLES.SCORES);
-  return recs.map(toScore);
-}
-
 async function inquiryList(): Promise<Inquiry[]> {
   "use cache: remote";
   cacheLife(LIVE);
@@ -319,11 +311,7 @@ export type StudentStats = {
 // This is the one genuinely expensive read in the app, so no page render waits
 // on it — the browser asks for it separately once the screen is up.
 export async function getStudentStats(): Promise<Record<string, StudentStats>> {
-  "use cache: remote";
-  cacheLife(BULK);
-  cacheTag("scores");
-
-  const scores = await scoreList();
+  const scores = await getScoresForCurrentZman();
   const stats: Record<string, StudentStats> = {};
   for (const s of scores) {
     if (!s.student_id) continue;
@@ -526,8 +514,43 @@ export async function updateExam(
 
 // ─── Scores ──────────────────────────────────────────────────────────────────
 
+// Scores for the zman in progress. Built from the per-parasha reads the rest of
+// the app already uses, so these entries are shared and usually warm — and no
+// screen ever asks Airtable for every score in the base, which took hundreds of
+// sequential requests and ran the account into its rate limit.
+export async function getScoresForZman(zmanId: string | null): Promise<Score[]> {
+  const [exams, zmanim] = await Promise.all([getExams(), getZmanim()]);
+  const zman = zmanId ? zmanim.find((z) => z.id === zmanId) : null;
+  const examIds = zman
+    ? exams.filter((e) => zman.exam_ids.includes(e.id)).map((e) => e.id)
+    : exams.map((e) => e.id);
+
+  const scores: Score[] = [];
+  // A few parshiyot at a time — Airtable throttles a base at five requests a
+  // second, and going wider here slows every other screen down with it.
+  for (let i = 0; i < examIds.length; i += 3) {
+    const batch = await Promise.all(examIds.slice(i, i + 3).map(scoresForExam));
+    for (const rows of batch) scores.push(...rows);
+  }
+  return scores;
+}
+
+// The zman the newest parasha belongs to.
+export async function getCurrentZmanId(): Promise<string | null> {
+  const [exams, zmanim] = await Promise.all([getExams(), getZmanim()]);
+  const withZman = exams.find((e) => e.zman_id);
+  if (withZman?.zman_id && zmanim.some((z) => z.id === withZman.zman_id)) {
+    return withZman.zman_id;
+  }
+  return zmanim[0]?.id ?? null;
+}
+
+export async function getScoresForCurrentZman(): Promise<Score[]> {
+  return getScoresForZman(await getCurrentZmanId());
+}
+
 export async function getAllScores(): Promise<Score[]> {
-  return scoreList();
+  return getScoresForCurrentZman();
 }
 
 export async function getScoresByExam(examId: string): Promise<Score[]> {
@@ -548,27 +571,44 @@ export async function getScoresByExamForCoordinator(
 }
 
 export async function getAllScoresForCoordinator(coordinatorId: string): Promise<Score[]> {
-  const [scores, students] = await Promise.all([scoreList(), studentList()]);
+  const [scores, students] = await Promise.all([getScoresForCurrentZman(), studentList()]);
   const studentMap = byId(students);
   return scores.filter(
     (s) => studentMap.get(s.student_id)?.coordinator_id === coordinatorId
   );
 }
 
+// A bochur's full history, through his own list of score rows — two requests,
+// so the profile keeps every zman rather than just the current one.
+async function scoresForStudent(studentId: string): Promise<Score[]> {
+  "use cache: remote";
+  cacheLife(LIVE);
+  cacheTag("scores", `scores-student-${studentId}`);
+
+  const student = await fetchOne(TABLES.STUDENTS, studentId);
+  const scoreIds = (student?.fields?.["ציונים"] as string[] | undefined) ?? [];
+  if (scoreIds.length === 0) return [];
+
+  const records: AirtableRecord[] = [];
+  for (let i = 0; i < scoreIds.length; i += 100) {
+    const chunk = scoreIds.slice(i, i + 100);
+    const formula = `OR(${chunk.map((id) => `RECORD_ID()="${id}"`).join(",")})`;
+    records.push(...(await fetchAll(TABLES.SCORES, { filterByFormula: formula })));
+  }
+  return records.map(toScore);
+}
+
 export async function getScoresByStudent(studentId: string): Promise<Score[]> {
-  const [scores, exams] = await Promise.all([scoreList(), getExams()]);
-  const examMap = byId(exams);
-  return withScoreRelations(
-    scores.filter((s) => s.student_id === studentId),
-    undefined,
-    examMap
-  ).sort((a, b) => (b.exam?.exam_date ?? "").localeCompare(a.exam?.exam_date ?? ""));
+  const [scores, exams] = await Promise.all([scoresForStudent(studentId), getExams()]);
+  return withScoreRelations(scores, undefined, byId(exams)).sort((a, b) =>
+    (b.exam?.exam_date ?? "").localeCompare(a.exam?.exam_date ?? "")
+  );
 }
 
 // All scores with their student (incl. the student's coordinator) and exam.
 export async function getScoresWithRelations(): Promise<Score[]> {
   const [scores, students, exams] = await Promise.all([
-    scoreList(),
+    getScoresForCurrentZman(),
     studentsWithCoordinator(),
     getExams(),
   ]);
