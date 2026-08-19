@@ -5,7 +5,7 @@ import StudentsTable from "@/components/tables/StudentsTable";
 import StudentCount from "@/components/StudentCount";
 import CoordinatorSelect from "@/components/CoordinatorSelect";
 import { FiltersSkeleton, TableSkeleton } from "@/components/Skeletons";
-import { getStudents, getCoordinators, getGroups, getAllScores } from "@/lib/airtable/db";
+import { getStudents, getCoordinators, getGroups } from "@/lib/airtable/db";
 import { getSession } from "@/lib/auth";
 
 type Filters = { coordinator?: string; city?: string; yeshiva?: string };
@@ -64,36 +64,9 @@ async function StudentsSummary({ searchParams }: { searchParams: Promise<Filters
   );
 }
 
-type ScoreStats = { total: number; count: number; attended: number; sessions: number };
-
-// Averages and attendance need the whole scores table — many times more
-// Airtable pages than the bochurim themselves. It is deliberately not awaited:
-// the table is sent as soon as the bochurim are ready and these two columns
-// fill in when they land.
-async function buildScoreMap(): Promise<Record<string, ScoreStats>> {
-  const allScores = await getAllScores();
-  const scoreMap: Record<string, ScoreStats> = {};
-  allScores.forEach((s) => {
-    if (!scoreMap[s.student_id]) {
-      scoreMap[s.student_id] = { total: 0, count: 0, attended: 0, sessions: 0 };
-    }
-    const avg = [s.chassidut_score, s.halacha_score, s.tefila_score].filter(
-      (v): v is number => v !== null
-    );
-    if (avg.length) {
-      scoreMap[s.student_id].total += avg.reduce((a, b) => a + b, 0) / avg.length;
-      scoreMap[s.student_id].count++;
-    }
-    scoreMap[s.student_id].sessions++;
-    if (s.attended_seder) scoreMap[s.student_id].attended++;
-  });
-  return scoreMap;
-}
-
 async function StudentsContent({ searchParams }: { searchParams: Promise<Filters> }) {
   const { filters, students } = await resolveStudents(searchParams);
   const [coordinators, groups] = await Promise.all([getCoordinators(), getGroups()]);
-  const scoreMapPromise = buildScoreMap().catch(() => ({}));
 
   const cities = [...new Set(students.map((s) => s.city).filter(Boolean))].sort() as string[];
 
@@ -145,7 +118,6 @@ async function StudentsContent({ searchParams }: { searchParams: Promise<Filters
         students={students}
         coordinators={coordinators}
         groups={groups}
-        scoreMapPromise={scoreMapPromise}
       />
     </>
   );

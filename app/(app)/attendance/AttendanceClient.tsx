@@ -6,6 +6,7 @@ import { updateScoreBoolean, updateScoreNumber } from "./actions";
 import { AlertTriangle, Download, FileText, Printer, X, Search, Filter } from "lucide-react";
 import { useSettings } from "@/lib/settings-context";
 import { usePendingEdits } from "@/lib/use-pending-edits";
+import { useStudentStats } from "@/lib/use-student-stats";
 import * as XLSX from "xlsx";
 
 type Exam = { id: string; parasha: string; exam_date: string | null };
@@ -122,17 +123,18 @@ export default function AttendanceClient({
   scores,
   students,
   selectedExamId,
-  attendanceRates,
 }: {
   exams: Exam[];
   scores: ScoreRow[];
   students: Record<string, StudentInfo>;
   selectedExamId: string | null;
-  attendanceRates: Record<string, number>;
 }) {
   const router = useRouter();
   const { isStudentVisible, settings } = useSettings();
   const [, startTransition] = useTransition();
+  // Overall attendance percentages span every parasha ever recorded, so they
+  // are fetched once the table is up rather than held in front of it.
+  const [studentStats] = useStudentStats();
   const initialScores = useMemo<Score[]>(
     () => scores.map((s) => ({ ...s, student: students[s.student_id] ?? null })),
     [scores, students]
@@ -156,14 +158,14 @@ export default function AttendanceClient({
   function handleToggle(scoreId: string, field: BoolField, value: boolean) {
     applyEdit(scoreId, { [field]: value } as Partial<Score>);
     startTransition(async () => {
-      await updateScoreBoolean(scoreId, field, value);
+      await updateScoreBoolean(scoreId, field, value, selectedExamId);
     });
   }
 
   function handleManualPoints(scoreId: string, value: number | null) {
     applyEdit(scoreId, { points_kaitz: value });
     startTransition(async () => {
-      await updateScoreNumber(scoreId, "points_kaitz", value);
+      await updateScoreNumber(scoreId, "points_kaitz", value, selectedExamId);
     });
   }
 
@@ -644,7 +646,11 @@ export default function AttendanceClient({
 
                     {/* Student rows */}
                     {records.map((score, idx) => {
-                      const rate = attendanceRates[score.student_id] ?? 0;
+                      const overall = studentStats[score.student_id];
+                      const rate =
+                        overall && overall.sessions > 0
+                          ? Math.round((overall.attended / overall.sessions) * 100)
+                          : 0;
                       const nameBg = getAttendanceBg(rate);
                       const name = `${score.student?.first_name ?? ""} ${score.student?.last_name ?? ""}`.trim();
                       const points =

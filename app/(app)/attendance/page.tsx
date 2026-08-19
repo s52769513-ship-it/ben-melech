@@ -6,8 +6,6 @@ import {
   getExams,
   getScoresByExam,
   getScoresByExamForCoordinator,
-  getAllScores,
-  getAllScoresForCoordinator,
   getScoresWithRelations,
   getScoresWithRelationsForCoordinator,
 } from "@/lib/airtable/db";
@@ -52,32 +50,16 @@ async function AttendanceContent({
   const isAll = examId === "all";
   const selectedExamId = isAll ? "all" : examId ?? exams[0]?.id ?? null;
 
-  const [scores, allAttendance] = await Promise.all([
-    isAll
+  // One parasha at a time reads only that parasha's rows.
+  const scores = isAll
+    ? loggedIn
+      ? await getScoresWithRelationsForCoordinator(loggedIn)
+      : await getScoresWithRelations()
+    : selectedExamId
       ? loggedIn
-        ? getScoresWithRelationsForCoordinator(loggedIn)
-        : getScoresWithRelations()
-      : selectedExamId
-        ? loggedIn
-          ? getScoresByExamForCoordinator(selectedExamId, loggedIn)
-          : getScoresByExam(selectedExamId)
-        : Promise.resolve([]),
-    loggedIn ? getAllScoresForCoordinator(loggedIn) : getAllScores(),
-  ]);
-
-  const attendanceMap: Record<string, { attended: number; total: number }> = {};
-
-  allAttendance.forEach((row) => {
-    if (!row.student_id) return;
-    if (!attendanceMap[row.student_id]) attendanceMap[row.student_id] = { attended: 0, total: 0 };
-    attendanceMap[row.student_id].total++;
-    if (row.attended_seder || row.attended_seder_old) attendanceMap[row.student_id].attended++;
-  });
-
-  const attendanceRates: Record<string, number> = {};
-  Object.entries(attendanceMap).forEach(([id, { attended, total }]) => {
-    attendanceRates[id] = total > 0 ? Math.round((attended / total) * 100) : 0;
-  });
+        ? await getScoresByExamForCoordinator(selectedExamId, loggedIn)
+        : await getScoresByExam(selectedExamId)
+      : [];
 
   // Flat rows + one entry per bochur, instead of the bochur repeated inside
   // every score.
@@ -127,7 +109,6 @@ async function AttendanceContent({
       scores={rows}
       students={students}
       selectedExamId={selectedExamId}
-      attendanceRates={attendanceRates}
     />
   );
 }

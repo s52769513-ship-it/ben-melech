@@ -2,8 +2,7 @@ import Link from "next/link";
 import { Suspense } from "react";
 import { BookOpen, ArrowRight, Calendar, Sun, Snowflake } from "lucide-react";
 import { CardsSkeleton } from "@/components/Skeletons";
-import { ExamAverage, ExamParticipants, type ExamStats } from "@/components/ExamStats";
-import { getExams, getZmanim, getAllScores, getAllScoresForCoordinator } from "@/lib/airtable/db";
+import { getExams, getZmanim } from "@/lib/airtable/db";
 import { getSession } from "@/lib/auth";
 
 export default function ExamsPage({
@@ -31,47 +30,18 @@ export default function ExamsPage({
   );
 }
 
-async function buildExamStats(coordinatorId: string | null): Promise<Record<string, ExamStats>> {
-  const scores = coordinatorId
-    ? await getAllScoresForCoordinator(coordinatorId)
-    : await getAllScores();
-
-  const examStatsMap: Record<string, ExamStats> = {};
-  scores.forEach((s) => {
-    if (!examStatsMap[s.exam_id]) {
-      examStatsMap[s.exam_id] = { total: 0, count: 0, participants: 0 };
-    }
-    const vals = [s.chassidut_score, s.halacha_score, s.tefila_score, s.beinoni_score, s.shleimut_score].filter(
-      (v): v is number => v !== null
-    );
-    if (vals.length) {
-      examStatsMap[s.exam_id].total += vals.reduce((a, b) => a + b, 0) / vals.length;
-      examStatsMap[s.exam_id].count++;
-    }
-    examStatsMap[s.exam_id].participants++;
-  });
-  return examStatsMap;
-}
-
 async function ExamsContent({
   searchParams,
 }: {
   searchParams: Promise<{ zman?: string }>;
 }) {
-  const [{ zman: selectedZmanId }, coordinatorId] = await Promise.all([
-    searchParams,
-    getSession().catch(() => null),
-  ]);
+  const { zman: selectedZmanId } = await searchParams;
+  await getSession().catch(() => null);
 
-  const isAdmin = coordinatorId === "ADMIN";
-  const loggedIn = isAdmin ? null : coordinatorId;
-
+  // Only the exams table. Participation comes from the parasha's own field in
+  // Airtable; the grades for a parasha live on its own screen, which reads just
+  // that parasha's rows.
   const [exams, zmanim] = await Promise.all([getExams(), getZmanim()]);
-
-  // The parashot list only needs the exams table. Their averages come from the
-  // scores table, which is many times larger — so it is left unawaited and the
-  // cards render immediately.
-  const statsPromise = buildExamStats(loggedIn).catch(() => ({}));
 
   const isAll = selectedZmanId === "all";
   const selectedZman = zmanim.find((z) => z.id === selectedZmanId);
@@ -115,14 +85,15 @@ async function ExamsContent({
                   <h3 className="font-semibold text-gray-900 text-base group-hover:text-[#1e3a5f] transition-colors leading-tight">
                     {exam.parasha}
                   </h3>
-                  <ExamAverage examId={exam.id} statsPromise={statsPromise} />
                 </div>
                 <div className="flex items-center justify-between text-xs text-gray-400">
                   <span className="flex items-center gap-1">
                     <Calendar size={11} />
                     {exam.exam_date ? new Date(exam.exam_date).toLocaleDateString("he-IL") : "תאריך לא הוגדר"}
                   </span>
-                  <ExamParticipants examId={exam.id} statsPromise={statsPromise} />
+                  {exam.participation_rate != null && (
+                    <span>{exam.participation_rate}% השתתפות</span>
+                  )}
                 </div>
               </Link>
             );
@@ -176,7 +147,6 @@ async function ExamsContent({
                   <h3 className="font-semibold text-gray-900 text-base group-hover:text-[#1e3a5f] transition-colors leading-tight">
                     {exam.parasha}
                   </h3>
-                  <ExamAverage examId={exam.id} statsPromise={statsPromise} />
                 </div>
                 <div className="flex items-center justify-between text-xs text-gray-400">
                   <span className="flex items-center gap-1">
@@ -185,7 +155,9 @@ async function ExamsContent({
                       ? new Date(exam.exam_date).toLocaleDateString("he-IL")
                       : "תאריך לא הוגדר"}
                   </span>
-                  <ExamParticipants examId={exam.id} statsPromise={statsPromise} />
+                  {exam.participation_rate != null && (
+                    <span>{exam.participation_rate}% השתתפות</span>
+                  )}
                 </div>
               </Link>
             );

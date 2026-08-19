@@ -1,7 +1,14 @@
 import Link from "next/link";
 import { Suspense } from "react";
 import { Star } from "lucide-react";
-import { getScoresWithRelations, getScoresWithRelationsForCoordinator, getExams, getCoordinators } from "@/lib/airtable/db";
+import {
+  getScoresWithRelations,
+  getScoresWithRelationsForCoordinator,
+  getScoresByExam,
+  getScoresByExamForCoordinator,
+  getExams,
+  getCoordinators,
+} from "@/lib/airtable/db";
 import { getSession } from "@/lib/auth";
 import ScoresTable from "./ScoresTable";
 import CoordinatorSelect from "@/components/CoordinatorSelect";
@@ -42,18 +49,21 @@ async function ScoresContent({ searchParams }: { searchParams: Promise<Filters> 
   const isAdmin = coordinatorId === "ADMIN";
   const loggedInCoordinator = isAdmin ? null : coordinatorId;
 
-  const [allScores, exams, coordinators] = await Promise.all([
-    loggedInCoordinator
+  // With a parasha chosen we read just that parasha's rows; only "all
+  // parshiyot" needs the whole table.
+  const scoresFor = filters.exam
+    ? loggedInCoordinator
+      ? getScoresByExamForCoordinator(filters.exam, loggedInCoordinator)
+      : getScoresByExam(filters.exam)
+    : loggedInCoordinator
       ? getScoresWithRelationsForCoordinator(loggedInCoordinator)
-      : getScoresWithRelations(),
+      : getScoresWithRelations();
+
+  const [examFiltered, exams, coordinators] = await Promise.all([
+    scoresFor,
     getExams(),
     getCoordinators(),
   ]);
-
-  // Filter by exam in memory
-  const examFiltered = filters.exam
-    ? allScores.filter((s) => s.exam_id === filters.exam)
-    : allScores;
 
   // Admin can filter by coordinator via query param
   const coordFilter = isAdmin ? filters.coordinator : null;

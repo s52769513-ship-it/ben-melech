@@ -1,15 +1,17 @@
 "use server";
 
 import { refresh, revalidateTag, updateTag } from "next/cache";
-import { updateScore, upsertExamNote } from "@/lib/airtable/db";
+import { updateScore, upsertExamNote, scoreExamTag } from "@/lib/airtable/db";
 
 export async function updateExamNote(
   scoreId: string,
   field: "personal_note" | "rabbi_note",
-  value: string | null
+  value: string | null,
+  examId: string | null = null
 ) {
   await updateScore(scoreId, { [field]: value });
-  // Background refresh — see attendance/actions.ts.
+  // This parasha refreshes now; aggregates follow in the background.
+  if (examId) updateTag(scoreExamTag(examId));
   revalidateTag("scores", "max");
   refresh();
 }

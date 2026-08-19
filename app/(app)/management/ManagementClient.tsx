@@ -117,7 +117,7 @@ export default function ManagementClient({
   function handleStudentNote(scoreId: string, field: "personal_note" | "rabbi_note", value: string) {
     applyEdit(scoreId, { [field]: value || null });
     startTransition(async () => {
-      await updateExamNote(scoreId, field, value || null);
+      await updateExamNote(scoreId, field, value || null, selectedExamId);
     });
   }
 

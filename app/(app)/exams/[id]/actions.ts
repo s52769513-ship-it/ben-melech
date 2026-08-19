@@ -1,15 +1,17 @@
 "use server";
 
-import { refresh, revalidateTag } from "next/cache";
-import { updateScore as updateScoreDB } from "@/lib/airtable/db";
+import { refresh, revalidateTag, updateTag } from "next/cache";
+import { updateScore as updateScoreDB, scoreExamTag } from "@/lib/airtable/db";
 
 export async function updateScoreAction(
   id: string,
   data: Record<string, unknown>,
-  _examId: string
+  examId: string
 ) {
   await updateScoreDB(id, data);
-  // Background refresh — a score edit shouldn't wait on a full table re-read.
+  // This parasha refreshes now; the whole-table aggregates follow in the
+  // background so the save doesn't wait on them.
+  updateTag(scoreExamTag(examId));
   revalidateTag("scores", "max");
   refresh();
 }

@@ -1,7 +1,7 @@
 "use client";
 
 import { useOptimistic, useState, useTransition } from "react";
-import { useStreamedValue } from "@/lib/use-streamed-value";
+import { useStudentStats } from "@/lib/use-student-stats";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { ChevronLeft, FileSpreadsheet, FileText, Settings } from "lucide-react";
@@ -45,13 +45,7 @@ interface Props {
   students: Student[];
   coordinators: CoordinatorOption[];
   groups: GroupOption[];
-  // Averages and attendance are aggregated over the whole scores table, which
-  // takes far longer to read than the bochurim themselves — so it arrives as a
-  // promise and the table renders without waiting for it.
-  scoreMapPromise: Promise<Record<string, ScoreStats>>;
 }
-
-const NO_SCORES: Record<string, ScoreStats> = {};
 
 type FormState = {
   first_name: string;
@@ -184,8 +178,7 @@ function PendingCell() {
   return <span className="inline-block h-3 w-8 rounded bg-gray-100 animate-pulse align-middle" />;
 }
 
-export default function StudentsTable({ students, coordinators, groups, scoreMapPromise }: Props) {
-  const [scoreMap, scoresPending] = useStreamedValue(scoreMapPromise, NO_SCORES);
+export default function StudentsTable({ students, coordinators, groups }: Props) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
   // The saved row is painted from the form straight away; the server value
@@ -200,6 +193,11 @@ export default function StudentsTable({ students, coordinators, groups, scoreMap
   const [exportFormat, setExportFormat] = useState<"excel" | "pdf" | null>(null);
   const [showFieldSettings, setShowFieldSettings] = useState(false);
   const { settings, isStudentVisible, toggleStudentField, setStudentFieldOrder } = useSettings();
+  // Only worth the round trip when one of the two derived columns is shown.
+  const [scoreMap, scoresPending] = useStudentStats(
+    settings.visibleStudentFields.includes("attendance") ||
+      settings.visibleStudentFields.includes("score")
+  );
   const visibleStudents = rows.filter(isStudentVisible);
   const visibleCoordinators = coordinators.filter(
     (c) => !settings.hiddenCoordinators.includes(c.id)

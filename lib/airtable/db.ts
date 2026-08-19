@@ -1,6 +1,7 @@
 import { cacheLife, cacheTag } from "next/cache";
 import {
   fetchAll,
+  fetchOne,
   patchRecord,
   createRecord,
   TABLES,
@@ -281,6 +282,65 @@ async function examNoteList(): Promise<CoordinatorExamNote[]> {
   return recs.map(toExamNote);
 }
 
+// One parasha's scores, read through the exam's own list of score rows. A
+// screen about a single parasha costs a handful of requests this way; reading
+// the whole table for it costs one per hundred rows in the base. Tagged per
+// exam as well, so saving a mark refreshes only that parasha.
+async function scoresForExam(examId: string): Promise<Score[]> {
+  "use cache: remote";
+  cacheLife(LIVE);
+  cacheTag("scores", scoreExamTag(examId));
+
+  const exam = await fetchOne(TABLES.EXAMS, examId);
+  const scoreIds = (exam?.fields?.["ציונים"] as string[] | undefined) ?? [];
+  if (scoreIds.length === 0) return [];
+
+  const records: AirtableRecord[] = [];
+  for (let i = 0; i < scoreIds.length; i += 100) {
+    const chunk = scoreIds.slice(i, i + 100);
+    const formula = `OR(${chunk.map((id) => `RECORD_ID()="${id}"`).join(",")})`;
+    records.push(...(await fetchAll(TABLES.SCORES, { filterByFormula: formula })));
+  }
+  return records.map(toScore);
+}
+
+export function scoreExamTag(examId: string): string {
+  return `scores-exam-${examId}`;
+}
+
+export type StudentStats = {
+  total: number;
+  count: number;
+  attended: number;
+  sessions: number;
+};
+
+// Attendance rate and average grade per bochur, over every score ever recorded.
+// This is the one genuinely expensive read in the app, so no page render waits
+// on it — the browser asks for it separately once the screen is up.
+export async function getStudentStats(): Promise<Record<string, StudentStats>> {
+  "use cache: remote";
+  cacheLife(BULK);
+  cacheTag("scores");
+
+  const scores = await scoreList();
+  const stats: Record<string, StudentStats> = {};
+  for (const s of scores) {
+    if (!s.student_id) continue;
+    const row = (stats[s.student_id] ??= { total: 0, count: 0, attended: 0, sessions: 0 });
+    const graded = [s.chassidut_score, s.halacha_score, s.tefila_score].filter(
+      (v): v is number => v !== null
+    );
+    if (graded.length) {
+      row.total += graded.reduce((a, b) => a + b, 0) / graded.length;
+      row.count++;
+    }
+    row.sessions++;
+    if (s.attended_seder || s.attended_seder_old) row.attended++;
+  }
+  return stats;
+}
+
 // ─── Relation helpers (in memory — no Airtable traffic) ──────────────────────
 
 function byId<T extends { id: string }>(rows: T[]): Map<string, T> {
@@ -472,15 +532,11 @@ export async function getAllScores(): Promise<Score[]> {
 
 export async function getScoresByExam(examId: string): Promise<Score[]> {
   const [scores, students, exams] = await Promise.all([
-    scoreList(),
+    scoresForExam(examId),
     studentsWithCoordinator(),
     getExams(),
   ]);
-  return withScoreRelations(
-    scores.filter((s) => s.exam_id === examId),
-    byId(students),
-    byId(exams)
-  );
+  return withScoreRelations(scores, byId(students), byId(exams));
 }
 
 export async function getScoresByExamForCoordinator(
