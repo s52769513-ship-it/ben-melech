@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useTransition, useState, useMemo, Fragment } from "react";
+import { useTransition, useState, useMemo, useRef, Fragment } from "react";
 import { updateScoreBoolean, updateScoreNumber } from "./actions";
 import { AlertTriangle, Download, FileText, Printer, X, Search, Filter } from "lucide-react";
 import { useSettings } from "@/lib/settings-context";
@@ -87,6 +87,10 @@ function ManualPointsCell({
   onSave: (scoreId: string, value: number | null) => void;
 }) {
   const [editing, setEditing] = useState(false);
+  // Escape removes the focused input, which fires blur on the way out. Without
+  // this flag the cancel would save the very value it was meant to discard.
+  const cancelled = useRef(false);
+
   if (editing) {
     return (
       <input
@@ -97,12 +101,23 @@ function ManualPointsCell({
         className="w-16 text-center text-sm border border-blue-300 rounded px-1 py-0.5 focus:outline-none focus:ring-1 focus:ring-blue-400"
         onBlur={(e) => {
           setEditing(false);
-          const v = e.target.value === "" ? null : Number(e.target.value);
-          if (v !== value) onSave(scoreId, v);
+          if (cancelled.current) {
+            cancelled.current = false;
+            return;
+          }
+          const raw = e.target.value.trim();
+          const next = raw === "" ? null : Number(raw);
+          // A number field reports "" for anything it can't parse; saving that
+          // as null would wipe the points the user meant to keep.
+          if (next !== null && !Number.isFinite(next)) return;
+          if (next !== value) onSave(scoreId, next);
         }}
         onKeyDown={(e) => {
           if (e.key === "Enter") (e.target as HTMLInputElement).blur();
-          if (e.key === "Escape") setEditing(false);
+          if (e.key === "Escape") {
+            cancelled.current = true;
+            setEditing(false);
+          }
         }}
       />
     );
