@@ -3,6 +3,7 @@ import {
   fetchAll,
   fetchOne,
   patchRecord,
+  patchRecords,
   createRecord,
   TABLES,
   linkedId,
@@ -435,36 +436,61 @@ export async function updateStudent(
   id: string,
   data: Record<string, unknown>
 ): Promise<void> {
-  const fieldMap: Record<string, string> = {
-    first_name: "שם",
-    last_name: "משפחה",
-    city: "עיר",
-    street: "רחוב",
-    birth_date: "תאריך לידה",
-    id_number: "מספר מזהה",
-    phone: "Phone Number",
-    father_name: "שם האב",
-    yeshiva: "ישיבה",
-    track: "מסלול",
-    enrollment_date: "Enrollment Date",
-    nedarim_id: "מזהה נדרים",
-    nedarim_charged: "הוטען",
-    notes: "הערות",
-  };
-  const linkFields: Record<string, string> = {
-    coordinator_id: "רכז",
-    group_id: "קבוצה/ישיבה",
-  };
+  await patchRecord(TABLES.STUDENTS, id, toStudentFields(data));
+}
 
+const STUDENT_FIELDS: Record<string, string> = {
+  first_name: "שם",
+  last_name: "משפחה",
+  city: "עיר",
+  street: "רחוב",
+  birth_date: "תאריך לידה",
+  id_number: "מספר מזהה",
+  phone: "Phone Number",
+  father_name: "שם האב",
+  yeshiva: "ישיבה",
+  track: "מסלול",
+  enrollment_date: "Enrollment Date",
+  nedarim_id: "מזהה נדרים",
+  nedarim_charged: "הוטען",
+  notes: "הערות",
+};
+
+const STUDENT_LINK_FIELDS: Record<string, string> = {
+  coordinator_id: "רכז",
+  group_id: "קבוצה/ישיבה",
+};
+
+function toStudentFields(data: Record<string, unknown>): Record<string, unknown> {
   const fields: Record<string, unknown> = {};
-  for (const [k, v] of Object.entries(data)) {
-    if (fieldMap[k]) {
-      fields[fieldMap[k]] = v;
-    } else if (linkFields[k]) {
-      fields[linkFields[k]] = v ? [v as string] : [];
+  for (const [key, value] of Object.entries(data)) {
+    if (STUDENT_FIELDS[key]) fields[STUDENT_FIELDS[key]] = value;
+    else if (STUDENT_LINK_FIELDS[key]) {
+      fields[STUDENT_LINK_FIELDS[key]] = value ? [value as string] : [];
     }
   }
-  await patchRecord(TABLES.STUDENTS, id, fields);
+  return fields;
+}
+
+export async function createStudent(data: Record<string, unknown>): Promise<string> {
+  const record = await createRecord(TABLES.STUDENTS, toStudentFields(data));
+  return record.id;
+}
+
+// Move a whole group of bochurim to another משפיע in one go — the start-of-year
+// reshuffle, rather than opening each bochur in turn.
+export async function reassignCoordinator(
+  studentIds: string[],
+  coordinatorId: string | null
+): Promise<void> {
+  if (studentIds.length === 0) return;
+  await patchRecords(
+    TABLES.STUDENTS,
+    studentIds.map((id) => ({
+      id,
+      fields: { "רכז": coordinatorId ? [coordinatorId] : [] },
+    }))
+  );
 }
 
 export async function getStudentsForNedarim(coordinatorId?: string): Promise<

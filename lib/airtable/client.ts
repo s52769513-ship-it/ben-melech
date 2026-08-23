@@ -70,6 +70,20 @@ export async function patchRecord(
   })) as AirtableRecord;
 }
 
+// Airtable takes at most ten records per write, so a bulk change goes out in
+// batches rather than one request per record.
+export async function patchRecords(
+  tableId: string,
+  records: { id: string; fields: Record<string, unknown> }[]
+): Promise<void> {
+  for (let i = 0; i < records.length; i += 10) {
+    await request(tableId, {
+      method: "PATCH",
+      body: JSON.stringify({ records: records.slice(i, i + 10) }),
+    });
+  }
+}
+
 export async function createRecord(
   tableId: string,
   fields: Record<string, unknown>
