@@ -70,6 +70,9 @@ function toStudent(r: AirtableRecord): Student {
     remaining_to_load: (num(f["כסף להטענה"]) ?? 0) - (num(f["הוטען"]) ?? 0),
     summer_points: num(f["נקודות זמן קיץ תשפו"]),
     summer_points_over_500: num(f["נקודות זמן קיץ תשפו (מעל 500)"]),
+    avg_score: num(f["ממוצע ציונים"]),
+    total_exams: num(f["סך מבחנים"]),
+    total_sedarim: num(f["סך סדרים"]),
   };
 }
 
@@ -118,6 +121,7 @@ function toScore(r: AirtableRecord): Score {
     payment_amount: num(f["סכום לתשלום"]) ?? 0,
     points: num(f["נקודות"]),
     points_kaitz: num(f["נקודות זמן קיץ תשפו"]),
+    manual_points: num(f["הוספת נקודות ידני"]),
     personal_note: str(f['פניה אישית (לכה"פ ל-2 בחורים בשבוע)']),
     rabbi_note: str(f["שמתי לב.... (הערות להרב חיים מרדכי ישיר)"]),
   };
@@ -299,35 +303,6 @@ async function scoresForExam(examId: string): Promise<Score[]> {
 
 export function scoreExamTag(examId: string): string {
   return `scores-exam-${examId}`;
-}
-
-export type StudentStats = {
-  total: number;
-  count: number;
-  attended: number;
-  sessions: number;
-};
-
-// Attendance rate and average grade per bochur, over every score ever recorded.
-// This is the one genuinely expensive read in the app, so no page render waits
-// on it — the browser asks for it separately once the screen is up.
-export async function getStudentStats(): Promise<Record<string, StudentStats>> {
-  const scores = await getScoresForCurrentZman();
-  const stats: Record<string, StudentStats> = {};
-  for (const s of scores) {
-    if (!s.student_id) continue;
-    const row = (stats[s.student_id] ??= { total: 0, count: 0, attended: 0, sessions: 0 });
-    const graded = [s.chassidut_score, s.halacha_score, s.tefila_score].filter(
-      (v): v is number => v !== null
-    );
-    if (graded.length) {
-      row.total += graded.reduce((a, b) => a + b, 0) / graded.length;
-      row.count++;
-    }
-    row.sessions++;
-    if (s.attended_seder || s.attended_seder_old) row.attended++;
-  }
-  return stats;
 }
 
 // ─── Relation helpers (in memory — no Airtable traffic) ──────────────────────
@@ -667,7 +642,9 @@ export async function updateScore(
     attended_seder_old: 'השתתף בסדר {ישן}',
     arrived_on_time_old: 'הגעה ב-5 דקות ראשונות {ישן}',
     paid: "שולם",
-    points_kaitz: "נקודות זמן קיץ תשפו",
+    // "נקודות זמן קיץ תשפו" is a formula in Airtable and rejects writes — the
+    // editable field behind the "נקודות ידני" column is this one.
+    manual_points: "הוספת נקודות ידני",
     personal_note: 'פניה אישית (לכה"פ ל-2 בחורים בשבוע)',
     rabbi_note: "שמתי לב.... (הערות להרב חיים מרדכי ישיר)",
   };

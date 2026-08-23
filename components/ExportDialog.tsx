@@ -21,6 +21,9 @@ type Student = {
   remaining_to_load: number | null;
   summer_points: number | null;
   summer_points_over_500: number | null;
+  avg_score: number | null;
+  total_exams: number | null;
+  total_sedarim: number | null;
   notes: string | null;
   coordinator?: { id: string; name: string } | null;
 };
@@ -49,8 +52,7 @@ const ALL_COLUMNS = [
   { key: "notes", label: "הערות" },
 ];
 
-function getValue(student: Student, key: string, scoreMap: Record<string, ScoreStats>): string {
-  const stats = scoreMap[student.id];
+function getValue(student: Student, key: string): string {
   switch (key) {
     case "name": return `${student.first_name} ${student.last_name}`;
     case "phone": return student.phone ?? "";
@@ -64,13 +66,11 @@ function getValue(student: Student, key: string, scoreMap: Record<string, ScoreS
     case "track": return student.track ?? "";
     case "coordinator": return (student.coordinator as { name: string } | null)?.name ?? "";
     case "attendance":
-      return stats && stats.sessions > 0
-        ? Math.round((stats.attended / stats.sessions) * 100) + "%"
+      return student.total_exams
+        ? Math.round(((student.total_sedarim ?? 0) / student.total_exams) * 100) + "%"
         : "";
     case "avg_score":
-      return stats && stats.count > 0
-        ? (stats.total / stats.count).toFixed(1)
-        : "";
+      return student.avg_score != null ? student.avg_score.toFixed(1) : "";
     case "nedarim_amount": return student.nedarim_amount != null ? String(student.nedarim_amount) : "";
     case "nedarim_charged": return student.nedarim_charged != null ? String(student.nedarim_charged) : "";
     case "remaining_to_load": return student.remaining_to_load != null ? String(student.remaining_to_load) : "";
@@ -83,14 +83,13 @@ function getValue(student: Student, key: string, scoreMap: Record<string, ScoreS
 
 interface Props {
   students: Student[];
-  scoreMap: Record<string, ScoreStats>;
   format: "excel" | "pdf";
   onClose: () => void;
   visibleFields?: string[];
   fieldOrder?: string[];
 }
 
-export default function ExportDialog({ students, scoreMap, format, onClose, visibleFields, fieldOrder }: Props) {
+export default function ExportDialog({ students, format, onClose, visibleFields, fieldOrder }: Props) {
   const defaultSelected = visibleFields && visibleFields.length > 0
     ? new Set(visibleFields.filter((f) => ALL_COLUMNS.some((c) => c.key === f)))
     : new Set(["name", "phone", "city", "yeshiva", "track", "coordinator", "attendance", "avg_score"]);
@@ -118,7 +117,7 @@ export default function ExportDialog({ students, scoreMap, format, onClose, visi
     }
 
     const headers = cols.map((c) => c.label);
-    const rows = students.map((s) => cols.map((c) => getValue(s, c.key, scoreMap)));
+    const rows = students.map((s) => cols.map((c) => getValue(s, c.key)));
 
     if (format === "excel") {
       const ws = XLSX.utils.aoa_to_sheet([headers, ...rows]);

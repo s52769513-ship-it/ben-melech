@@ -50,6 +50,10 @@ export interface Student {
   remaining_to_load: number | null;
   summer_points: number | null;
   summer_points_over_500: number | null;
+  // Computed by Airtable per bochur — no need to walk the scores table for them.
+  avg_score: number | null;
+  total_exams: number | null;
+  total_sedarim: number | null;
   coordinator?: Coordinator;
 }
 
@@ -83,6 +87,8 @@ export interface Score {
   payment_amount: number;
   points: number | null;
   points_kaitz: number | null;
+  // "הוספת נקודות ידני" — the editable one. points_kaitz is a formula.
+  manual_points: number | null;
   personal_note: string | null;
   rabbi_note: string | null;
   student?: Student;

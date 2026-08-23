@@ -1,7 +1,6 @@
 "use client";
 
 import { useOptimistic, useState, useTransition } from "react";
-import { useStudentStats } from "@/lib/use-student-stats";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { ChevronLeft, FileSpreadsheet, FileText, Settings, Plus, Users, X } from "lucide-react";
@@ -38,12 +37,13 @@ type Student = {
   remaining_to_load: number | null;
   summer_points: number | null;
   summer_points_over_500: number | null;
+  avg_score: number | null;
+  total_exams: number | null;
+  total_sedarim: number | null;
   group_id: string | null;
   notes: string | null;
   coordinator?: { id: string; name: string } | null;
 };
-
-type ScoreStats = { total: number; count: number; attended: number; sessions: number };
 
 interface Props {
   students: Student[];
@@ -114,7 +114,7 @@ function emptyForm(): FormState {
 
 type FieldKey = typeof AVAILABLE_FIELDS[number]["id"];
 
-function renderCellValue(fieldId: FieldKey, student: Student, scoreMap: Record<string, ScoreStats>, coordinators: CoordinatorOption[], groups: GroupOption[], scoresPending = false): React.ReactNode {
+function renderCellValue(fieldId: FieldKey, student: Student, coordinators: CoordinatorOption[], groups: GroupOption[]): React.ReactNode {
   switch (fieldId) {
     case "name":
       return `${student.first_name} ${student.last_name}`;
@@ -156,20 +156,14 @@ function renderCellValue(fieldId: FieldKey, student: Student, scoreMap: Record<s
       return student.summer_points ?? "—";
     case "summer_points_over_500":
       return student.summer_points_over_500 ?? "—";
+    // Both come straight off the bochur's row — Airtable keeps them as a
+    // rollup and a count, so no score has to be read to show them.
     case "attendance": {
-      const stats = scoreMap[student.id];
-      if (!stats && scoresPending) return <PendingCell />;
-      return stats && stats.sessions > 0
-        ? Math.round((stats.attended / stats.sessions) * 100) + "%"
-        : "—";
+      if (!student.total_exams) return "—";
+      return Math.round(((student.total_sedarim ?? 0) / student.total_exams) * 100) + "%";
     }
-    case "score": {
-      const stats = scoreMap[student.id];
-      if (!stats && scoresPending) return <PendingCell />;
-      return stats && stats.count > 0
-        ? (stats.total / stats.count).toFixed(1)
-        : "—";
-    }
+    case "score":
+      return student.avg_score != null ? student.avg_score.toFixed(1) : "—";
     case "notes":
       return student.notes ?? "—";
     default:
@@ -201,10 +195,6 @@ const AVAILABLE_FIELDS = [
   { id: "notes", label: "הערות" },
 ];
 
-function PendingCell() {
-  return <span className="inline-block h-3 w-8 rounded bg-gray-100 animate-pulse align-middle" />;
-}
-
 export default function StudentsTable({ students, coordinators, groups }: Props) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
@@ -225,11 +215,6 @@ export default function StudentsTable({ students, coordinators, groups }: Props)
   const [createForm, setCreateForm] = useState<FormState>(emptyForm());
   const [createError, setCreateError] = useState("");
   const { settings, isStudentVisible, toggleStudentField, setStudentFieldOrder } = useSettings();
-  // Only worth the round trip when one of the two derived columns is shown.
-  const [scoreMap, scoresPending] = useStudentStats(
-    settings.visibleStudentFields.includes("attendance") ||
-      settings.visibleStudentFields.includes("score")
-  );
   const visibleStudents = rows.filter(isStudentVisible);
   const visibleCoordinators = coordinators.filter(
     (c) => !settings.hiddenCoordinators.includes(c.id)
@@ -487,21 +472,21 @@ export default function StudentsTable({ students, coordinators, groups }: Props)
                               className="text-blue-600 hover:underline"
                               onClick={(e) => e.stopPropagation()}
                             >
-                              {renderCellValue(field.id as FieldKey, student, scoreMap, visibleCoordinators, groups, scoresPending)}
+                              {renderCellValue(field.id as FieldKey, student, visibleCoordinators, groups)}
                             </Link>
                           ) : (
                             <span className="text-gray-300">—</span>
                           )
                         ) : field.id === "score" ? (
-                          renderCellValue(field.id as FieldKey, student, scoreMap, visibleCoordinators, groups, scoresPending) !== "—" ? (
+                          renderCellValue(field.id as FieldKey, student, visibleCoordinators, groups) !== "—" ? (
                             <span className="bg-blue-50 text-blue-700 font-semibold text-xs px-2.5 py-1 rounded-full">
-                              {renderCellValue(field.id as FieldKey, student, scoreMap, visibleCoordinators, groups, scoresPending)}
+                              {renderCellValue(field.id as FieldKey, student, visibleCoordinators, groups)}
                             </span>
                           ) : (
                             <span className="text-gray-300">—</span>
                           )
                         ) : (
-                          renderCellValue(field.id as FieldKey, student, scoreMap, visibleCoordinators, groups, scoresPending)
+                          renderCellValue(field.id as FieldKey, student, visibleCoordinators, groups)
                         )}
                       </td>
                     )
@@ -539,7 +524,6 @@ export default function StudentsTable({ students, coordinators, groups }: Props)
       {exportFormat && (
         <ExportDialog
           students={visibleStudents}
-          scoreMap={scoreMap}
           format={exportFormat}
           onClose={() => setExportFormat(null)}
           visibleFields={settings.visibleStudentFields}

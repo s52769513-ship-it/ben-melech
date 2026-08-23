@@ -6,7 +6,6 @@ import { updateScoreBoolean, updateScoreNumber } from "./actions";
 import { AlertTriangle, Download, FileText, Printer, X, Search, Filter } from "lucide-react";
 import { useSettings } from "@/lib/settings-context";
 import { usePendingEdits } from "@/lib/use-pending-edits";
-import { useStudentStats } from "@/lib/use-student-stats";
 import * as XLSX from "xlsx";
 
 type Exam = { id: string; parasha: string; exam_date: string | null };
@@ -19,6 +18,8 @@ type StudentInfo = {
   coordinator_id?: string | null;
   group_id?: string | null;
   coordinator: { id: string; name: string } | null;
+  // Airtable keeps these per bochur, so the overall rate costs no extra read.
+  attendance_rate: number | null;
 };
 
 // Rows arrive flat, with one entry per bochur alongside them. Nesting the
@@ -36,7 +37,7 @@ type ScoreRow = {
   chassidut_score: number | null;
   halacha_score: number | null;
   tefila_score: number | null;
-  points_kaitz: number | null;
+  manual_points: number | null;
 };
 
 type Score = ScoreRow & { student: StudentInfo | null };
@@ -76,7 +77,8 @@ function CheckboxCell({
   );
 }
 
-// Editable manual points cell (נקודות ידני) — same field as summer-exam points (points_kaitz)
+// Editable manual points cell — writes "הוספת נקודות ידני". The summer-zman
+// points next to it are a formula in Airtable and cannot be written to.
 function ManualPointsCell({
   scoreId,
   value,
@@ -147,9 +149,6 @@ export default function AttendanceClient({
   const router = useRouter();
   const { isStudentVisible, settings } = useSettings();
   const [, startTransition] = useTransition();
-  // Overall attendance percentages span every parasha ever recorded, so they
-  // are fetched once the table is up rather than held in front of it.
-  const [studentStats] = useStudentStats();
   const initialScores = useMemo<Score[]>(
     () => scores.map((s) => ({ ...s, student: students[s.student_id] ?? null })),
     [scores, students]
@@ -178,9 +177,9 @@ export default function AttendanceClient({
   }
 
   function handleManualPoints(scoreId: string, value: number | null) {
-    applyEdit(scoreId, { points_kaitz: value });
+    applyEdit(scoreId, { manual_points: value });
     startTransition(async () => {
-      await updateScoreNumber(scoreId, "points_kaitz", value, selectedExamId);
+      await updateScoreNumber(scoreId, "manual_points", value, selectedExamId);
     });
   }
 
@@ -661,11 +660,7 @@ export default function AttendanceClient({
 
                     {/* Student rows */}
                     {records.map((score, idx) => {
-                      const overall = studentStats[score.student_id];
-                      const rate =
-                        overall && overall.sessions > 0
-                          ? Math.round((overall.attended / overall.sessions) * 100)
-                          : 0;
+                      const rate = students[score.student_id]?.attendance_rate ?? 0;
                       const nameBg = getAttendanceBg(rate);
                       const name = `${score.student?.first_name ?? ""} ${score.student?.last_name ?? ""}`.trim();
                       const points =
@@ -710,7 +705,7 @@ export default function AttendanceClient({
                             </span>
                           </td>
                           <td className="px-4 py-3 text-center">
-                            <ManualPointsCell scoreId={score.id} value={score.points_kaitz} onSave={handleManualPoints} />
+                            <ManualPointsCell scoreId={score.id} value={score.manual_points} onSave={handleManualPoints} />
                           </td>
                         </tr>
                       );

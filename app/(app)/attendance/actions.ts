@@ -26,7 +26,7 @@ export async function updateScoreBoolean(
 
 export async function updateScoreNumber(
   scoreId: string,
-  field: "points_kaitz",
+  field: "manual_points",
   value: number | null,
   examId: string | null = null
 ) {

@@ -75,7 +75,7 @@ async function AttendanceContent({
     chassidut_score: s.chassidut_score,
     halacha_score: s.halacha_score,
     tefila_score: s.tefila_score,
-    points_kaitz: s.points_kaitz,
+    manual_points: s.manual_points,
   }));
 
   const students: Record<string, {
@@ -86,6 +86,7 @@ async function AttendanceContent({
     coordinator_id: string | null;
     group_id: string | null;
     coordinator: { id: string; name: string } | null;
+    attendance_rate: number | null;
   }> = {};
   for (const score of scores) {
     const student = score.student;
@@ -99,6 +100,9 @@ async function AttendanceContent({
       group_id: student.group_id,
       coordinator: student.coordinator
         ? { id: student.coordinator.id, name: student.coordinator.name }
+        : null,
+      attendance_rate: student.total_exams
+        ? Math.round(((student.total_sedarim ?? 0) / student.total_exams) * 100)
         : null,
     };
   }
