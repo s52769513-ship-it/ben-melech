@@ -436,9 +436,16 @@ const STUDENT_LINK_FIELDS: Record<string, string> = {
   group_id: "קבוצה/ישיבה",
 };
 
-function toStudentFields(data: Record<string, unknown>): Record<string, unknown> {
+function toStudentFields(
+  data: Record<string, unknown>,
+  { skipEmpty = false } = {}
+): Record<string, unknown> {
   const fields: Record<string, unknown> = {};
   for (const [key, value] of Object.entries(data)) {
+    // On create, a blank box means "not filled in" — sending it as null asks
+    // Airtable to write every field on the table, including ones a new bochur
+    // has no business setting.
+    if (skipEmpty && (value === null || value === undefined || value === "")) continue;
     if (STUDENT_FIELDS[key]) fields[STUDENT_FIELDS[key]] = value;
     else if (STUDENT_LINK_FIELDS[key]) {
       fields[STUDENT_LINK_FIELDS[key]] = value ? [value as string] : [];
@@ -448,7 +455,7 @@ function toStudentFields(data: Record<string, unknown>): Record<string, unknown>
 }
 
 export async function createStudent(data: Record<string, unknown>): Promise<string> {
-  const record = await createRecord(TABLES.STUDENTS, toStudentFields(data));
+  const record = await createRecord(TABLES.STUDENTS, toStudentFields(data, { skipEmpty: true }));
   return record.id;
 }
 

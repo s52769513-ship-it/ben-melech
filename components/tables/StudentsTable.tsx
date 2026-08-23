@@ -98,11 +98,12 @@ const CREATE_FIELDS: { key: keyof FormState; label: string; type?: string }[] = 
   { key: "city", label: "עיר" },
   { key: "street", label: "רחוב" },
   { key: "birth_date", label: "תאריך לידה", type: "date" },
-  { key: "yeshiva", label: "ישיבה" },
-  { key: "track", label: "מסלול" },
-  { key: "enrollment_date", label: "תאריך הצטרפות", type: "date" },
   { key: "nedarim_id", label: "מזהה נדרים" },
 ];
+
+// עיר, ישיבה and מסלול are single-select in Airtable. Offering the values
+// already in use keeps a typo from becoming a new option.
+const TRACKS = ["הבינני", "שלימות התפילה"];
 
 function emptyForm(): FormState {
   return {
@@ -340,15 +341,21 @@ export default function StudentsTable({ students, coordinators, groups }: Props)
       group_id: createForm.group_id || null,
       notes: createForm.notes || null,
     };
-    setCreating(false);
     setCreateError("");
     startTransition(async () => {
-      await createStudentAction(data);
+      const result = await createStudentAction(data);
+      if (result?.error) {
+        setCreateError(result.error);
+        return;
+      }
+      setCreating(false);
       router.refresh();
     });
   }
 
   const selectedCount = selected.size;
+  const cityOptions = [...new Set(students.map((s) => s.city).filter(Boolean))].sort() as string[];
+  const yeshivaOptions = [...new Set(students.map((s) => s.yeshiva).filter(Boolean))].sort() as string[];
 
   return (
     <>
@@ -553,6 +560,25 @@ export default function StudentsTable({ students, coordinators, groups }: Props)
                     onChange={(e) => setC(key, e.target.value)}
                     className="text-sm border border-gray-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-300"
                   />
+                </div>
+              ))}
+              {([
+                { key: "city" as const, label: "עיר", options: cityOptions },
+                { key: "yeshiva" as const, label: "ישיבה", options: yeshivaOptions },
+                { key: "track" as const, label: "מסלול", options: TRACKS },
+              ]).map(({ key, label, options }) => (
+                <div key={key} className="flex flex-col gap-1">
+                  <label className="text-xs font-medium text-gray-500">{label}</label>
+                  <select
+                    value={createForm[key]}
+                    onChange={(e) => setC(key, e.target.value)}
+                    className="text-sm border border-gray-200 rounded-lg px-3 py-2 bg-white focus:outline-none focus:ring-2 focus:ring-blue-300"
+                  >
+                    <option value="">—</option>
+                    {options.map((o) => (
+                      <option key={o} value={o}>{o}</option>
+                    ))}
+                  </select>
                 </div>
               ))}
               <div className="flex flex-col gap-1">

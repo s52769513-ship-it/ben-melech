@@ -59,6 +59,9 @@ export async function fetchOne(
   }
 }
 
+// typecast lets Airtable match a single-select by its name (and add the option
+// if it is genuinely new) instead of rejecting the whole write — עיר, ישיבה and
+// מסלול are all single-selects on בחורים.
 export async function patchRecord(
   tableId: string,
   recordId: string,
@@ -66,7 +69,7 @@ export async function patchRecord(
 ): Promise<AirtableRecord> {
   return (await request(`${tableId}/${recordId}`, {
     method: "PATCH",
-    body: JSON.stringify({ fields }),
+    body: JSON.stringify({ fields, typecast: true }),
   })) as AirtableRecord;
 }
 
@@ -79,7 +82,7 @@ export async function patchRecords(
   for (let i = 0; i < records.length; i += 10) {
     await request(tableId, {
       method: "PATCH",
-      body: JSON.stringify({ records: records.slice(i, i + 10) }),
+      body: JSON.stringify({ records: records.slice(i, i + 10), typecast: true }),
     });
   }
 }
@@ -90,7 +93,7 @@ export async function createRecord(
 ): Promise<AirtableRecord> {
   return (await request(tableId, {
     method: "POST",
-    body: JSON.stringify({ fields }),
+    body: JSON.stringify({ fields, typecast: true }),
   })) as AirtableRecord;
 }
 
