@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { revalidateTag } from "next/cache";
-import { getStudentsForNedarim, updateNedarimCharged } from "@/lib/airtable/db";
+import { getNedarimLedger, updateNedarimCharged } from "@/lib/airtable/db";
 
 const MOSAD_ID = "7009191";
 const API_PASSWORD = "kd987";
@@ -33,11 +33,13 @@ export async function POST(req: NextRequest) {
     // ללא גוף = הטעינה לכולם
   }
 
-  const allStudents = await getStudentsForNedarim();
+  // The ledger, not the raw Airtable totals: it holds back every shekel earned
+  // before the cutoff, so an old balance can never reach a card from here.
+  const ledger = await getNedarimLedger();
   const students =
     studentIds && studentIds.length > 0
-      ? allStudents.filter((s) => studentIds!.includes(s.id))
-      : allStudents;
+      ? ledger.filter((s) => studentIds!.includes(s.id))
+      : ledger;
 
   const results: {
     id: string;
@@ -56,7 +58,18 @@ export async function POST(req: NextRequest) {
       continue;
     }
 
-    const toCharge = (student.nedarim_amount ?? 0) - (student.nedarim_charged ?? 0);
+    if (!student.settled) {
+      results.push({
+        id: student.id,
+        name,
+        amount: 0,
+        success: false,
+        reason: `יתרה ישנה לא סגורה (₪${Math.round(student.historic - student.charged).toLocaleString()})`,
+      });
+      continue;
+    }
+
+    const toCharge = student.chargeable;
 
     if (toCharge <= 0) {
       results.push({ id: student.id, name, amount: 0, success: false, reason: "אין סכום להטעין" });
@@ -76,7 +89,7 @@ export async function POST(req: NextRequest) {
     }
 
     if (ok) {
-      await updateNedarimCharged(student.id, (student.nedarim_charged ?? 0) + toCharge);
+      await updateNedarimCharged(student.id, student.charged + toCharge);
     }
 
     results.push({ id: student.id, name, amount: toCharge, success: ok });

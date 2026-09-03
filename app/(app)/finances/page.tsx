@@ -4,7 +4,13 @@ import { Wallet, TrendingUp } from "lucide-react";
 import FinancesTable from "@/components/tables/FinancesTable";
 import NedarimPanel from "@/components/NedarimPanel";
 import { BlockSkeleton, TableSkeleton } from "@/components/Skeletons";
-import { getFinances, getFinancesByCoordinator, getCoordinators, getStudentsForNedarim } from "@/lib/airtable/db";
+import {
+  getFinances,
+  getFinancesByCoordinator,
+  getCoordinators,
+  getNedarimLedger,
+  NEDARIM_CUTOFF,
+} from "@/lib/airtable/db";
 import { getSession } from "@/lib/auth";
 
 export default function FinancesPage() {
@@ -79,8 +85,8 @@ async function FinancesTotal() {
 async function NedarimSection() {
   const coordinatorId = await getSession();
   const loggedIn = coordinatorId === "ADMIN" ? null : coordinatorId;
-  const students = await getStudentsForNedarim(loggedIn ?? undefined);
-  return <NedarimPanel students={students} />;
+  const ledger = await getNedarimLedger(loggedIn ?? undefined);
+  return <NedarimPanel students={ledger} cutoff={NEDARIM_CUTOFF} />;
 }
 
 async function FinancesContent() {

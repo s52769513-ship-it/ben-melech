@@ -22,6 +22,7 @@ import type {
   CoordinatorInstruction,
   Group,
   Zman,
+  NedarimLedgerEntry,
 } from "@/lib/types";
 
 // ─── Mappers ────────────────────────────────────────────────────────────────
@@ -93,6 +94,7 @@ function toZman(r: AirtableRecord): Zman {
   const f = r.fields;
   return {
     id: r.id,
+    created_at: r.createdTime ?? "",
     name: str(f["זמן"]) ?? "",
     season: str(f["שם זמן"]),
     exam_ids: (f["פרשה"] as string[] | undefined) ?? [],
@@ -222,7 +224,12 @@ export async function getZmanim(): Promise<Zman[]> {
   cacheLife(STABLE);
   cacheTag("zmanim");
   const recs = await fetchAll(TABLES.ZMANIM);
-  return recs.map(toZman).filter((z) => z.name.trim() !== "");
+  return recs
+    .map(toZman)
+    .filter((z) => z.name.trim() !== "")
+    // Newest first: the zman just opened is the one being worked in, so it
+    // leads the list and is what "the current zman" means everywhere else.
+    .sort((a, b) => (b.created_at ?? "").localeCompare(a.created_at ?? ""));
 }
 
 export async function getExams(): Promise<Exam[]> {
@@ -496,6 +503,100 @@ export async function updateNedarimCharged(id: string, charged: number): Promise
   await patchRecord(TABLES.STUDENTS, id, { "הוטען": charged });
 }
 
+// ─── What the interface is allowed to load ───────────────────────────────────
+//
+// "כסף להטענה" in Airtable is an all-time figure: it carries every shekel a
+// bochur ever earned, including years that were paid out by hand, long before
+// this screen existed. Loading that figure onto a card would pay all of it a
+// second time. So money earned before this date is history — it is shown, and
+// it is never loadable from here. Only parshiyot from the cutoff on count
+// toward what may go onto a card.
+export const NEDARIM_CUTOFF = process.env.NEDARIM_CUTOFF_DATE ?? "2026-09-01";
+
+// A parasha counts as recent by its own date, or — while none is set yet — by
+// the day its row was created.
+function isRecentExam(e: Exam): boolean {
+  return (e.exam_date ?? e.created_at ?? "").slice(0, 10) >= NEDARIM_CUTOFF;
+}
+
+function round(n: number): number {
+  return Math.round(n * 100) / 100;
+}
+
+// Money earned per bochur since the cutoff, summed from the parshiyot
+// themselves. Only the recent parshiyot are read, and each of those reads is
+// the same cached one the parasha screen already uses.
+async function recentMoneyByStudent(): Promise<Map<string, number>> {
+  const exams = (await getExams()).filter(isRecentExam);
+  const money = new Map<string, number>();
+  // Three parshiyot at a time — Airtable throttles a base at five requests a
+  // second (same pacing as the score reads above).
+  for (let i = 0; i < exams.length; i += 3) {
+    const batch = await Promise.all(exams.slice(i, i + 3).map((e) => scoresForExam(e.id)));
+    for (const rows of batch) {
+      for (const row of rows) {
+        if (!row.student_id) continue;
+        money.set(row.student_id, (money.get(row.student_id) ?? 0) + (row.payment_amount ?? 0));
+      }
+    }
+  }
+  return money;
+}
+
+// The loading ledger, one row per bochur.
+//
+// historic = everything earned before the cutoff. It is settled off-line, so
+// the interface writes it off in one go ("הוטען" is raised to cover it) and
+// from then on the ordinary "total − charged" arithmetic can only ever reach
+// money earned since. Until that write-off happens nothing is loadable for
+// that bochur, which is what keeps the old balances off the cards.
+export async function getNedarimLedger(coordinatorId?: string): Promise<NedarimLedgerEntry[]> {
+  const [students, recentMoney] = await Promise.all([
+    getStudentsForNedarim(coordinatorId),
+    recentMoneyByStudent(),
+  ]);
+
+  return students.map((s) => {
+    const total = s.nedarim_amount ?? 0;
+    const charged = s.nedarim_charged ?? 0;
+    // Airtable's total is the authority on what a bochur earned; the sum from
+    // the recent parshiyot can never exceed it.
+    const recent = round(Math.min(recentMoney.get(s.id) ?? 0, Math.max(total, 0)));
+    const historic = round(Math.max(total - recent, 0));
+    const settled = charged >= historic - 0.01;
+
+    return {
+      id: s.id,
+      first_name: s.first_name,
+      last_name: s.last_name,
+      nedarim_id: s.nedarim_id,
+      total: round(total),
+      charged: round(charged),
+      recent,
+      historic,
+      chargeable: settled ? round(Math.max(Math.min(total - charged, recent), 0)) : 0,
+      settled,
+    };
+  });
+}
+
+// Close the historic balances: "הוטען" is raised to the money earned before the
+// cutoff, so those shekels count as handled and only what comes after is left
+// to load. Nothing is charged to a card here — this only moves the line in
+// Airtable. Bochurim whose historic balance is already covered are skipped.
+export async function settleHistoricNedarim(studentIds?: string[]): Promise<number> {
+  const ledger = await getNedarimLedger();
+  const pending = ledger.filter(
+    (e) => !e.settled && (!studentIds || studentIds.includes(e.id))
+  );
+  if (pending.length === 0) return 0;
+  await patchRecords(
+    TABLES.STUDENTS,
+    pending.map((e) => ({ id: e.id, fields: { "הוטען": e.historic } }))
+  );
+  return pending.length;
+}
+
 // ─── Exams ───────────────────────────────────────────────────────────────────
 
 export async function getExam(id: string): Promise<Exam | null> {
@@ -518,6 +619,85 @@ export async function updateExam(
     if (fieldMap[k]) fields[fieldMap[k]] = v;
   }
   await patchRecord(TABLES.EXAMS, id, fields);
+}
+
+// ─── Zmanim ──────────────────────────────────────────────────────────────────
+
+// The zman being worked in: the most recently opened one. Everything created
+// from here on hangs off it until the next zman is opened.
+export function currentZman(zmanim: Zman[]): Zman | null {
+  return zmanim[0] ?? null;
+}
+
+export async function createZman(name: string, season: string | null): Promise<string> {
+  const fields: Record<string, unknown> = { "זמן": name.trim() };
+  if (season) fields["שם זמן"] = season;
+  try {
+    const record = await createRecord(TABLES.ZMANIM, fields);
+    return record.id;
+  } catch (err) {
+    // "שם זמן" is a single select in some bases and a formula in others; if
+    // Airtable refuses it, the zman is still worth creating with its name.
+    if (!season) throw err;
+    const record = await createRecord(TABLES.ZMANIM, { "זמן": name.trim() });
+    return record.id;
+  }
+}
+
+// Parshiyot linked from here since this server started. A parasha is attached
+// on the way into the exams screen, but the exams read is cached for a few
+// minutes and still shows it loose — this keeps us from writing the same link
+// on every visit until that cache turns over, and lets the screen show the
+// link right away.
+const linkedByUs = new Map<string, string | null>();
+
+// Moving a parasha between zmanim — an empty link array detaches it.
+export async function setExamZman(examId: string, zmanId: string | null): Promise<void> {
+  await patchRecord(TABLES.EXAMS, examId, { "זמן ושנה": zmanId ? [zmanId] : [] });
+  linkedByUs.set(examId, zmanId);
+}
+
+// Every parasha created after a zman was opened belongs to that zman. Airtable
+// leaves "זמן ושנה" empty on a new row, so the exams screen attaches the loose
+// ones to the current zman as it loads. Parshiyot from before the zman was
+// opened, and any parasha already pointing at a zman, are left alone.
+export async function attachNewExamsToCurrentZman(): Promise<{
+  exams: Exam[];
+  zmanim: Zman[];
+  current: Zman | null;
+}> {
+  const [rawExams, zmanim] = await Promise.all([getExams(), getZmanim()]);
+  const current = currentZman(zmanim);
+
+  if (current) {
+    const loose = rawExams.filter(
+      (e) =>
+        !e.zman_id &&
+        !linkedByUs.has(e.id) &&
+        (e.created_at ?? "") >= (current.created_at ?? "")
+    );
+    if (loose.length > 0) {
+      await patchRecords(
+        TABLES.EXAMS,
+        loose.map((e) => ({ id: e.id, fields: { "זמן ושנה": [current.id] } }))
+      );
+      for (const e of loose) linkedByUs.set(e.id, current.id);
+    }
+  }
+
+  const exams = rawExams.map((e) =>
+    linkedByUs.has(e.id) ? { ...e, zman_id: linkedByUs.get(e.id) ?? null } : e
+  );
+  return { exams, zmanim, current };
+}
+
+// A parasha belongs to a zman by its own link; the zman's list of parshiyot is
+// the fallback for the moment right after a link is written, while the cached
+// read still has the old picture.
+export function examsOfZman(exams: Exam[], zman: Zman): Exam[] {
+  return exams.filter(
+    (e) => e.zman_id === zman.id || (!e.zman_id && zman.exam_ids.includes(e.id))
+  );
 }
 
 // ─── Scores ──────────────────────────────────────────────────────────────────

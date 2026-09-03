@@ -6,6 +6,7 @@ import { TableSkeleton } from "@/components/Skeletons";
 import { getExam, getScoresByExam, getScoresByExamForCoordinator, getZmanim } from "@/lib/airtable/db";
 import { getSession } from "@/lib/auth";
 import ExamScoresClient from "./ExamScoresClient";
+import ExamZmanSelect from "./ExamZmanSelect";
 
 export default function ExamDetailPage({
   params,
@@ -100,6 +101,11 @@ async function ExamDetailContent({
                   })
                 : "תאריך לא הוגדר"}
             </p>
+            <ExamZmanSelect
+              examId={safeExam.id}
+              zmanId={safeExam.zman_id}
+              zmanim={zmanim.map((z) => ({ id: z.id, name: z.name }))}
+            />
           </div>
           <div className="flex gap-3">
             <div className="bg-blue-50 rounded-xl px-4 py-3 text-center">

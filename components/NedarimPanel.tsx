@@ -1,15 +1,20 @@
 "use client";
 
-import { useState } from "react";
-import { CreditCard, Loader2, CheckCircle, XCircle, Zap, FlaskConical, Save } from "lucide-react";
+import { useState, useTransition } from "react";
+import { CreditCard, Loader2, CheckCircle, XCircle, Zap, FlaskConical, Lock } from "lucide-react";
+import { settleHistoricAction } from "@/app/(app)/nedarim/actions";
 
-type StudentRow = {
+type LedgerRow = {
   id: string;
   first_name: string;
   last_name: string;
   nedarim_id: number | null;
-  nedarim_amount: number | null;
-  nedarim_charged: number | null;
+  total: number;
+  charged: number;
+  recent: number;
+  historic: number;
+  chargeable: number;
+  settled: boolean;
 };
 
 type ChargeResult = {
@@ -21,52 +26,43 @@ type ChargeResult = {
   reason?: string;
 };
 
-export default function NedarimPanel({ students }: { students: StudentRow[] }) {
+export default function NedarimPanel({
+  students,
+  cutoff,
+}: {
+  students: LedgerRow[];
+  cutoff: string;
+}) {
   const [loading, setLoading] = useState<"all" | "dry" | string | null>(null);
   const [results, setResults] = useState<ChargeResult[] | null>(null);
   const [isDryRun, setIsDryRun] = useState(false);
   const [localCharged, setLocalCharged] = useState<Record<string, number>>({});
-  const [editingAmount, setEditingAmount] = useState<Record<string, string>>({});
-  const [savingAmount, setSavingAmount] = useState<string | null>(null);
+  const [settling, startSettling] = useTransition();
 
   const studentsWithNedarim = students.filter((s) => s.nedarim_id);
 
-  function getCharged(s: StudentRow) {
-    return localCharged[s.id] ?? s.nedarim_charged ?? 0;
+  function getCharged(s: LedgerRow) {
+    return localCharged[s.id] ?? s.charged;
   }
 
-  function getAmount(s: StudentRow) {
-    return s.nedarim_amount ?? 0;
-  }
-
-  function getRemaining(s: StudentRow) {
-    return getAmount(s) - getCharged(s);
+  // What may still go onto the card: never more than the money earned since the
+  // cutoff, and never anything at all while the old balance is still open.
+  function getRemaining(s: LedgerRow) {
+    const alreadyCharged = getCharged(s) - s.charged;
+    return s.settled ? Math.max(s.chargeable - alreadyCharged, 0) : 0;
   }
 
   const eligible = studentsWithNedarim.filter((s) => getRemaining(s) > 0);
   const totalToCharge = eligible.reduce((sum, s) => sum + getRemaining(s), 0);
+  const unsettled = studentsWithNedarim.filter((s) => !s.settled);
+  const unsettledTotal = unsettled.reduce((sum, s) => sum + (s.historic - s.charged), 0);
 
-  async function saveAmount(studentId: string, value: string) {
-    const amount = parseFloat(value);
-    if (isNaN(amount) || amount < 0) return;
-    setSavingAmount(studentId);
-    try {
-      await fetch(`/api/students/${studentId}/nedarim-amount`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ nedarim_amount: amount }),
-      });
-      setEditingAmount((prev) => {
-        const next = { ...prev };
-        delete next[studentId];
-        return next;
-      });
-      // update local UI (optimistic)
-      const s = students.find((st) => st.id === studentId);
-      if (s) s.nedarim_amount = amount;
-    } finally {
-      setSavingAmount(null);
-    }
+  const cutoffLabel = new Date(cutoff).toLocaleDateString("he-IL");
+
+  function settle(studentIds?: string[]) {
+    startSettling(async () => {
+      await settleHistoricAction(studentIds);
+    });
   }
 
   async function doCharge(studentIds?: string[], dryRun = false) {
@@ -89,7 +85,7 @@ export default function NedarimPanel({ students }: { students: StudentRow[] }) {
         for (const r of (data.results ?? []) as ChargeResult[]) {
           if (r.success) {
             const s = students.find((st) => st.id === r.id);
-            if (s) updates[r.id] = (s.nedarim_charged ?? 0) + r.amount;
+            if (s) updates[r.id] = getCharged(s) + r.amount;
           }
         }
         setLocalCharged((prev) => ({ ...prev, ...updates }));
@@ -131,6 +127,39 @@ export default function NedarimPanel({ students }: { students: StudentRow[] }) {
         </div>
       </div>
 
+      <div className="px-6 py-2.5 bg-amber-50 border-b border-amber-100 flex items-center gap-2 text-xs text-amber-800">
+        <Lock size={12} />
+        <span>
+          כסף שנצבר עד {cutoffLabel} נחשב יתרה ישנה ואינו ניתן להטענה מהממשק — רק כסף מפרשיות
+          מ־{cutoffLabel} ואילך נטען לכרטיס.
+        </span>
+      </div>
+
+      {unsettled.length > 0 && (
+        <div className="px-6 py-3 bg-orange-50 border-b border-orange-100 flex items-center justify-between gap-4 flex-wrap">
+          <p className="text-sm text-orange-800">
+            ל־{unsettled.length} בחורים יש יתרה ישנה פתוחה (₪{Math.round(unsettledTotal).toLocaleString()}).
+            סגירת היתרה מסמנת את הכסף הישן כמטופל — לא מתבצעת שום הטענה — ומאפשרת להטעין את הכסף החדש.
+          </p>
+          <button
+            onClick={() => {
+              if (
+                confirm(
+                  `לסמן את היתרות הישנות (עד ${cutoffLabel}) של ${unsettled.length} בחורים כמטופלות? לא תתבצע הטענה לכרטיסים.`
+                )
+              ) {
+                settle();
+              }
+            }}
+            disabled={settling}
+            className="flex items-center gap-2 px-4 py-2 border border-orange-400 text-orange-700 text-sm rounded-lg hover:bg-orange-100 disabled:opacity-50 transition-colors"
+          >
+            {settling ? <Loader2 size={14} className="animate-spin" /> : <Lock size={14} />}
+            סגור יתרות ישנות ({unsettled.length})
+          </button>
+        </div>
+      )}
+
       {results && (
         <div className={`px-6 py-3 border-b ${isDryRun ? "bg-purple-50 border-purple-100" : "bg-blue-50 border-blue-100"}`}>
           <p className={`text-sm font-medium ${isDryRun ? "text-purple-800" : "text-blue-800"}`}>
@@ -149,11 +178,12 @@ export default function NedarimPanel({ students }: { students: StudentRow[] }) {
       ) : (
         <div className="divide-y divide-gray-100">
           {/* Header row */}
-          <div className="grid grid-cols-[1fr_120px_120px_120px_140px] gap-2 px-6 py-2 bg-gray-50 text-xs text-gray-400 font-medium">
+          <div className="grid grid-cols-[1fr_110px_110px_110px_110px_150px] gap-2 px-6 py-2 bg-gray-50 text-xs text-gray-400 font-medium">
             <span>בחור</span>
-            <span className="text-center">כסף להטענה</span>
+            <span className="text-center">סה״כ צבירה</span>
+            <span className="text-center">יתרה ישנה</span>
             <span className="text-center">הוטען</span>
-            <span className="text-center">נשאר</span>
+            <span className="text-center">לטעינה</span>
             <span />
           </div>
 
@@ -162,13 +192,11 @@ export default function NedarimPanel({ students }: { students: StudentRow[] }) {
             .map((s) => {
               const remaining = getRemaining(s);
               const charged = getCharged(s);
-              const total = getAmount(s);
               const result = results?.find((r) => r.id === s.id);
-              const editVal = editingAmount[s.id];
-              const isEditingThis = editVal !== undefined;
+              const openHistoric = Math.max(s.historic - charged, 0);
 
               return (
-                <div key={s.id} className="grid grid-cols-[1fr_120px_120px_120px_140px] gap-2 items-center px-6 py-2.5">
+                <div key={s.id} className="grid grid-cols-[1fr_110px_110px_110px_110px_150px] gap-2 items-center px-6 py-2.5">
                   <div>
                     <span className="text-sm font-medium text-gray-800">
                       {s.last_name} {s.first_name}
@@ -184,53 +212,56 @@ export default function NedarimPanel({ students }: { students: StudentRow[] }) {
                     )}
                   </div>
 
-                  {/* Editable amount */}
-                  <div className="flex items-center justify-center gap-1">
-                    {isEditingThis ? (
-                      <>
-                        <input
-                          type="number"
-                          value={editVal}
-                          onChange={(e) => setEditingAmount((prev) => ({ ...prev, [s.id]: e.target.value }))}
-                          className="w-16 text-xs border border-blue-300 rounded px-1.5 py-1 text-center focus:outline-none focus:ring-1 focus:ring-blue-400"
-                          onKeyDown={(e) => {
-                            if (e.key === "Enter") saveAmount(s.id, editVal);
-                            if (e.key === "Escape") setEditingAmount((prev) => { const n = {...prev}; delete n[s.id]; return n; });
-                          }}
-                          autoFocus
-                        />
-                        <button
-                          onClick={() => saveAmount(s.id, editVal)}
-                          disabled={savingAmount === s.id}
-                          className="text-blue-600 hover:text-blue-800"
-                        >
-                          {savingAmount === s.id ? <Loader2 size={12} className="animate-spin" /> : <Save size={12} />}
-                        </button>
-                      </>
+                  <div className="text-xs text-center text-gray-700" title="מחושב באיירטייבל — כל הצבירה מאז ומעולם">
+                    ₪{s.total.toLocaleString()}
+                  </div>
+
+                  <div
+                    className={`text-xs text-center ${openHistoric > 0 ? "text-orange-600" : "text-gray-400"}`}
+                    title={`כסף שנצבר עד ${cutoffLabel} — לא ניתן להטענה מהממשק`}
+                  >
+                    {openHistoric > 0 ? (
+                      <span className="inline-flex items-center gap-1">
+                        <Lock size={10} />₪{Math.round(openHistoric).toLocaleString()}
+                      </span>
                     ) : (
-                      <button
-                        onClick={() => setEditingAmount((prev) => ({ ...prev, [s.id]: String(total) }))}
-                        className="text-xs text-gray-700 hover:text-blue-600 hover:underline"
-                      >
-                        ₪{total.toLocaleString() || "—"}
-                      </button>
+                      "סגורה ✓"
                     )}
                   </div>
 
-                  <div className="text-xs text-center text-gray-500">₪{charged.toLocaleString()}</div>
+                  <div className="text-xs text-center text-gray-500">₪{Math.round(charged).toLocaleString()}</div>
 
                   <div className={`text-xs text-center font-medium ${remaining > 0 ? "text-orange-600" : "text-green-600"}`}>
                     {remaining > 0 ? `₪${remaining.toLocaleString()}` : "הושלם ✓"}
                   </div>
 
-                  <button
-                    onClick={() => doCharge([s.id], false)}
-                    disabled={loading !== null || remaining <= 0}
-                    className="flex items-center justify-center gap-1.5 px-3 py-1.5 text-xs border border-[#1e3a5f] text-[#1e3a5f] rounded-lg hover:bg-[#1e3a5f] hover:text-white disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
-                  >
-                    {loading === s.id ? <Loader2 size={12} className="animate-spin" /> : <CreditCard size={12} />}
-                    {remaining > 0 ? `הטען ₪${remaining.toLocaleString()}` : "הושלם"}
-                  </button>
+                  {s.settled ? (
+                    <button
+                      onClick={() => doCharge([s.id], false)}
+                      disabled={loading !== null || remaining <= 0}
+                      className="flex items-center justify-center gap-1.5 px-3 py-1.5 text-xs border border-[#1e3a5f] text-[#1e3a5f] rounded-lg hover:bg-[#1e3a5f] hover:text-white disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                    >
+                      {loading === s.id ? <Loader2 size={12} className="animate-spin" /> : <CreditCard size={12} />}
+                      {remaining > 0 ? `הטען ₪${remaining.toLocaleString()}` : "הושלם"}
+                    </button>
+                  ) : (
+                    <button
+                      onClick={() => {
+                        if (
+                          confirm(
+                            `לסמן את היתרה הישנה (₪${Math.round(openHistoric).toLocaleString()}) של ${s.last_name} ${s.first_name} כמטופלת? לא תתבצע הטענה לכרטיס.`
+                          )
+                        ) {
+                          settle([s.id]);
+                        }
+                      }}
+                      disabled={settling}
+                      className="flex items-center justify-center gap-1.5 px-3 py-1.5 text-xs border border-orange-400 text-orange-700 rounded-lg hover:bg-orange-50 disabled:opacity-40 transition-colors"
+                    >
+                      {settling ? <Loader2 size={12} className="animate-spin" /> : <Lock size={12} />}
+                      סגור יתרה ישנה
+                    </button>
+                  )}
                 </div>
               );
             })}

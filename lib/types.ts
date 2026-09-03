@@ -1,5 +1,6 @@
 export interface Zman {
   id: string;
+  created_at: string;
   name: string;
   season: string | null;
   exam_ids: string[];
@@ -119,6 +120,25 @@ export interface Finance {
   amount: number | null;
   coordinator_id: string | null;
   coordinator?: Coordinator;
+}
+
+// One bochur's card-loading ledger. "total" is Airtable's all-time figure; the
+// interface may only load "chargeable", which never includes money earned
+// before the cutoff (see NEDARIM_CUTOFF).
+export interface NedarimLedgerEntry {
+  id: string;
+  first_name: string;
+  last_name: string;
+  nedarim_id: number | null;
+  total: number;
+  charged: number;
+  // Earned from the cutoff on — the only money this screen may load.
+  recent: number;
+  // Earned before the cutoff. Settled off-line; never loaded from here.
+  historic: number;
+  chargeable: number;
+  // The historic balance was written off, so "הוטען" now covers all of it.
+  settled: boolean;
 }
 
 export interface CoordinatorInstruction {

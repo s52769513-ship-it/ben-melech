@@ -2,7 +2,7 @@ import { Suspense } from "react";
 import { CreditCard } from "lucide-react";
 import NedarimPanel from "@/components/NedarimPanel";
 import { BlockSkeleton } from "@/components/Skeletons";
-import { getStudentsForNedarim } from "@/lib/airtable/db";
+import { getNedarimLedger, NEDARIM_CUTOFF } from "@/lib/airtable/db";
 import { getSession } from "@/lib/auth";
 
 export default function NedarimPage() {
@@ -26,7 +26,7 @@ async function NedarimContent() {
   const isAdmin = coordinatorId === "ADMIN";
   const loggedIn = isAdmin ? null : coordinatorId;
 
-  const students = await getStudentsForNedarim(loggedIn ?? undefined);
+  const ledger = await getNedarimLedger(loggedIn ?? undefined);
 
-  return <NedarimPanel students={students} />;
+  return <NedarimPanel students={ledger} cutoff={NEDARIM_CUTOFF} />;
 }

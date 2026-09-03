@@ -2,8 +2,9 @@ import Link from "next/link";
 import { Suspense } from "react";
 import { BookOpen, ArrowRight, Calendar, Sun, Snowflake } from "lucide-react";
 import { CardsSkeleton } from "@/components/Skeletons";
-import { getExams, getZmanim } from "@/lib/airtable/db";
+import { attachNewExamsToCurrentZman, examsOfZman } from "@/lib/airtable/db";
 import { getSession } from "@/lib/auth";
+import NewZmanButton from "./NewZmanButton";
 
 export default function ExamsPage({
   searchParams,
@@ -40,16 +41,13 @@ async function ExamsContent({
 
   // Only the exams table. Participation comes from the parasha's own field in
   // Airtable; the grades for a parasha live on its own screen, which reads just
-  // that parasha's rows.
-  const [exams, zmanim] = await Promise.all([getExams(), getZmanim()]);
+  // that parasha's rows. Parshiyot created since the current zman was opened
+  // are attached to it on the way in.
+  const { exams, zmanim } = await attachNewExamsToCurrentZman();
 
   const isAll = selectedZmanId === "all";
   const selectedZman = zmanim.find((z) => z.id === selectedZmanId);
-  const zmanExams = isAll
-    ? exams
-    : selectedZman
-    ? exams.filter((e) => selectedZman.exam_ids.includes(e.id))
-    : [];
+  const zmanExams = isAll ? exams : selectedZman ? examsOfZman(exams, selectedZman) : [];
 
   // ── All parshiyot view ────────────────────────────────────────────────────
   if (isAll) {
@@ -170,12 +168,15 @@ async function ExamsContent({
   // ── Zman buttons view (no zman selected) ─────────────────────────────────
   return (
     <div className="p-8">
-      <div className="mb-10">
-        <h1 className="text-3xl font-bold text-[#1e3a5f] flex items-center gap-2">
-          <BookOpen size={28} />
-          מבחנים
-        </h1>
-        <p className="text-gray-500 mt-1">בחר זמן לצפייה בפרשות</p>
+      <div className="mb-10 flex items-start justify-between gap-4 flex-wrap">
+        <div>
+          <h1 className="text-3xl font-bold text-[#1e3a5f] flex items-center gap-2">
+            <BookOpen size={28} />
+            מבחנים
+          </h1>
+          <p className="text-gray-500 mt-1">בחר זמן לצפייה בפרשות</p>
+        </div>
+        <NewZmanButton />
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 max-w-2xl">
@@ -200,6 +201,7 @@ async function ExamsContent({
         </Link>
         {zmanim.map((zman) => {
           const isSummer = zman.season === "קיץ";
+          const parashaCount = examsOfZman(exams, zman).length;
           return (
             <Link
               key={zman.id}
@@ -250,7 +252,7 @@ async function ExamsContent({
                 }`}
               >
                 <BookOpen size={14} />
-                <span>{zman.exam_ids.length} פרשות</span>
+                <span>{parashaCount} פרשות</span>
                 <ArrowRight size={14} className="mr-auto group-hover:translate-x-[-4px] transition-transform" />
               </div>
             </Link>
