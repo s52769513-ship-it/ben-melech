@@ -2,6 +2,8 @@ import { cacheLife, cacheTag } from "next/cache";
 import {
   fetchAll,
   fetchOne,
+  fetchTableFields,
+  computedFieldFromError,
   patchRecord,
   patchRecords,
   createRecord,
@@ -22,6 +24,7 @@ import type {
   CoordinatorInstruction,
   Group,
   Zman,
+  ZmanFormField,
   NedarimLedgerEntry,
 } from "@/lib/types";
 
@@ -92,11 +95,14 @@ function toExam(r: AirtableRecord): Exam {
 
 function toZman(r: AirtableRecord): Zman {
   const f = r.fields;
+  const season = str(f["שם זמן"]);
   return {
     id: r.id,
     created_at: r.createdTime ?? "",
-    name: str(f["זמן"]) ?? "",
-    season: str(f["שם זמן"]),
+    // "זמן" is a formula in the base; a zman whose formula has nothing to work
+    // with yet still shows up, under its season.
+    name: str(f["זמן"]) ?? season ?? "",
+    season,
     exam_ids: (f["פרשה"] as string[] | undefined) ?? [],
   };
 }
@@ -629,19 +635,84 @@ export function currentZman(zmanim: Zman[]): Zman | null {
   return zmanim[0] ?? null;
 }
 
-export async function createZman(name: string, season: string | null): Promise<string> {
-  const fields: Record<string, unknown> = { "זמן": name.trim() };
-  if (season) fields["שם זמן"] = season;
+// The zmanim table computes some of its columns — "זמן", the name shown all
+// over the app, is a formula — so a new zman is filled in through whichever
+// columns the table actually accepts. The form is built from the table itself
+// rather than from names written here, which would be wrong the moment the
+// base changes.
+const ZMAN_FIELD_KINDS: Record<string, ZmanFormField["kind"]> = {
+  singleLineText: "text",
+  multilineText: "text",
+  richText: "text",
+  email: "text",
+  url: "text",
+  phoneNumber: "text",
+  number: "number",
+  currency: "number",
+  percent: "number",
+  rating: "number",
+  duration: "number",
+  date: "date",
+  dateTime: "date",
+  checkbox: "checkbox",
+  singleSelect: "select",
+};
+
+// Columns Airtable turned down as computed. Learned from its own error, so a
+// base we cannot read the schema of still ends up with a form that works.
+const computedZmanFields = new Set<string>(["זמן"]);
+
+export async function getZmanFormFields(): Promise<ZmanFormField[]> {
+  "use cache: remote";
+  cacheLife(STABLE);
+  cacheTag("zmanim-schema");
+
   try {
-    const record = await createRecord(TABLES.ZMANIM, fields);
-    return record.id;
-  } catch (err) {
-    // "שם זמן" is a single select in some bases and a formula in others; if
-    // Airtable refuses it, the zman is still worth creating with its name.
-    if (!season) throw err;
-    const record = await createRecord(TABLES.ZMANIM, { "זמן": name.trim() });
-    return record.id;
+    const fields = await fetchTableFields(TABLES.ZMANIM);
+    return fields.flatMap((f) => {
+      const kind = ZMAN_FIELD_KINDS[f.type];
+      if (!kind || computedZmanFields.has(f.name)) return [];
+      return [{ name: f.name, kind, choices: f.options?.choices?.map((c) => c.name) }];
+    });
+  } catch {
+    // No schema access on the token: fall back to the columns the existing
+    // zmanim carry. Links, lookups and attachments come back as arrays or
+    // objects and are left out; anything else is offered as plain text, and
+    // createZman drops whatever Airtable still refuses.
+    const recs = await fetchAll(TABLES.ZMANIM);
+    const names = new Set<string>();
+    for (const r of recs) {
+      for (const [key, value] of Object.entries(r.fields)) {
+        if (computedZmanFields.has(key) || typeof value === "object") continue;
+        names.add(key);
+      }
+    }
+    return [...names].map((name) => ({ name, kind: "text" as const }));
   }
+}
+
+export async function createZman(
+  values: Record<string, unknown>
+): Promise<{ id: string; dropped: string[] }> {
+  const fields = { ...values };
+  const dropped: string[] = [];
+
+  while (Object.keys(fields).length > 0) {
+    try {
+      const record = await createRecord(TABLES.ZMANIM, fields);
+      return { id: record.id, dropped };
+    } catch (err) {
+      const computed = computedFieldFromError(err);
+      if (!computed || !(computed in fields)) throw err;
+      delete fields[computed];
+      computedZmanFields.add(computed);
+      dropped.push(computed);
+    }
+  }
+
+  throw new Error(
+    `לא ניתן ליצור זמן — איירטייבל מחשב את השדות ${dropped.join(", ")} ולא ניתן לכתוב אליהם`
+  );
 }
 
 // Parshiyot linked from here since this server started. A parasha is attached

@@ -6,6 +6,13 @@ export interface Zman {
   exam_ids: string[];
 }
 
+// One writable column on the zmanim table, as the new-zman form should show it.
+export interface ZmanFormField {
+  name: string;
+  kind: "text" | "number" | "date" | "checkbox" | "select";
+  choices?: string[];
+}
+
 export interface Coordinator {
   id: string;
   created_at: string;

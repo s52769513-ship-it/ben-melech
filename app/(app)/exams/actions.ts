@@ -4,8 +4,10 @@ import { refresh, updateTag } from "next/cache";
 import {
   updateExam as updateExamDB,
   createZman as createZmanDB,
+  getZmanFormFields,
   setExamZman as setExamZmanDB,
 } from "@/lib/airtable/db";
+import type { ZmanFormField } from "@/lib/types";
 
 export async function updateExam(id: string, data: Record<string, unknown>) {
   await updateExamDB(id, data);
@@ -13,19 +15,29 @@ export async function updateExam(id: string, data: Record<string, unknown>) {
   refresh();
 }
 
+// The columns the zmanim table lets us fill in. "זמן" itself is a formula in
+// the base, so the form has to come from the table rather than from here.
+export async function zmanFormFieldsAction(): Promise<ZmanFormField[]> {
+  return getZmanFormFields();
+}
+
 // Opening a new zman. From here on the parshiyot that get created hang off it,
 // because it becomes the newest zman (see attachNewExamsToCurrentZman).
 export async function createZmanAction(
-  name: string,
-  season: string | null
-): Promise<{ id?: string; error?: string }> {
-  const trimmed = name.trim();
-  if (!trimmed) return { error: "יש להזין שם זמן" };
+  values: Record<string, unknown>
+): Promise<{ id?: string; dropped?: string[]; error?: string }> {
+  const filled = Object.fromEntries(
+    Object.entries(values).filter(([, v]) => v !== "" && v !== null && v !== undefined)
+  );
+  if (Object.keys(filled).length === 0) return { error: "יש למלא לפחות שדה אחד" };
+
   try {
-    const id = await createZmanDB(trimmed, season);
+    const { id, dropped } = await createZmanDB(filled);
     updateTag("zmanim");
+    // A column Airtable turned down is one the form should stop offering.
+    if (dropped.length > 0) updateTag("zmanim-schema");
     refresh();
-    return { id };
+    return { id, dropped };
   } catch (err) {
     return { error: err instanceof Error ? err.message : "יצירת הזמן נכשלה" };
   }

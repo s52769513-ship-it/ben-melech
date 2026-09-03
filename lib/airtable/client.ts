@@ -29,6 +29,36 @@ async function request(path: string, options?: RequestInit): Promise<unknown> {
   return res.json();
 }
 
+// The metadata API lives outside the base path — it describes the tables
+// themselves, which is how a screen can tell a field it may write from one
+// Airtable computes.
+export type FieldSchema = {
+  id: string;
+  name: string;
+  type: string;
+  options?: { choices?: { name: string }[] };
+};
+
+export async function fetchTableFields(tableId: string): Promise<FieldSchema[]> {
+  const res = await fetch(`https://api.airtable.com/v0/meta/bases/${BASE_ID}/tables`, {
+    headers: { Authorization: `Bearer ${getToken()}` },
+    cache: "no-store",
+  });
+  if (!res.ok) throw new Error(`Airtable meta ${res.status}: ${await res.text()}`);
+  const data = (await res.json()) as {
+    tables: { id: string; fields: FieldSchema[] }[];
+  };
+  return data.tables.find((t) => t.id === tableId)?.fields ?? [];
+}
+
+// Airtable names the offending column in a 422, which is the only way to learn
+// that a field is computed when the metadata API is out of reach.
+export function computedFieldFromError(err: unknown): string | null {
+  const message = err instanceof Error ? err.message : String(err);
+  if (!message.includes("computed") && !message.includes("INVALID_VALUE_FOR_COLUMN")) return null;
+  return /Field \\?"(.+?)\\?" cannot accept a value/.exec(message)?.[1] ?? null;
+}
+
 export async function fetchAll(
   tableId: string,
   params?: Record<string, string>
