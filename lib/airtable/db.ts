@@ -411,7 +411,7 @@ export async function updateStudent(
   id: string,
   data: Record<string, unknown>
 ): Promise<void> {
-  await patchRecord(TABLES.STUDENTS, id, toStudentFields(data));
+  await patchRecord(TABLES.STUDENTS, id, toStudentFields(data, { skipEmpty: true }));
 }
 
 const STUDENT_FIELDS: Record<string, string> = {
