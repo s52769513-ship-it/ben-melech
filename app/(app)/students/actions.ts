@@ -7,12 +7,20 @@ import {
   reassignCoordinator,
 } from "@/lib/airtable/db";
 
-export async function updateStudent(id: string, data: Record<string, unknown>) {
-  await updateStudentDB(id, data);
+export async function updateStudent(
+  id: string,
+  data: Record<string, unknown>
+): Promise<{ error?: string }> {
+  try {
+    await updateStudentDB(id, data);
+  } catch (e) {
+    return { error: e instanceof Error ? e.message : "עדכון הבחור נכשל" };
+  }
   // Expire the students cache and re-render right away, so the edit is on
   // screen the moment the save returns — no manual refresh.
   updateTag("students");
   refresh();
+  return {};
 }
 
 // Returns the failure instead of throwing, so the form can show what Airtable

@@ -215,6 +215,7 @@ export default function StudentsTable({ students, coordinators, groups }: Props)
   const [creating, setCreating] = useState(false);
   const [createForm, setCreateForm] = useState<FormState>(emptyForm());
   const [createError, setCreateError] = useState("");
+  const [editError, setEditError] = useState("");
   const { settings, isStudentVisible, toggleStudentField, setStudentFieldOrder } = useSettings();
   const visibleStudents = rows.filter(isStudentVisible);
   const visibleCoordinators = coordinators.filter(
@@ -240,6 +241,7 @@ export default function StudentsTable({ students, coordinators, groups }: Props)
   function closeEdit() {
     setEditing(null);
     setForm(null);
+    setEditError("");
   }
 
   function set(field: keyof FormState, value: string) {
@@ -266,7 +268,7 @@ export default function StudentsTable({ students, coordinators, groups }: Props)
       group_id: form.group_id || null,
       notes: form.notes || null,
     };
-    closeEdit();
+    setEditError("");
     startTransition(async () => {
       applyOptimistic({
         ...student,
@@ -276,7 +278,12 @@ export default function StudentsTable({ students, coordinators, groups }: Props)
         coordinator:
           coordinators.find((c) => c.id === changes.coordinator_id) ?? null,
       });
-      await updateStudent(student.id, changes);
+      const result = await updateStudent(student.id, changes);
+      if (result?.error) {
+        setEditError(result.error);
+      } else {
+        closeEdit();
+      }
       router.refresh();
     });
   }
@@ -646,6 +653,17 @@ export default function StudentsTable({ students, coordinators, groups }: Props)
           onSave={handleSave}
           isSaving={isPending}
         >
+          {editError && (
+            <div className="bg-red-50 border border-red-200 rounded-lg px-4 py-3 mb-4">
+              <p className="text-red-700 text-sm">{editError}</p>
+              <button
+                onClick={() => setEditError("")}
+                className="mt-2 text-xs text-red-600 hover:text-red-700 font-medium"
+              >
+                סגור הודעה
+              </button>
+            </div>
+          )}
           <div className="grid grid-cols-2 gap-3">
             <div className="flex flex-col gap-1">
               <label className="text-xs font-medium text-gray-500">שם פרטי</label>
