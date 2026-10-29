@@ -53,7 +53,7 @@ async function ExamDetailContent({
     loggedIn ? getScoresByExamForCoordinator(id, loggedIn) : getScoresByExam(id),
     getZmanim(),
   ]);
-  const zman = exam?.zman_id ? zmanim.find((z) => z.id === exam.zman_id) ?? null : null;
+  const zman = zmanim.find((z) => z.id === exam?.zman_id || z.exam_ids.includes(id)) ?? null;
   const season = zman?.season ?? null;
 
   if (!exam) notFound();
