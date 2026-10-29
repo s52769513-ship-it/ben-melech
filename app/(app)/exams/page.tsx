@@ -2,7 +2,7 @@ import Link from "next/link";
 import { Suspense } from "react";
 import { BookOpen, ArrowRight, Calendar, Sun, Snowflake } from "lucide-react";
 import { CardsSkeleton } from "@/components/Skeletons";
-import { getExams, getZmanim } from "@/lib/airtable/db";
+import { getExams, getYears, getZmanim } from "@/lib/airtable/db";
 import AddZmanButton from "./AddZmanButton";
 import { getSession } from "@/lib/auth";
 
@@ -42,7 +42,11 @@ async function ExamsContent({
   // Only the exams table. Participation comes from the parasha's own field in
   // Airtable; the grades for a parasha live on its own screen, which reads just
   // that parasha's rows.
-  const [exams, zmanim] = await Promise.all([getExams(), getZmanim()]);
+  const [exams, zmanim, years] = await Promise.all([
+    getExams(),
+    getZmanim(),
+    getYears().catch(() => []),
+  ]);
 
   const isAll = selectedZmanId === "all";
   const selectedZman = zmanim.find((z) => z.id === selectedZmanId);
@@ -179,9 +183,7 @@ async function ExamsContent({
           </h1>
           <p className="text-gray-500 mt-1">בחר זמן לצפייה בפרשות</p>
         </div>
-        <AddZmanButton
-          years={[...new Set(zmanim.map((z) => z.year).filter((y): y is string => !!y))]}
-        />
+        <AddZmanButton years={years} />
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 max-w-2xl">

@@ -9,9 +9,9 @@ export async function updateExam(id: string, data: Record<string, unknown>) {
   refresh();
 }
 
-export async function addZman(season: string, year: string) {
-  if (!season.trim() || !year.trim()) throw new Error("חסר שם זמן או שנה");
-  await createZmanDB(season.trim(), year.trim());
+export async function addZman(season: string, year: { id?: string; name?: string }) {
+  if (!season.trim() || !(year.id || year.name?.trim())) throw new Error("חסר שם זמן או שנה");
+  await createZmanDB(season.trim(), { id: year.id, name: year.name?.trim() });
   updateTag("zmanim");
   refresh();
 }
