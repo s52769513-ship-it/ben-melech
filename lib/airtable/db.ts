@@ -260,6 +260,19 @@ export async function getZmanim(): Promise<Zman[]> {
   return zmanim;
 }
 
+// Writes the link into Airtable for parshiyot the automation left without a
+// zman. Safe to repeat: once linked, a parasha no longer counts as an orphan.
+export async function linkOrphanExams(): Promise<void> {
+  const [exams, zmanim] = await Promise.all([getExams(), getZmanim()]);
+  const latest = latestZman(zmanim);
+  if (!latest) return;
+  const orphans = exams.filter((e) => !e.zman_id && latest.exam_ids.includes(e.id));
+  await patchRecords(
+    TABLES.EXAMS,
+    orphans.map((e) => ({ id: e.id, fields: { "זמן ושנה": [latest.id] } }))
+  );
+}
+
 function latestZman(zmanim: Zman[]): Zman | null {
   return zmanim.reduce<Zman | null>(
     (best, z) => (!best || z.created_at > best.created_at ? z : best),

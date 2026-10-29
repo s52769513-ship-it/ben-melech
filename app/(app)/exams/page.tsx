@@ -1,8 +1,9 @@
 import Link from "next/link";
 import { Suspense } from "react";
+import { after } from "next/server";
 import { BookOpen, ArrowRight, Calendar, Sun, Snowflake } from "lucide-react";
 import { CardsSkeleton } from "@/components/Skeletons";
-import { getExams, getYears, getZmanim } from "@/lib/airtable/db";
+import { getExams, getYears, getZmanim, linkOrphanExams } from "@/lib/airtable/db";
 import AddZmanButton from "./AddZmanButton";
 import { getSession } from "@/lib/auth";
 
@@ -47,6 +48,8 @@ async function ExamsContent({
     getZmanim(),
     getYears().catch(() => []),
   ]);
+
+  after(() => linkOrphanExams().catch(() => {}));
 
   const isAll = selectedZmanId === "all";
   const selectedZman = zmanim.find((z) => z.id === selectedZmanId);
