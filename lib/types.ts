@@ -1,5 +1,6 @@
 export interface Zman {
   id: string;
+  created_at: string;
   name: string;
   season: string | null;
   year_id: string | null;

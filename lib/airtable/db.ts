@@ -94,6 +94,7 @@ function toZman(r: AirtableRecord): Zman {
   const f = r.fields;
   return {
     id: r.id,
+    created_at: r.createdTime ?? "",
     name:
       str(f["זמן"]) ??
       str(f["שם זמן"]) ?? "",
@@ -246,8 +247,37 @@ export async function getZmanim(): Promise<Zman[]> {
   "use cache: remote";
   cacheLife(STABLE);
   cacheTag("zmanim");
-  const recs = await fetchAll(TABLES.ZMANIM);
-  return recs.map(toZman).filter((z) => z.name.trim() !== "");
+  const [recs, exams] = await Promise.all([fetchAll(TABLES.ZMANIM), getExams()]);
+  const zmanim = recs.map(toZman).filter((z) => z.name.trim() !== "");
+  // The weekly Airtable automation creates each parasha without a zman. Those
+  // belong to the newest zman, so they show up there without anyone linking them.
+  const latest = latestZman(zmanim);
+  if (latest) {
+    const known = new Set(zmanim.flatMap((z) => z.exam_ids));
+    const orphans = exams.filter((e) => !e.zman_id && !known.has(e.id)).map((e) => e.id);
+    latest.exam_ids = [...latest.exam_ids, ...orphans];
+  }
+  return zmanim;
+}
+
+// Writes the link into Airtable for parshiyot the automation left without a
+// zman. Safe to repeat: once linked, a parasha no longer counts as an orphan.
+export async function linkOrphanExams(): Promise<void> {
+  const [exams, zmanim] = await Promise.all([getExams(), getZmanim()]);
+  const latest = latestZman(zmanim);
+  if (!latest) return;
+  const orphans = exams.filter((e) => !e.zman_id && latest.exam_ids.includes(e.id));
+  await patchRecords(
+    TABLES.EXAMS,
+    orphans.map((e) => ({ id: e.id, fields: { "זמן ושנה": [latest.id] } }))
+  );
+}
+
+function latestZman(zmanim: Zman[]): Zman | null {
+  return zmanim.reduce<Zman | null>(
+    (best, z) => (!best || z.created_at > best.created_at ? z : best),
+    null
+  );
 }
 
 export async function getExams(): Promise<Exam[]> {
@@ -568,14 +598,9 @@ export async function getScoresForZman(zmanId: string | null): Promise<Score[]> 
   return scores;
 }
 
-// The zman the newest parasha belongs to.
+// The most recently created zman.
 export async function getCurrentZmanId(): Promise<string | null> {
-  const [exams, zmanim] = await Promise.all([getExams(), getZmanim()]);
-  const withZman = exams.find((e) => e.zman_id);
-  if (withZman?.zman_id && zmanim.some((z) => z.id === withZman.zman_id)) {
-    return withZman.zman_id;
-  }
-  return zmanim[0]?.id ?? null;
+  return latestZman(await getZmanim())?.id ?? null;
 }
 
 export async function getScoresForCurrentZman(): Promise<Score[]> {
