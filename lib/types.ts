@@ -2,6 +2,7 @@ export interface Zman {
   id: string;
   name: string;
   season: string | null;
+  year: string | null;
   exam_ids: string[];
 }
 
