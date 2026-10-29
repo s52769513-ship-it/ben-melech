@@ -93,8 +93,11 @@ function toZman(r: AirtableRecord): Zman {
   const f = r.fields;
   return {
     id: r.id,
-    name: str(f["זמן"]) ?? "",
+    name:
+      str(f["זמן"]) ??
+      [str(f["שם זמן"]), str(f["שנה"])].filter(Boolean).join(" "),
     season: str(f["שם זמן"]),
+    year: str(f["שנה"]),
     exam_ids: (f["פרשה"] as string[] | undefined) ?? [],
   };
 }
@@ -215,6 +218,11 @@ export async function getGroups(): Promise<Group[]> {
   cacheTag("groups");
   const recs = await fetchAll(TABLES.GROUPS);
   return recs.map(toGroup).sort((a, b) => a.name.localeCompare(b.name, "he"));
+}
+
+export async function createZman(season: string, year: string): Promise<string> {
+  const record = await createRecord(TABLES.ZMANIM, { "שם זמן": season, "שנה": year });
+  return record.id;
 }
 
 export async function getZmanim(): Promise<Zman[]> {

@@ -3,6 +3,7 @@ import { Suspense } from "react";
 import { BookOpen, ArrowRight, Calendar, Sun, Snowflake } from "lucide-react";
 import { CardsSkeleton } from "@/components/Skeletons";
 import { getExams, getZmanim } from "@/lib/airtable/db";
+import AddZmanButton from "./AddZmanButton";
 import { getSession } from "@/lib/auth";
 
 export default function ExamsPage({
@@ -170,12 +171,17 @@ async function ExamsContent({
   // ── Zman buttons view (no zman selected) ─────────────────────────────────
   return (
     <div className="p-8">
-      <div className="mb-10">
-        <h1 className="text-3xl font-bold text-[#1e3a5f] flex items-center gap-2">
-          <BookOpen size={28} />
-          מבחנים
-        </h1>
-        <p className="text-gray-500 mt-1">בחר זמן לצפייה בפרשות</p>
+      <div className="mb-10 flex items-start justify-between gap-4">
+        <div>
+          <h1 className="text-3xl font-bold text-[#1e3a5f] flex items-center gap-2">
+            <BookOpen size={28} />
+            מבחנים
+          </h1>
+          <p className="text-gray-500 mt-1">בחר זמן לצפייה בפרשות</p>
+        </div>
+        <AddZmanButton
+          years={[...new Set(zmanim.map((z) => z.year).filter((y): y is string => !!y))]}
+        />
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 max-w-2xl">
