@@ -183,7 +183,10 @@ async function ExamsContent({
           </h1>
           <p className="text-gray-500 mt-1">בחר זמן לצפייה בפרשות</p>
         </div>
-        <AddZmanButton years={years} />
+        <AddZmanButton
+          years={years}
+          seasons={[...new Set(zmanim.map((z) => z.season).filter((x): x is string => !!x))]}
+        />
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 max-w-2xl">
