@@ -97,6 +97,31 @@ export async function createRecord(
   })) as AirtableRecord;
 }
 
+// Resolves the table a linked-record field points at (and its primary field
+// name) through Airtable's schema API, so we needn't hard-code the table id.
+export async function getLinkedTable(
+  tableId: string,
+  fieldName: string
+): Promise<{ tableId: string; primaryField: string }> {
+  const res = await fetch(`https://api.airtable.com/v0/meta/bases/${BASE_ID}/tables`, {
+    headers: { Authorization: `Bearer ${getToken()}` },
+    next: { revalidate: 3600 },
+  });
+  if (!res.ok) throw new Error(`Airtable schema ${res.status}: ${await res.text()}`);
+  const { tables } = (await res.json()) as {
+    tables: {
+      id: string;
+      primaryFieldId: string;
+      fields: { id: string; name: string; options?: { linkedTableId?: string } }[];
+    }[];
+  };
+  const field = tables.find((t) => t.id === tableId)?.fields.find((f) => f.name === fieldName);
+  const linked = tables.find((t) => t.id === field?.options?.linkedTableId);
+  if (!linked) throw new Error(`לא נמצאה טבלה מקושרת לשדה ${fieldName}`);
+  const primary = linked.fields.find((f) => f.id === linked.primaryFieldId);
+  return { tableId: linked.id, primaryField: primary?.name ?? "" };
+}
+
 export const TABLES = {
   COORDINATORS: "tbl9qvdwAmwA8TIhr",
   STUDENTS: "tblWmWBpyEEcxVWIU",

@@ -8,25 +8,26 @@ import { addZman } from "./actions";
 const SEASONS = ["חורף", "קיץ"];
 const NEW_YEAR = "__new__";
 
-export default function AddZmanButton({ years }: { years: string[] }) {
+export default function AddZmanButton({ years }: { years: { id: string; name: string }[] }) {
   const [open, setOpen] = useState(false);
   const [season, setSeason] = useState(SEASONS[0]);
-  const [yearChoice, setYearChoice] = useState(years[0] ?? NEW_YEAR);
+  const [yearChoice, setYearChoice] = useState(years[0]?.id ?? NEW_YEAR);
   const [newYear, setNewYear] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
 
-  const year = yearChoice === NEW_YEAR ? newYear.trim() : yearChoice;
+  const isNew = yearChoice === NEW_YEAR;
+  const hasYear = isNew ? !!newYear.trim() : !!yearChoice;
 
   function save() {
-    if (!year) {
+    if (!hasYear) {
       setError("יש לבחור שנה");
       return;
     }
     setError(null);
     startTransition(async () => {
       try {
-        await addZman(season, year);
+        await addZman(season, isNew ? { name: newYear } : { id: yearChoice });
         setOpen(false);
         setNewYear("");
       } catch (e) {
@@ -73,8 +74,8 @@ export default function AddZmanButton({ years }: { years: string[] }) {
               className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm"
             >
               {years.map((y) => (
-                <option key={y} value={y}>
-                  {y}
+                <option key={y.id} value={y.id}>
+                  {y.name}
                 </option>
               ))}
               <option value={NEW_YEAR}>+ יצירת שנה חדשה</option>

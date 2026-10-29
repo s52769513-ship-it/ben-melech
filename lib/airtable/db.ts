@@ -7,6 +7,7 @@ import {
   createRecord,
   TABLES,
   linkedId,
+  getLinkedTable,
   num,
   str,
   bool,
@@ -95,9 +96,9 @@ function toZman(r: AirtableRecord): Zman {
     id: r.id,
     name:
       str(f["זמן"]) ??
-      [str(f["שם זמן"]), str(f["שנה"])].filter(Boolean).join(" "),
+      str(f["שם זמן"]) ?? "",
     season: str(f["שם זמן"]),
-    year: str(f["שנה"]),
+    year_id: linkedId(f["שנה"]),
     exam_ids: (f["פרשה"] as string[] | undefined) ?? [],
   };
 }
@@ -220,8 +221,24 @@ export async function getGroups(): Promise<Group[]> {
   return recs.map(toGroup).sort((a, b) => a.name.localeCompare(b.name, "he"));
 }
 
-export async function createZman(season: string, year: string): Promise<string> {
-  const record = await createRecord(TABLES.ZMANIM, { "שם זמן": season, "שנה": year });
+export async function getYears(): Promise<{ id: string; name: string }[]> {
+  const { tableId, primaryField } = await getLinkedTable(TABLES.ZMANIM, "שנה");
+  const recs = await fetchAll(tableId);
+  return recs
+    .map((r) => ({ id: r.id, name: str(r.fields[primaryField]) ?? "" }))
+    .filter((y) => y.name.trim() !== "");
+}
+
+// yearId: an existing year record; otherwise newYear is created (Airtable's
+// typecast makes a linked record from the primary-field text).
+export async function createZman(
+  season: string,
+  year: { id?: string; name?: string }
+): Promise<string> {
+  const record = await createRecord(TABLES.ZMANIM, {
+    "שם זמן": season,
+    "שנה": [year.id ?? year.name],
+  });
   return record.id;
 }
 
