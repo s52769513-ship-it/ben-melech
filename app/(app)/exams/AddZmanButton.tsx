@@ -5,13 +5,18 @@ import { Plus } from "lucide-react";
 import EditModal from "@/components/EditModal";
 import { addZman } from "./actions";
 
-const SEASONS = ["חורף", "קיץ"];
 const NEW_SEASON = "__new_season__";
 const NEW_YEAR = "__new__";
 
-export default function AddZmanButton({ years }: { years: { id: string; name: string }[] }) {
+export default function AddZmanButton({
+  years,
+  seasons,
+}: {
+  years: { id: string; name: string }[];
+  seasons: string[];
+}) {
   const [open, setOpen] = useState(false);
-  const [season, setSeason] = useState(SEASONS[0]);
+  const [season, setSeason] = useState(seasons[0] ?? NEW_SEASON);
   const [yearChoice, setYearChoice] = useState(years[0]?.id ?? NEW_YEAR);
   const [newSeason, setNewSeason] = useState("");
   const [newYear, setNewYear] = useState("");
@@ -59,7 +64,7 @@ export default function AddZmanButton({ years }: { years: { id: string; name: st
           <div>
             <label className="block text-xs text-gray-500 mb-1">שם זמן</label>
             <div className="flex gap-2">
-              {SEASONS.map((s) => (
+              {seasons.map((s) => (
                 <button
                   key={s}
                   type="button"
