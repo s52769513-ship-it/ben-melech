@@ -6,20 +6,28 @@ import EditModal from "@/components/EditModal";
 import { addZman } from "./actions";
 
 const SEASONS = ["חורף", "קיץ"];
+const NEW_SEASON = "__new_season__";
 const NEW_YEAR = "__new__";
 
 export default function AddZmanButton({ years }: { years: { id: string; name: string }[] }) {
   const [open, setOpen] = useState(false);
   const [season, setSeason] = useState(SEASONS[0]);
   const [yearChoice, setYearChoice] = useState(years[0]?.id ?? NEW_YEAR);
+  const [newSeason, setNewSeason] = useState("");
   const [newYear, setNewYear] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
 
+  const isNewSeason = season === NEW_SEASON;
+  const seasonName = isNewSeason ? newSeason.trim() : season;
   const isNew = yearChoice === NEW_YEAR;
   const hasYear = isNew ? !!newYear.trim() : !!yearChoice;
 
   function save() {
+    if (!seasonName) {
+      setError("יש לבחור שם זמן");
+      return;
+    }
     if (!hasYear) {
       setError("יש לבחור שנה");
       return;
@@ -27,9 +35,10 @@ export default function AddZmanButton({ years }: { years: { id: string; name: st
     setError(null);
     startTransition(async () => {
       try {
-        await addZman(season, isNew ? { name: newYear } : { id: yearChoice });
+        await addZman(seasonName, isNew ? { name: newYear } : { id: yearChoice });
         setOpen(false);
         setNewYear("");
+        setNewSeason("");
       } catch (e) {
         setError(e instanceof Error ? e.message : "ההוספה נכשלה");
       }
@@ -64,7 +73,26 @@ export default function AddZmanButton({ years }: { years: { id: string; name: st
                   {s}
                 </button>
               ))}
+              <button
+                type="button"
+                onClick={() => setSeason(NEW_SEASON)}
+                className={`px-4 py-1.5 text-sm rounded-full border ${
+                  isNewSeason
+                    ? "bg-orange-100 border-orange-400 text-orange-800"
+                    : "border-gray-200 text-gray-600"
+                }`}
+              >
+                + חדש
+              </button>
             </div>
+            {isNewSeason && (
+              <input
+                value={newSeason}
+                onChange={(e) => setNewSeason(e.target.value)}
+                placeholder="שם זמן חדש"
+                className="w-full mt-2 border border-gray-200 rounded-lg px-3 py-2 text-sm"
+              />
+            )}
           </div>
           <div>
             <label className="block text-xs text-gray-500 mb-1">שנה</label>
