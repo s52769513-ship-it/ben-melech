@@ -1,9 +1,31 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useTransition, useState, useMemo, useRef, Fragment } from "react";
+import {
+  useTransition,
+  useState,
+  useMemo,
+  useRef,
+  useEffect,
+  useSyncExternalStore,
+  Fragment,
+  type ReactNode,
+} from "react";
 import { updateScoreBoolean, updateScoreNumber } from "./actions";
-import { AlertTriangle, Download, FileText, Printer, X, Search, Filter } from "lucide-react";
+import {
+  AlertTriangle,
+  Download,
+  FileText,
+  Printer,
+  X,
+  Search,
+  Filter,
+  Columns3,
+  Lock,
+  RotateCcw,
+  ArrowUp,
+  ArrowDown,
+} from "lucide-react";
 import { useSettings } from "@/lib/settings-context";
 import { usePendingEdits } from "@/lib/use-pending-edits";
 import * as XLSX from "xlsx";
@@ -135,6 +157,394 @@ function ManualPointsCell({
   );
 }
 
+function pointsOf(s: ScoreRow) {
+  return (
+    (s.arrived_on_time ? 1 : 0) +
+    (s.attended_seder ? 1 : 0) +
+    (s.attended_class ? 1 : 0) +
+    (s.weekly_summary ? 1 : 0)
+  );
+}
+
+// ─── Columns of the single-parasha table ─────────────────────────────────────
+// One definition drives the header, the cells, Excel and print/PDF, so the
+// order and visibility the user picks apply everywhere. "שם" is not listed: it
+// is always shown and always first.
+
+type ColumnKey = BoolField | "points" | "manual_points";
+
+type CellHandlers = {
+  onToggle: (scoreId: string, field: BoolField, value: boolean) => void;
+  onManualPoints: (scoreId: string, value: number | null) => void;
+};
+
+type ColumnDef = {
+  key: ColumnKey;
+  label: string;
+  headerClass?: string;
+  cell: (s: Score, h: CellHandlers) => ReactNode;
+  text: (s: Score) => string; // Excel
+  html: (s: Score) => string; // print / PDF, a full <td>
+};
+
+const yesNoHtml = (v: boolean) => `<span class="${v ? "yes" : "no"}">${v ? "✓" : "✗"}</span>`;
+
+function boolColumn(key: BoolField, label: string): ColumnDef {
+  return {
+    key,
+    label,
+    cell: (s, h) => <CheckboxCell scoreId={s.id} field={key} value={s[key]} onToggle={h.onToggle} />,
+    text: (s) => (s[key] ? "כן" : "לא"),
+    html: (s) => `<td>${yesNoHtml(s[key])}</td>`,
+  };
+}
+
+const COLUMNS: ColumnDef[] = [
+  boolColumn("arrived_on_time", "הגעה 5 דקות"),
+  boolColumn("attended_seder", "השתתף בסדר"),
+  boolColumn("attended_class", "השתתף בשיעור"),
+  boolColumn("weekly_summary", "סיכום שבועי"),
+  {
+    key: "points",
+    label: "נקודות",
+    cell: (s) => {
+      const points = pointsOf(s);
+      return (
+        <span className={`inline-flex items-center justify-center w-8 h-8 rounded-full text-sm font-bold ${
+          points === 4 ? "bg-green-100 text-green-700" :
+          points >= 2 ? "bg-yellow-50 text-yellow-700" :
+          points === 0 ? "bg-red-50 text-red-500" :
+          "bg-gray-100 text-gray-600"
+        }`}>
+          {points}
+        </span>
+      );
+    },
+    text: (s) => String(pointsOf(s)),
+    html: (s) => `<td class="pts">${pointsOf(s)}</td>`,
+  },
+  {
+    key: "manual_points",
+    label: "נקודות ידני",
+    headerClass: "text-orange-600",
+    cell: (s, h) => <ManualPointsCell scoreId={s.id} value={s.manual_points} onSave={h.onManualPoints} />,
+    text: (s) => (s.manual_points == null ? "" : String(s.manual_points)),
+    html: (s) => `<td>${s.manual_points ?? "—"}</td>`,
+  },
+];
+
+const COLUMN_BY_KEY = Object.fromEntries(COLUMNS.map((c) => [c.key, c])) as Record<ColumnKey, ColumnDef>;
+const DEFAULT_ORDER = COLUMNS.map((c) => c.key);
+
+type ColumnLayout = { order: ColumnKey[]; hidden: ColumnKey[] };
+const DEFAULT_LAYOUT: ColumnLayout = { order: DEFAULT_ORDER, hidden: [] };
+
+// The layout lives in localStorage, read through useSyncExternalStore so the
+// server render and the first client render agree (both use the default) and
+// the saved layout takes over right after hydration. A memory copy keeps the
+// menu working when storage is blocked; the "storage" event syncs other tabs.
+const COLUMNS_STORAGE_KEY = "attendance-columns";
+const columnListeners = new Set<() => void>();
+let columnsCache: string | null | undefined;
+
+function readColumns(): string | null {
+  if (columnsCache === undefined) {
+    try {
+      columnsCache = localStorage.getItem(COLUMNS_STORAGE_KEY);
+    } catch {
+      columnsCache = null;
+    }
+  }
+  return columnsCache;
+}
+
+function writeColumns(raw: string | null) {
+  columnsCache = raw;
+  try {
+    if (raw === null) localStorage.removeItem(COLUMNS_STORAGE_KEY);
+    else localStorage.setItem(COLUMNS_STORAGE_KEY, raw);
+  } catch { /* storage blocked — the memory copy still holds it */ }
+  columnListeners.forEach((l) => l());
+}
+
+function subscribeColumns(callback: () => void) {
+  const onStorage = (e: StorageEvent) => {
+    if (e.key !== null && e.key !== COLUMNS_STORAGE_KEY) return;
+    columnsCache = undefined;
+    callback();
+  };
+  columnListeners.add(callback);
+  window.addEventListener("storage", onStorage);
+  return () => {
+    columnListeners.delete(callback);
+    window.removeEventListener("storage", onStorage);
+  };
+}
+
+function parseLayout(raw: string | null): ColumnLayout {
+  if (!raw) return DEFAULT_LAYOUT;
+  try {
+    const parsed = JSON.parse(raw);
+    const known = new Set<string>(DEFAULT_ORDER);
+    const order = Array.from(
+      new Set<ColumnKey>(Array.isArray(parsed.order) ? parsed.order.filter((k: string) => known.has(k)) : [])
+    );
+    // Columns added after the layout was saved show up at the end, visible.
+    DEFAULT_ORDER.forEach((k) => {
+      if (!order.includes(k)) order.push(k);
+    });
+    const hidden: ColumnKey[] = Array.isArray(parsed.hidden)
+      ? parsed.hidden.filter((k: string) => known.has(k))
+      : [];
+    return { order, hidden };
+  } catch {
+    return DEFAULT_LAYOUT;
+  }
+}
+
+function isDefaultLayout(layout: ColumnLayout) {
+  return layout.hidden.length === 0 && layout.order.every((k, i) => k === DEFAULT_ORDER[i]);
+}
+
+// "עמודות" button and its menu. A popover under the button on desktop, a
+// bottom sheet on phones. Each row has a show/hide checkbox and up/down arrows;
+// the row that just moved glows for a moment so the eye can follow it.
+function ColumnsMenu({
+  layout,
+  onChange,
+  onReset,
+}: {
+  layout: ColumnLayout;
+  onChange: (next: ColumnLayout) => void;
+  onReset: () => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const [flash, setFlash] = useState<{ key: ColumnKey; n: number } | null>(null);
+  const [announcement, setAnnouncement] = useState("");
+  const wrapRef = useRef<HTMLDivElement>(null);
+  const panelRef = useRef<HTMLDivElement>(null);
+  const buttonRef = useRef<HTMLButtonElement>(null);
+  const pendingFocus = useRef<string | null>(null);
+
+  const total = COLUMNS.length + 1; // + שם
+  const shown = total - layout.hidden.length;
+  const customized = !isDefaultLayout(layout);
+
+  function close() {
+    setOpen(false);
+    buttonRef.current?.focus();
+  }
+
+  // Outside click and Escape close the menu; focus moves into it on open.
+  useEffect(() => {
+    if (!open) return;
+    panelRef.current?.querySelector<HTMLInputElement>("input[type=checkbox]")?.focus();
+    const onPointer = (e: PointerEvent) => {
+      if (!wrapRef.current?.contains(e.target as Node)) setOpen(false);
+    };
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key !== "Escape") return;
+      setOpen(false);
+      buttonRef.current?.focus();
+    };
+    document.addEventListener("pointerdown", onPointer);
+    document.addEventListener("keydown", onKey);
+    return () => {
+      document.removeEventListener("pointerdown", onPointer);
+      document.removeEventListener("keydown", onKey);
+    };
+  }, [open]);
+
+  // Keep the keyboard on the arrow that was pressed after its row moves; when
+  // the row hits the edge that arrow is disabled, so hand focus to its twin.
+  useEffect(() => {
+    const target = pendingFocus.current;
+    if (!target || !panelRef.current) return;
+    pendingFocus.current = null;
+    const [key, dir] = target.split(":");
+    const pick = (d: string) =>
+      panelRef.current!.querySelector<HTMLButtonElement>(`[data-move="${key}:${d}"]`);
+    const btn = pick(dir);
+    (btn && !btn.disabled ? btn : pick(dir === "up" ? "down" : "up"))?.focus();
+  }, [layout.order]);
+
+  useEffect(() => {
+    if (!flash) return;
+    const t = setTimeout(() => setFlash(null), 700);
+    return () => clearTimeout(t);
+  }, [flash]);
+
+  function toggle(key: ColumnKey) {
+    const isHidden = layout.hidden.includes(key);
+    onChange({
+      ...layout,
+      hidden: isHidden ? layout.hidden.filter((k) => k !== key) : [...layout.hidden, key],
+    });
+    setAnnouncement(`${COLUMN_BY_KEY[key].label} ${isHidden ? "מוצגת" : "מוסתרת"}`);
+  }
+
+  function move(key: ColumnKey, dir: -1 | 1) {
+    const order = [...layout.order];
+    const i = order.indexOf(key);
+    const j = i + dir;
+    if (j < 0 || j >= order.length) return;
+    [order[i], order[j]] = [order[j], order[i]];
+    pendingFocus.current = `${key}:${dir < 0 ? "up" : "down"}`;
+    onChange({ ...layout, order });
+    setFlash((f) => ({ key, n: (f?.n ?? 0) + 1 }));
+    setAnnouncement(`${COLUMN_BY_KEY[key].label} במקום ${j + 2} מתוך ${total}`);
+  }
+
+  const arrowClass =
+    "w-11 h-11 sm:w-8 sm:h-8 shrink-0 rounded-lg flex items-center justify-center text-gray-500 transition-colors hover:bg-white hover:text-[#1e3a5f] hover:shadow-sm active:scale-95 disabled:text-gray-200 disabled:hover:bg-transparent disabled:hover:shadow-none disabled:active:scale-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-300 motion-reduce:transition-none motion-reduce:active:scale-100";
+
+  return (
+    <div ref={wrapRef} className="relative">
+      <button
+        ref={buttonRef}
+        onClick={() => (open ? close() : setOpen(true))}
+        aria-expanded={open}
+        aria-haspopup="dialog"
+        aria-controls="attendance-columns-menu"
+        className={`flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-medium border transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-300 ${
+          open
+            ? "bg-[#1e3a5f] text-white border-[#1e3a5f]"
+            : "bg-white text-[#1e3a5f] border-gray-200 hover:bg-gray-50"
+        }`}
+      >
+        <Columns3 size={15} /> עמודות
+        {layout.hidden.length > 0 && (
+          <span
+            className={`text-[11px] leading-none px-1.5 py-1 rounded-md tabular-nums ${
+              open ? "bg-white/15 text-white" : "bg-[#1e3a5f]/10 text-[#1e3a5f]"
+            }`}
+            aria-label={`${shown} מתוך ${total} מוצגות`}
+          >
+            {shown}/{total}
+          </span>
+        )}
+      </button>
+
+      {open && (
+        <>
+          {/* Phone backdrop — the sheet covers the bottom of the screen */}
+          <div className="fixed inset-0 z-40 bg-black/30 sm:hidden" onClick={close} aria-hidden="true" />
+
+          <div
+            ref={panelRef}
+            id="attendance-columns-menu"
+            role="dialog"
+            aria-label="עמודות בטבלה"
+            className="fixed inset-x-0 bottom-0 z-50 bg-white rounded-t-2xl shadow-[0_-8px_30px_rgba(15,23,42,0.12)] pb-[env(safe-area-inset-bottom)] sm:absolute sm:inset-x-auto sm:bottom-auto sm:left-0 sm:top-full sm:mt-2 sm:w-80 sm:rounded-xl sm:border sm:border-gray-200 sm:shadow-lg sm:pb-0"
+          >
+            <div className="mx-auto mt-2 h-1 w-10 rounded-full bg-gray-200 sm:hidden" aria-hidden="true" />
+
+            <div className="flex items-start justify-between gap-3 px-4 pt-3 pb-2">
+              <div>
+                <p className="text-sm font-bold text-gray-800">עמודות בטבלה</p>
+                <p className="text-xs text-gray-500 mt-0.5 leading-relaxed">
+                  מה שמסומן מוצג, בסדר הזה. גם Excel, PDF והדפסה.
+                </p>
+              </div>
+              <button
+                onClick={close}
+                aria-label="סגירה"
+                className="w-11 h-11 sm:w-8 sm:h-8 -mt-1 -ml-2 shrink-0 rounded-lg flex items-center justify-center text-gray-400 hover:bg-gray-100 hover:text-gray-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-300"
+              >
+                <X size={16} />
+              </button>
+            </div>
+
+            <ul className="px-2 pb-2 max-h-[60vh] overflow-y-auto">
+              <li className="flex items-center gap-3 px-2 min-h-11 text-sm">
+                <span className="w-5 h-5 rounded-md bg-gray-100 text-gray-400 flex items-center justify-center" aria-hidden="true">
+                  <Lock size={11} />
+                </span>
+                <span className="flex-1 font-medium text-gray-700">שם</span>
+                <span className="text-xs text-gray-400 pe-2">תמיד ראשונה</span>
+              </li>
+
+              {layout.order.map((key, i) => {
+                const col = COLUMN_BY_KEY[key];
+                const visible = !layout.hidden.includes(key);
+                const glowing = flash?.key === key;
+                return (
+                  <li
+                    key={key}
+                    className={`flex items-center gap-0.5 rounded-lg pe-1 transition-colors duration-300 motion-reduce:transition-none ${
+                      glowing ? "bg-amber-50 ring-1 ring-amber-200" : "hover:bg-gray-50"
+                    }`}
+                  >
+                    <label className="flex flex-1 items-center gap-3 px-2 min-h-11 cursor-pointer select-none">
+                      <input
+                        type="checkbox"
+                        checked={visible}
+                        onChange={() => toggle(key)}
+                        className="peer sr-only"
+                      />
+                      <span
+                        aria-hidden="true"
+                        className={`w-5 h-5 rounded-md border-2 flex items-center justify-center text-[11px] font-bold transition-colors peer-focus-visible:ring-2 peer-focus-visible:ring-blue-300 peer-focus-visible:ring-offset-1 ${
+                          visible
+                            ? "bg-[#1e3a5f] border-[#1e3a5f] text-white"
+                            : "border-gray-300 text-transparent"
+                        }`}
+                      >
+                        ✓
+                      </span>
+                      <span className={`text-sm transition-colors ${visible ? "text-gray-800 font-medium" : "text-gray-400"}`}>
+                        {col.label}
+                      </span>
+                    </label>
+                    <button
+                      type="button"
+                      data-move={`${key}:up`}
+                      onClick={() => move(key, -1)}
+                      disabled={i === 0}
+                      aria-label={`הזזת ${col.label} למעלה`}
+                      className={arrowClass}
+                    >
+                      <ArrowUp size={15} />
+                    </button>
+                    <button
+                      type="button"
+                      data-move={`${key}:down`}
+                      onClick={() => move(key, 1)}
+                      disabled={i === layout.order.length - 1}
+                      aria-label={`הזזת ${col.label} למטה`}
+                      className={arrowClass}
+                    >
+                      <ArrowDown size={15} />
+                    </button>
+                  </li>
+                );
+              })}
+            </ul>
+
+            <div className="flex items-center justify-between gap-3 px-4 py-2.5 border-t border-gray-100 bg-gray-50/60 sm:rounded-b-xl">
+              <button
+                onClick={() => {
+                  onReset();
+                  setAnnouncement("העמודות חזרו לברירת המחדל");
+                }}
+                disabled={!customized}
+                className="flex items-center gap-1.5 -mr-2 px-2 min-h-11 sm:min-h-9 rounded-lg text-sm text-gray-600 hover:text-[#1e3a5f] hover:bg-white disabled:text-gray-300 disabled:hover:bg-transparent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-300"
+              >
+                <RotateCcw size={14} /> איפוס לברירת מחדל
+              </button>
+              <span className="text-xs text-gray-400 tabular-nums">
+                {shown} מתוך {total} מוצגות
+              </span>
+            </div>
+
+            <p className="sr-only" aria-live="polite">{announcement}</p>
+          </div>
+        </>
+      )}
+    </div>
+  );
+}
+
 export default function AttendanceClient({
   exams,
   scores,
@@ -164,6 +574,15 @@ export default function AttendanceClient({
   const [showMissingModal, setShowMissingModal] = useState(false);
 
   const selectedExam = exams.find((e) => e.id === selectedExamId);
+
+  const columnsRaw = useSyncExternalStore(subscribeColumns, readColumns, () => null);
+  const columnLayout = useMemo(() => parseLayout(columnsRaw), [columnsRaw]);
+  const visibleColumns = useMemo(
+    () => columnLayout.order.filter((k) => !columnLayout.hidden.includes(k)).map((k) => COLUMN_BY_KEY[k]),
+    [columnLayout]
+  );
+  const tableColSpan = visibleColumns.length + 1; // + שם
+  const cellHandlers: CellHandlers = { onToggle: handleToggle, onManualPoints: handleManualPoints };
 
   function handleExamChange(examId: string) {
     router.push(`/attendance?exam=${examId}`);
@@ -307,17 +726,12 @@ export default function AttendanceClient({
   // Export Excel
   function downloadExcel() {
     const title = isAll ? "כל הפרשיות" : (selectedExam?.parasha ?? "נוכחות");
-    const headers = ["משפיע", "שם", "הגעה 5 דקות", "השתתף בסדר", "השתתף בשיעור", "סיכום שבועי", "נקודות"];
+    const headers = ["משפיע", "שם", ...visibleColumns.map((c) => c.label)];
     const rows: string[][] = [];
     grouped.forEach(([coordName, records]) => {
       records.forEach((s) => {
         const name = `${s.student?.first_name ?? ""} ${s.student?.last_name ?? ""}`.trim();
-        const points =
-          (s.arrived_on_time ? 1 : 0) +
-          (s.attended_seder ? 1 : 0) +
-          (s.attended_class ? 1 : 0) +
-          (s.weekly_summary ? 1 : 0);
-        rows.push([coordName, name, s.arrived_on_time ? "כן" : "לא", s.attended_seder ? "כן" : "לא", s.attended_class ? "כן" : "לא", s.weekly_summary ? "כן" : "לא", String(points)]);
+        rows.push([coordName, name, ...visibleColumns.map((c) => c.text(s))]);
       });
     });
     const ws = XLSX.utils.aoa_to_sheet([headers, ...rows]);
@@ -364,16 +778,10 @@ export default function AttendanceClient({
       body += `<div class="subtitle">סה"כ ${filteredScores.length} בחורים | ${grouped.length} משפיעים | ${progressStats.participated} השתתפו בסדר (${progressStats.pct}%)</div>`;
       grouped.forEach(([coordName, records]) => {
         body += `<h2>${coordName} — ${records.length} בחורים</h2>
-        <table><thead><tr><th>שם</th><th>הגעה 5 דקות</th><th>השתתף בסדר</th><th>השתתף בשיעור</th><th>סיכום שבועי</th><th>נקודות</th></tr></thead><tbody>`;
+        <table><thead><tr><th>שם</th>${visibleColumns.map((c) => `<th>${c.label}</th>`).join("")}</tr></thead><tbody>`;
         records.forEach((s) => {
           const name = `${s.student?.first_name ?? ""} ${s.student?.last_name ?? ""}`.trim();
-          const pts =
-            (s.arrived_on_time ? 1 : 0) +
-            (s.attended_seder ? 1 : 0) +
-            (s.attended_class ? 1 : 0) +
-            (s.weekly_summary ? 1 : 0);
-          const c = (v: boolean) => `<span class="${v ? "yes" : "no"}">${v ? "✓" : "✗"}</span>`;
-          body += `<tr><td class="name">${name}</td><td>${c(s.arrived_on_time)}</td><td>${c(s.attended_seder)}</td><td>${c(s.attended_class)}</td><td>${c(s.weekly_summary)}</td><td class="pts">${pts}</td></tr>`;
+          body += `<tr><td class="name">${name}</td>${visibleColumns.map((c) => c.html(s)).join("")}</tr>`;
         });
         body += `</tbody></table>`;
       });
@@ -471,7 +879,14 @@ export default function AttendanceClient({
           רק 0 נקודות
         </button>
 
-        <div className="flex gap-2 self-end mr-auto">
+        <div className="flex flex-wrap gap-2 self-end mr-auto">
+          {!isAll && (
+            <ColumnsMenu
+              layout={columnLayout}
+              onChange={(next) => writeColumns(JSON.stringify(next))}
+              onReset={() => writeColumns(null)}
+            />
+          )}
           <button
             onClick={downloadExcel}
             className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-medium bg-green-50 text-green-700 border border-green-200 hover:bg-green-100 transition-colors"
@@ -632,18 +1047,20 @@ export default function AttendanceClient({
             <thead className="bg-gray-50 border-b border-gray-200">
               <tr>
                 <th className="text-right px-5 py-3.5 font-semibold text-gray-600">שם</th>
-                <th className="text-center px-4 py-3.5 font-semibold text-gray-600 whitespace-nowrap">הגעה 5 דקות</th>
-                <th className="text-center px-4 py-3.5 font-semibold text-gray-600 whitespace-nowrap">השתתף בסדר</th>
-                <th className="text-center px-4 py-3.5 font-semibold text-gray-600 whitespace-nowrap">השתתף בשיעור</th>
-                <th className="text-center px-4 py-3.5 font-semibold text-gray-600 whitespace-nowrap">סיכום שבועי</th>
-                <th className="text-center px-4 py-3.5 font-semibold text-gray-600">נקודות</th>
-                <th className="text-center px-4 py-3.5 font-semibold text-orange-600 whitespace-nowrap">נקודות ידני</th>
+                {visibleColumns.map((col) => (
+                  <th
+                    key={col.key}
+                    className={`text-center px-4 py-3.5 font-semibold whitespace-nowrap ${col.headerClass ?? "text-gray-600"}`}
+                  >
+                    {col.label}
+                  </th>
+                ))}
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-100">
               {filteredScores.length === 0 ? (
                 <tr>
-                  <td colSpan={7} className="px-6 py-16 text-center text-gray-400">
+                  <td colSpan={tableColSpan} className="px-6 py-16 text-center text-gray-400">
                     אין רשומות להצגה
                   </td>
                 </tr>
@@ -652,7 +1069,7 @@ export default function AttendanceClient({
                   <Fragment key={`header-${coordName}`}>
                     {/* Coordinator group header */}
                     <tr className="bg-blue-50 border-y border-blue-100">
-                      <td colSpan={7} className="px-5 py-2 text-sm font-semibold text-[#1e3a5f]">
+                      <td colSpan={tableColSpan} className="px-5 py-2 text-sm font-semibold text-[#1e3a5f]">
                         {coordName}
                         <span className="font-normal text-gray-500 mr-2">({records.length} בחורים)</span>
                       </td>
@@ -663,11 +1080,6 @@ export default function AttendanceClient({
                       const rate = students[score.student_id]?.attendance_rate ?? 0;
                       const nameBg = getAttendanceBg(rate);
                       const name = `${score.student?.first_name ?? ""} ${score.student?.last_name ?? ""}`.trim();
-                      const points =
-                        (score.arrived_on_time ? 1 : 0) +
-                        (score.attended_seder ? 1 : 0) +
-                        (score.attended_class ? 1 : 0) +
-                        (score.weekly_summary ? 1 : 0);
 
                       return (
                         <tr
@@ -682,31 +1094,11 @@ export default function AttendanceClient({
                               {name || "—"}
                             </span>
                           </td>
-                          <td className="px-4 py-3 text-center">
-                            <CheckboxCell scoreId={score.id} field="arrived_on_time" value={score.arrived_on_time} onToggle={handleToggle} />
-                          </td>
-                          <td className="px-4 py-3 text-center">
-                            <CheckboxCell scoreId={score.id} field="attended_seder" value={score.attended_seder} onToggle={handleToggle} />
-                          </td>
-                          <td className="px-4 py-3 text-center">
-                            <CheckboxCell scoreId={score.id} field="attended_class" value={score.attended_class} onToggle={handleToggle} />
-                          </td>
-                          <td className="px-4 py-3 text-center">
-                            <CheckboxCell scoreId={score.id} field="weekly_summary" value={score.weekly_summary} onToggle={handleToggle} />
-                          </td>
-                          <td className="px-4 py-3 text-center">
-                            <span className={`inline-flex items-center justify-center w-8 h-8 rounded-full text-sm font-bold ${
-                              points === 4 ? "bg-green-100 text-green-700" :
-                              points >= 2 ? "bg-yellow-50 text-yellow-700" :
-                              points === 0 ? "bg-red-50 text-red-500" :
-                              "bg-gray-100 text-gray-600"
-                            }`}>
-                              {points}
-                            </span>
-                          </td>
-                          <td className="px-4 py-3 text-center">
-                            <ManualPointsCell scoreId={score.id} value={score.manual_points} onSave={handleManualPoints} />
-                          </td>
+                          {visibleColumns.map((col) => (
+                            <td key={col.key} className="px-4 py-3 text-center">
+                              {col.cell(score, cellHandlers)}
+                            </td>
+                          ))}
                         </tr>
                       );
                     })}
