@@ -11,7 +11,11 @@ import {
   Fragment,
   type ReactNode,
 } from "react";
-import { updateScoreBoolean, updateScoreNumber } from "./actions";
+import { createScoreWithValue, updateScoreBoolean, updateScoreNumber } from "./actions";
+
+// A bochur with no score row yet for this parasha: shown with this id until
+// his first mark creates the row.
+const NEW_SCORE_PREFIX = "new:";
 import {
   AlertTriangle,
   Download,
@@ -591,6 +595,10 @@ export default function AttendanceClient({
   function handleToggle(scoreId: string, field: BoolField, value: boolean) {
     applyEdit(scoreId, { [field]: value } as Partial<Score>);
     startTransition(async () => {
+      if (scoreId.startsWith(NEW_SCORE_PREFIX) && selectedExamId) {
+        await createScoreWithValue(scoreId.slice(NEW_SCORE_PREFIX.length), selectedExamId, field, value);
+        return;
+      }
       await updateScoreBoolean(scoreId, field, value, selectedExamId);
     });
   }
@@ -598,6 +606,10 @@ export default function AttendanceClient({
   function handleManualPoints(scoreId: string, value: number | null) {
     applyEdit(scoreId, { manual_points: value });
     startTransition(async () => {
+      if (scoreId.startsWith(NEW_SCORE_PREFIX) && selectedExamId) {
+        await createScoreWithValue(scoreId.slice(NEW_SCORE_PREFIX.length), selectedExamId, "manual_points", value);
+        return;
+      }
       await updateScoreNumber(scoreId, "manual_points", value, selectedExamId);
     });
   }

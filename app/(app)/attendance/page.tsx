@@ -4,6 +4,7 @@ import { ClipboardList } from "lucide-react";
 import { TableSkeleton } from "@/components/Skeletons";
 import {
   getExams,
+  getStudents,
   getScoresByExam,
   getScoresByExamForCoordinator,
   getScoresWithRelations,
@@ -61,9 +62,33 @@ async function AttendanceContent({
         : await getScoresByExam(selectedExamId)
       : [];
 
+  // Bochurim added after this parasha was created have no score row yet. Show
+  // them anyway, under a placeholder id ("new:" — see AttendanceClient) that
+  // turns into a real row on the first mark.
+  const placeholders =
+    !isAll && selectedExamId
+      ? (await getStudents({ coordinator: loggedIn ?? undefined }))
+          .filter((st) => !scores.some((s) => s.student_id === st.id))
+          .map((st) => ({
+            id: `new:${st.id}`,
+            student_id: st.id,
+            exam_id: selectedExamId,
+            student: st,
+            arrived_on_time: false,
+            attended_seder: false,
+            attended_class: false,
+            weekly_summary: false,
+            paid: false,
+            chassidut_score: null,
+            halacha_score: null,
+            tefila_score: null,
+            manual_points: null,
+          }))
+      : [];
+
   // Flat rows + one entry per bochur, instead of the bochur repeated inside
   // every score.
-  const rows = scores.map((s) => ({
+  const rows = [...scores, ...placeholders].map((s) => ({
     id: s.id,
     student_id: s.student_id,
     exam_id: s.exam_id,
@@ -88,7 +113,7 @@ async function AttendanceContent({
     coordinator: { id: string; name: string } | null;
     attendance_rate: number | null;
   }> = {};
-  for (const score of scores) {
+  for (const score of [...scores, ...placeholders]) {
     const student = score.student;
     if (!student || students[student.id]) continue;
     students[student.id] = {
