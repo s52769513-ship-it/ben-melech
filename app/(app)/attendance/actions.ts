@@ -1,7 +1,7 @@
 "use server";
 
 import { refresh, revalidateTag, updateTag } from "next/cache";
-import { createScore, updateScore, scoreExamTag } from "@/lib/airtable/db";
+import { createMissingScores, createScore, updateScore, scoreExamTag } from "@/lib/airtable/db";
 
 type BooleanField = "arrived_on_time" | "attended_seder" | "attended_class" | "weekly_summary";
 
@@ -43,4 +43,11 @@ export async function updateScoreNumber(
 ) {
   await updateScore(scoreId, { [field]: value });
   afterScoreWrite(examId);
+}
+
+// Creates the missing score rows for a parasha; returns how many were added.
+export async function createMissingScoresAction(examId: string): Promise<number> {
+  const count = await createMissingScores(examId);
+  if (count > 0) afterScoreWrite(examId);
+  return count;
 }

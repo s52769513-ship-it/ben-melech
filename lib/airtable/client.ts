@@ -97,6 +97,21 @@ export async function createRecord(
   })) as AirtableRecord;
 }
 
+export async function createRecords(
+  tableId: string,
+  records: Record<string, unknown>[]
+): Promise<void> {
+  for (let i = 0; i < records.length; i += 10) {
+    await request(tableId, {
+      method: "POST",
+      body: JSON.stringify({
+        records: records.slice(i, i + 10).map((fields) => ({ fields })),
+        typecast: true,
+      }),
+    });
+  }
+}
+
 // Resolves the table a linked-record field points at (and its primary field
 // name) through Airtable's schema API, so we needn't hard-code the table id.
 export async function getLinkedTable(
