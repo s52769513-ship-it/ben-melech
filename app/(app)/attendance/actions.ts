@@ -1,7 +1,7 @@
 "use server";
 
 import { refresh, revalidateTag, updateTag } from "next/cache";
-import { updateScore, scoreExamTag } from "@/lib/airtable/db";
+import { createScore, updateScore, scoreExamTag } from "@/lib/airtable/db";
 
 type BooleanField = "arrived_on_time" | "attended_seder" | "attended_class" | "weekly_summary";
 
@@ -12,6 +12,17 @@ function afterScoreWrite(examId: string | null) {
   if (examId && examId !== "all") updateTag(scoreExamTag(examId));
   revalidateTag("scores", "max");
   refresh();
+}
+
+export async function createScoreWithValue(
+  studentId: string,
+  examId: string,
+  field: BooleanField | "manual_points",
+  value: boolean | number | null
+) {
+  await createScore(studentId, examId, { [field]: value });
+  updateTag("students");
+  afterScoreWrite(examId);
 }
 
 export async function updateScoreBoolean(

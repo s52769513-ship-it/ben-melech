@@ -712,6 +712,21 @@ export async function updateScore(
   await patchRecord(TABLES.SCORES, id, fields);
 }
 
+// A bochur added after the parasha was created has no score row for it yet —
+// make one the first time his attendance is marked.
+export async function createScore(
+  studentId: string,
+  examId: string,
+  data: Record<string, unknown>
+): Promise<string> {
+  const record = await createRecord(TABLES.SCORES, {
+    "בחור": [studentId],
+    "מבחן": [examId],
+  });
+  await updateScore(record.id, data);
+  return record.id;
+}
+
 // ─── Inquiries ───────────────────────────────────────────────────────────────
 
 async function inquiriesWithRelations(): Promise<Inquiry[]> {
