@@ -21,6 +21,17 @@ import {
 // A bochur with no score row yet for this parasha: shown with this id until
 // his first mark creates the row.
 const NEW_SCORE_PREFIX = "new:";
+
+// "א, ב וג" — up to five names, then "ועוד N".
+function joinNames(names: string[]): string {
+  if (names.length > 5) return `${names.slice(0, 4).join(", ")} ועוד ${names.length - 4}`;
+  if (names.length === 1) return names[0];
+  return `${names.slice(0, -1).join(", ")} ו${names[names.length - 1]}`;
+}
+
+function createdText(n: number): string {
+  return n === 0 ? "אין רשומות חסרות" : n === 1 ? "נוצרה רשומה אחת" : `נוצרו ${n} רשומות`;
+}
 import {
   AlertTriangle,
   Download,
@@ -34,7 +45,7 @@ import {
   RotateCcw,
   ArrowUp,
   ArrowDown,
-  ListPlus,
+  UserPlus,
   Check,
 } from "lucide-react";
 import { useSettings } from "@/lib/settings-context";
@@ -584,9 +595,12 @@ export default function AttendanceClient({
   const [showZeroOnly, setShowZeroOnly] = useState(false);
   const [showMissingModal, setShowMissingModal] = useState(false);
   const [creatingMissing, startCreatingMissing] = useTransition();
+  const [rechecking, startRechecking] = useTransition();
   const [missingResult, setMissingResult] = useState<
-    { examId: string; kind: "ok" | "error"; text: string } | null
+    { examId: string; kind: "ok"; n: number } | { examId: string; kind: "error" } | null
   >(null);
+  const [recheckText, setRecheckText] = useState<string | null>(null);
+  const [flashStudents, setFlashStudents] = useState<Set<string>>(() => new Set());
 
   const selectedExam = exams.find((e) => e.id === selectedExamId);
 
@@ -603,27 +617,51 @@ export default function AttendanceClient({
     router.push(`/attendance?exam=${examId}`);
   }
 
-  // Result message fades after a few seconds; switching parasha drops it.
+  // Success strip folds away after a few seconds; an error stays until retried.
   useEffect(() => {
-    if (!missingResult) return;
-    const t = setTimeout(() => setMissingResult(null), 6000);
+    if (missingResult?.kind !== "ok") return;
+    const t = setTimeout(() => setMissingResult(null), 5000);
     return () => clearTimeout(t);
   }, [missingResult]);
+
+  useEffect(() => {
+    if (!recheckText) return;
+    const t = setTimeout(() => setRecheckText(null), 3000);
+    return () => clearTimeout(t);
+  }, [recheckText]);
+
+  useEffect(() => {
+    if (flashStudents.size === 0) return;
+    const t = setTimeout(() => setFlashStudents(new Set()), 2200);
+    return () => clearTimeout(t);
+  }, [flashStudents]);
 
   function handleCreateMissing() {
     const examId = selectedExamId;
     if (!examId || examId === "all") return;
+    const newIds = new Set(missingRows.map((s) => s.student_id));
     setMissingResult(null);
     startCreatingMissing(async () => {
       try {
         const n = await createMissingScoresAction(examId);
-        setMissingResult({
-          examId,
-          kind: "ok",
-          text: n === 0 ? "אין רשומות חסרות" : n === 1 ? "נוצרה רשומה אחת" : `נוצרו ${n} רשומות`,
-        });
+        setMissingResult({ examId, kind: "ok", n });
+        if (n > 0) setFlashStudents(newIds);
       } catch {
-        setMissingResult({ examId, kind: "error", text: "היצירה נכשלה, נסו שוב" });
+        setMissingResult({ examId, kind: "error" });
+      }
+    });
+  }
+
+  // Server-side check: may find bochurim this user can't see.
+  function handleRecheck() {
+    const examId = selectedExamId;
+    if (!examId || examId === "all") return;
+    setRecheckText(null);
+    startRechecking(async () => {
+      try {
+        setRecheckText(createdText(await createMissingScoresAction(examId)));
+      } catch {
+        setRecheckText("הבדיקה נכשלה");
       }
     });
   }
@@ -656,6 +694,14 @@ export default function AttendanceClient({
       isStudentVisible({ coordinator_id: s.student?.coordinator_id, group_id: s.student?.group_id })
     );
   }, [optimisticScores, isStudentVisible, settings.hiddenCoordinators, settings.hiddenGroups]);
+
+  // Bochurim added after the parasha's rows were created — still placeholders
+  const missingRows = useMemo(
+    () => (isAll ? [] : visibleScores.filter((s) => s.id.startsWith(NEW_SCORE_PREFIX))),
+    [visibleScores, isAll]
+  );
+  const result = missingResult?.examId === selectedExamId ? missingResult : null;
+  const showStrip = !isAll && !!selectedExam && (missingRows.length > 0 || result !== null || creatingMissing);
 
   // Unique coordinators and cities for filters — only from visible students
   const coordinators = useMemo(() => {
@@ -876,36 +922,6 @@ export default function AttendanceClient({
           </select>
         </div>
 
-        {/* Create missing score rows for the selected parasha */}
-        {selectedExamId && !isAll && (
-          <div className="flex flex-wrap items-center gap-2 self-end max-sm:w-full">
-            <button
-              type="button"
-              onClick={handleCreateMissing}
-              disabled={creatingMissing}
-              aria-busy={creatingMissing}
-              className="flex items-center justify-center gap-1.5 min-h-[38px] px-3 py-2 rounded-lg text-sm font-medium border border-[#1e3a5f]/25 text-[#1e3a5f] bg-white hover:bg-[#1e3a5f]/5 active:bg-[#1e3a5f]/10 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-300 disabled:opacity-60 disabled:cursor-wait max-sm:w-full"
-            >
-              <ListPlus size={15} className={creatingMissing ? "motion-safe:animate-pulse" : undefined} />
-              {creatingMissing ? "יוצר…" : "צור רשומות חסרות"}
-            </button>
-            <span role="status" aria-live="polite" className="text-sm">
-              {missingResult && missingResult.examId === selectedExamId && !creatingMissing && (
-                <span
-                  className={`inline-flex items-center gap-1 rounded-md px-2 py-1 motion-safe:animate-[fade-in_200ms_ease-out] ${
-                    missingResult.kind === "ok"
-                      ? "bg-green-50 text-green-800"
-                      : "bg-red-50 text-red-700"
-                  }`}
-                >
-                  {missingResult.kind === "ok" ? <Check size={14} /> : <AlertTriangle size={14} />}
-                  {missingResult.text}
-                </span>
-              )}
-            </span>
-          </div>
-        )}
-
         {/* Coordinator filter */}
         <div className="flex flex-col gap-1">
           <label className="text-xs font-medium text-gray-500 flex items-center gap-1">
@@ -1007,6 +1023,16 @@ export default function AttendanceClient({
               <AlertTriangle size={14} />
               {missingCoordinators.length} משפיעים ללא נתונים
             </button>
+            {!showStrip && (
+              <button
+                type="button"
+                onClick={handleRecheck}
+                disabled={rechecking}
+                className="min-h-8 text-[12.5px] text-gray-500 underline underline-offset-[3px] hover:text-gray-700 rounded focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-300 disabled:cursor-progress"
+              >
+                {rechecking ? "בודק…" : recheckText ?? "בדוק רשומות חסרות"}
+              </button>
+            )}
           </div>
 
           {/* Progress bar */}
@@ -1026,6 +1052,77 @@ export default function AttendanceClient({
           </div>
         </div>
       )}
+
+      {/* Reminder strip — bochurim with no score row in this parasha */}
+      {showStrip && selectedExam && (
+        <div
+          className={`bg-white border border-gray-200 border-s-[3px] rounded-[10px] px-4 py-3 mb-3 flex flex-wrap items-center gap-3.5 ${
+            result?.kind === "ok" ? "border-s-green-500" : result?.kind === "error" ? "border-s-red-500" : "border-s-[#1e3a5f]"
+          }`}
+        >
+          <div className="flex-1 min-w-[220px] leading-normal">
+            {result?.kind === "ok" ? (
+              <>
+                <b className="flex items-center gap-1.5 font-bold text-green-700">
+                  <Check size={15} strokeWidth={2.4} /> {createdText(result.n)}
+                </b>
+                <small className="block text-[12.5px] text-gray-500">
+                  {result.n > 0 ? "הבחורים החדשים מסומנים עכשיו בטבלה." : "לכל הבחורים כבר יש רשומה בפרשה."}
+                </small>
+              </>
+            ) : result?.kind === "error" ? (
+              <>
+                <b className="font-bold text-red-700">היצירה נכשלה</b>
+                <small className="block text-[12.5px] text-gray-500">שום רשומה לא נמחקה. אפשר לנסות שוב.</small>
+              </>
+            ) : (
+              <>
+                <b className="font-bold text-[#1e3a5f]">
+                  {missingRows.length === 1
+                    ? "בחור אחד נוסף אחרי שהפרשה נפתחה"
+                    : `${missingRows.length} בחורים נוספו אחרי שהפרשה נפתחה`}
+                </b>
+                <small className="block text-[12.5px] text-gray-500">
+                  {joinNames(
+                    missingRows.map(
+                      (s) => `${s.student?.first_name ?? ""} ${s.student?.last_name ?? ""}`.trim() || "—"
+                    )
+                  )}
+                  . עדיין אין {missingRows.length === 1 ? "לו" : "להם"} רשומה ב{selectedExam.parasha}.
+                </small>
+              </>
+            )}
+          </div>
+          {result?.kind !== "ok" && (
+            <button
+              type="button"
+              onClick={handleCreateMissing}
+              disabled={creatingMissing}
+              aria-busy={creatingMissing}
+              className="inline-flex items-center gap-1.5 min-h-[38px] px-3 rounded-lg text-sm font-semibold bg-[#1e3a5f] text-white border border-[#1e3a5f] hover:bg-[#1b3354] active:translate-y-px transition-[background-color,transform] duration-150 focus:outline-none focus-visible:ring-[3px] focus-visible:ring-blue-300 disabled:opacity-80 disabled:cursor-progress max-sm:basis-full max-sm:justify-center max-sm:min-h-11"
+            >
+              {creatingMissing ? (
+                <>
+                  <span
+                    aria-hidden
+                    className="size-3.5 rounded-full border-2 border-current border-e-transparent motion-safe:animate-spin"
+                  />
+                  יוצר…
+                </>
+              ) : result?.kind === "error" ? (
+                "לנסות שוב"
+              ) : (
+                <>
+                  <UserPlus size={15} /> צור רשומות חסרות
+                </>
+              )}
+            </button>
+          )}
+        </div>
+      )}
+      <p role="status" aria-live="polite" className="sr-only">
+        {result?.kind === "ok" ? createdText(result.n) : result?.kind === "error" ? "היצירה נכשלה" : ""}
+      </p>
 
       {/* Missing coordinators modal */}
       {showMissingModal && (
@@ -1162,9 +1259,17 @@ export default function AttendanceClient({
                       return (
                         <tr
                           key={score.id}
-                          className={`hover:bg-gray-50 transition-colors ${idx % 2 === 1 ? "bg-gray-50/50" : ""}`}
+                          className={`transition-colors duration-500 ${
+                            flashStudents.has(score.student_id)
+                              ? "bg-yellow-100"
+                              : `hover:bg-gray-50 ${idx % 2 === 1 ? "bg-gray-50/50" : ""}`
+                          }`}
                         >
-                          <td className="px-5 py-3">
+                          <td
+                            className={`px-5 py-3 ${
+                              flashStudents.has(score.student_id) ? "shadow-[inset_-3px_0_0_#eab308]" : ""
+                            }`}
+                          >
                             <span
                               className={`inline-block px-2 py-0.5 rounded-md text-xs font-medium ${nameBg}`}
                               title={`נוכחות כללית: ${rate}%`}
