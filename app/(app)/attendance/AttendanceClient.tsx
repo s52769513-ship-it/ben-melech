@@ -11,7 +11,12 @@ import {
   Fragment,
   type ReactNode,
 } from "react";
-import { createScoreWithValue, updateScoreBoolean, updateScoreNumber } from "./actions";
+import {
+  createMissingScoresAction,
+  createScoreWithValue,
+  updateScoreBoolean,
+  updateScoreNumber,
+} from "./actions";
 
 // A bochur with no score row yet for this parasha: shown with this id until
 // his first mark creates the row.
@@ -29,6 +34,8 @@ import {
   RotateCcw,
   ArrowUp,
   ArrowDown,
+  ListPlus,
+  Check,
 } from "lucide-react";
 import { useSettings } from "@/lib/settings-context";
 import { usePendingEdits } from "@/lib/use-pending-edits";
@@ -576,6 +583,10 @@ export default function AttendanceClient({
   const [nameSearch, setNameSearch] = useState("");
   const [showZeroOnly, setShowZeroOnly] = useState(false);
   const [showMissingModal, setShowMissingModal] = useState(false);
+  const [creatingMissing, startCreatingMissing] = useTransition();
+  const [missingResult, setMissingResult] = useState<
+    { examId: string; kind: "ok" | "error"; text: string } | null
+  >(null);
 
   const selectedExam = exams.find((e) => e.id === selectedExamId);
 
@@ -590,6 +601,31 @@ export default function AttendanceClient({
 
   function handleExamChange(examId: string) {
     router.push(`/attendance?exam=${examId}`);
+  }
+
+  // Result message fades after a few seconds; switching parasha drops it.
+  useEffect(() => {
+    if (!missingResult) return;
+    const t = setTimeout(() => setMissingResult(null), 6000);
+    return () => clearTimeout(t);
+  }, [missingResult]);
+
+  function handleCreateMissing() {
+    const examId = selectedExamId;
+    if (!examId || examId === "all") return;
+    setMissingResult(null);
+    startCreatingMissing(async () => {
+      try {
+        const n = await createMissingScoresAction(examId);
+        setMissingResult({
+          examId,
+          kind: "ok",
+          text: n === 0 ? "אין רשומות חסרות" : n === 1 ? "נוצרה רשומה אחת" : `נוצרו ${n} רשומות`,
+        });
+      } catch {
+        setMissingResult({ examId, kind: "error", text: "היצירה נכשלה, נסו שוב" });
+      }
+    });
   }
 
   function handleToggle(scoreId: string, field: BoolField, value: boolean) {
@@ -839,6 +875,36 @@ export default function AttendanceClient({
             ))}
           </select>
         </div>
+
+        {/* Create missing score rows for the selected parasha */}
+        {selectedExamId && !isAll && (
+          <div className="flex flex-wrap items-center gap-2 self-end max-sm:w-full">
+            <button
+              type="button"
+              onClick={handleCreateMissing}
+              disabled={creatingMissing}
+              aria-busy={creatingMissing}
+              className="flex items-center justify-center gap-1.5 min-h-[38px] px-3 py-2 rounded-lg text-sm font-medium border border-[#1e3a5f]/25 text-[#1e3a5f] bg-white hover:bg-[#1e3a5f]/5 active:bg-[#1e3a5f]/10 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-300 disabled:opacity-60 disabled:cursor-wait max-sm:w-full"
+            >
+              <ListPlus size={15} className={creatingMissing ? "motion-safe:animate-pulse" : undefined} />
+              {creatingMissing ? "יוצר…" : "צור רשומות חסרות"}
+            </button>
+            <span role="status" aria-live="polite" className="text-sm">
+              {missingResult && missingResult.examId === selectedExamId && !creatingMissing && (
+                <span
+                  className={`inline-flex items-center gap-1 rounded-md px-2 py-1 motion-safe:animate-[fade-in_200ms_ease-out] ${
+                    missingResult.kind === "ok"
+                      ? "bg-green-50 text-green-800"
+                      : "bg-red-50 text-red-700"
+                  }`}
+                >
+                  {missingResult.kind === "ok" ? <Check size={14} /> : <AlertTriangle size={14} />}
+                  {missingResult.text}
+                </span>
+              )}
+            </span>
+          </div>
+        )}
 
         {/* Coordinator filter */}
         <div className="flex flex-col gap-1">
