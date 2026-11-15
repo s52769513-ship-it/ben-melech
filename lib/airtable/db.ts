@@ -5,6 +5,7 @@ import {
   patchRecord,
   patchRecords,
   createRecord,
+  createRecords,
   TABLES,
   linkedId,
   getLinkedTable,
@@ -725,6 +726,20 @@ export async function createScore(
   });
   await updateScore(record.id, data);
   return record.id;
+}
+
+// What the weekly automation does, on demand: a score row for every bochur who
+// has none in this parasha (added after the rows were generated). Returns how
+// many were created.
+export async function createMissingScores(examId: string): Promise<number> {
+  const [scores, students] = await Promise.all([scoresForExam(examId), studentList()]);
+  const have = new Set(scores.map((s) => s.student_id));
+  const missing = students.filter((st) => !have.has(st.id));
+  await createRecords(
+    TABLES.SCORES,
+    missing.map((st) => ({ "בחור": [st.id], "מבחן": [examId] }))
+  );
+  return missing.length;
 }
 
 // ─── Inquiries ───────────────────────────────────────────────────────────────
